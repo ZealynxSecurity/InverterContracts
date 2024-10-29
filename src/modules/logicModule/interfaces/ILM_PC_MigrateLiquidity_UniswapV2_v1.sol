@@ -34,9 +34,6 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     /// @notice Thrown when threshold has not been reached
     error Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
 
-    /// @notice Thrown when DEX addresses are invalid
-    error Module__LM_PC_MigrateLiquidity__InvalidDEXAddresses();
-
     //--------------------------------------------------------------------------
     // Events
 
@@ -57,12 +54,6 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     /// @notice Gets the executed flag
     /// @return bool Whether the migration has been executed
     function getExecuted() external view returns (bool);
-
-    /// @notice Configures a new liquidity migration
-    /// @param  migration The liquidity migration configuration
-    function configureMigration(LiquidityMigrationConfig calldata migration)
-        external
-        returns (bool);
 
     /// @notice Executes the configured migration when threshold is reached
     function executeMigration() external;

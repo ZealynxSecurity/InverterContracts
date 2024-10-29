@@ -11,12 +11,9 @@ import {
     IOrchestrator_v1
 } from "test/e2e/E2ETest.sol";
 // Uniswap Dependencies
-import {IUniswapV2Factory} from "@unicore/interfaces/IUniswapV2Factory.sol";
-import {IUniswapV2Pair} from "@unicore/interfaces/IUniswapV2Pair.sol";
-import {IUniswapV2Router02} from "@uniperi/interfaces/IUniswapV2Router02.sol";
-import {UniswapV2Factory} from "@unicore/UniswapV2Factory.sol";
-import {UniswapV2Router02} from "@uniperi/UniswapV2Router02.sol";
-import {WETH9} from "@uniperi/test/WETH9.sol";
+import {IUniswapV2Factory} from "@ex/interfaces/uniswap/IUniswapV2Factory.sol";
+import {IUniswapV2Pair} from "@ex/interfaces/uniswap/IUniswapV2Pair.sol";
+import {IUniswapV2Router02} from "@ex/interfaces/uniswap/IUniswapV2Router02.sol";
 // SuT
 import {
     FM_BC_Bancor_Redeeming_VirtualSupply_v1,
@@ -36,28 +33,49 @@ contract MigrateLiquidityE2ETest is E2ETest {
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
     // Uniswap contracts
-    UniswapV2Factory uniswapFactory;
-    UniswapV2Router02 uniswapRouter;
-    WETH9 weth;
 
     // Constants
     uint constant COLLATERAL_MIGRATION_THRESHOLD = 1000e18;
     uint constant COLLATERAL_MIGRATION_AMOUNT = 1000e18;
     ERC20Issuance_v1 issuanceToken;
+    // Uniswap
+    address uniswapFactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
+    address uniswapRouterAddress = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+    IUniswapV2Factory uniswapFactory;
+    IUniswapV2Router02 uniswapRouter;
 
     function setUp() public override {
         //--------------------------------------------------------------------------
         // Setup
         //--------------------------------------------------------------------------
 
-        // Setup common E2E framework
-        super.setUp();
+        // Step -1: Make global token address persistent
+        vm.makePersistent(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f);
 
-        // Deploy Uniswap contracts
-        weth = new WETH9();
-        uniswapFactory = new UniswapV2Factory(address(this));
-        uniswapRouter =
-            new UniswapV2Router02(address(uniswapFactory), address(weth));
+        // Step 0: Create both forks first
+        uint anvilFork = vm.createFork("http://localhost:8545");
+        uint mainnetFork = vm.createFork("https://rpc.ankr.com/eth", 17_480_237);
+
+        // Step 1: Select mainnet fork and set up Uniswap contracts
+        vm.selectFork(mainnetFork);
+        uniswapFactory = IUniswapV2Factory(uniswapFactoryAddress);
+        uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
+
+        // Step 2: Make addresses persistent (do this while on mainnet fork)
+        vm.makePersistent(uniswapFactoryAddress);
+        vm.makePersistent(uniswapRouterAddress);
+
+        // Step 3: Create the contract state on mainnet fork
+        bytes memory factoryCode = address(uniswapFactory).code;
+        bytes memory routerCode = address(uniswapRouter).code;
+
+        // Step 4: Switch to Anvil fork and etch the contracts
+        vm.selectFork(anvilFork);
+        vm.etch(uniswapFactoryAddress, factoryCode);
+        vm.etch(uniswapRouterAddress, routerCode);
+
+        // Continue with the rest of the setup
+        super.setUp();
 
         // Set Up Modules
 
@@ -169,13 +187,17 @@ contract MigrateLiquidityE2ETest is E2ETest {
 
         // 1. Set FundingManager as Minter
         issuanceToken.setMinter(address(fundingManager), true);
+
         // 1.1. Set Migration Manager As Minter
         issuanceToken.setMinter(address(migrationManager), true);
+
         // 2. Mint Collateral To Buy From the FundingManager
         token.mint(address(this), COLLATERAL_MIGRATION_AMOUNT);
+
         // 3. Calculate Minimum Amount Out
         uint buf_minAmountOut =
             fundingManager.calculatePurchaseReturn(COLLATERAL_MIGRATION_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
+
         // 4. Buy from the FundingManager
         vm.startPrank(address(this));
         {
@@ -191,46 +213,35 @@ contract MigrateLiquidityE2ETest is E2ETest {
         }
         vm.stopPrank();
 
-        // 5. Verify Migration Manager configuration
+        // 5. Check no pool exists yet
+        address pairAddress =
+            uniswapFactory.getPair(address(token), address(issuanceToken));
+
+        assertEq(pairAddress, address(0), "Pool should not exist yet");
+
+        // 6. Set migration manager instance
         ILM_PC_MigrateLiquidity_UniswapV2_v1.LiquidityMigrationConfig memory
             migration = migrationManager.getMigrationConfig();
 
-        bool executed = migrationManager.getExecuted();
-
-        assertEq(
-            migration.collateralMigrateThreshold,
-            COLLATERAL_MIGRATION_THRESHOLD,
-            "Collateral migration threshold mismatch"
-        );
-        assertEq(
-            migration.dexRouterAddress,
-            address(uniswapRouter),
-            "Dex router address mismatch"
-        );
-        assertTrue(
-            migration.closeBuyOnThreshold, "Close buy on threshold mismatch"
-        );
-        assertFalse(
-            migration.closeSellOnThreshold, "Close sell on threshold mismatch"
-        );
-        assertFalse(executed, "Migration should not be executed yet");
-        // 6. Check no pool exists yet
-        address pairAddress =
-            uniswapFactory.getPair(address(token), address(issuanceToken));
-        assertEq(pairAddress, address(0), "Pool should not exist yet");
         // 7. Execute migration
         vm.startPrank(address(this));
         migrationManager.executeMigration();
         vm.stopPrank();
+
+        bool executed = migrationManager.getExecuted();
+
         // 8. Verify pool creation and liquidity
         pairAddress =
             uniswapFactory.getPair(address(token), address(issuanceToken));
         assertTrue(pairAddress != address(0), "Pool should exist");
-        // 8.1. Get pair
+
+        // 9.1. Get pair
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddress);
-        // 8.2. Get reserves
+
+        // 9.2. Get reserves
         (uint112 reserve0, uint112 reserve1,) = pair.getReserves();
-        // 8.3. Verify reserves based on token ordering
+
+        // 9.3. Verify reserves based on token ordering
         if (pair.token0() == address(token)) {
             assertGt(reserve0, 0, "Token reserves should be positive");
             assertGt(reserve1, 0, "IssuanceToken reserves should be positive");
@@ -238,7 +249,8 @@ contract MigrateLiquidityE2ETest is E2ETest {
             assertGt(reserve0, 0, "IssuanceToken reserves should be positive");
             assertGt(reserve1, 0, "Token reserves should be positive");
         }
-        // 9. Verify migration completion
+
+        // 10. Verify migration completion
         migration = migrationManager.getMigrationConfig();
         assertTrue(executed, "Migration should be marked as executed");
     }

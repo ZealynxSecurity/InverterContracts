@@ -5,7 +5,7 @@ libs = ['lib']
 fs_permissions = [{ access = "read-write", path = "./"}]
 
 # Compilation
-solc_version = "0.8.23"
+auto_detect_solc = true
 optimizer = true
 optimizer_runs = 750
 via_ir = false

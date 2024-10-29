@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
+import "forge-std/console.sol";
+
 // Internal Interfaces
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
@@ -20,7 +22,7 @@ import {IBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IBondingCurveBase_v1.sol";
 
 // External Interfaces
-import {IUniswapV2Router02} from "@uniperi/interfaces/IUniswapV2Router02.sol";
+import {IUniswapV2Router02} from "@ex/interfaces/uniswap/IUniswapV2Router02.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {IERC20Issuance_v1} from "src/external/token/IERC20Issuance_v1.sol";
 
@@ -142,21 +144,26 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     //--------------------------------------------------------------------------
     // Mutating Functions
 
-    /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
     function configureMigration(LiquidityMigrationConfig calldata migration)
-        external
+        private
         returns (bool)
     {
-        if (migration.collateralMigrateThreshold == 0) {
+        if (
+            migration.collateralMigrateThreshold == 0
+                || migration.dexRouterAddress == address(0)
+                || migration.collateralMigrationAmount == 0
+                || migration.closeBuyOnThreshold != true
+                    && migration.closeBuyOnThreshold != false
+                || migration.closeSellOnThreshold != true
+                    && migration.closeSellOnThreshold != false
+        ) {
             revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
-        }
-
-        if (migration.dexRouterAddress == address(0)) {
-            revert Module__LM_PC_MigrateLiquidity__InvalidDEXAddresses();
         }
 
         _currentMigration.collateralMigrateThreshold =
             migration.collateralMigrateThreshold;
+        _currentMigration.collateralMigrationAmount =
+            migration.collateralMigrationAmount;
         _currentMigration.dexRouterAddress = migration.dexRouterAddress;
         _currentMigration.closeBuyOnThreshold = migration.closeBuyOnThreshold;
         _currentMigration.closeSellOnThreshold = migration.closeSellOnThreshold;
@@ -222,7 +229,17 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             block.timestamp + 15 minutes
         );
 
+        // Verify the liquidity addition was successful
+        require(amountA > 0 && amountB > 0, "Liquidity addition failed");
+
+        // Add console log before setting executed
+        console.log("Before setting executed: ", _executed);
+
+        // Mark as executed before emitting event
         _executed = true;
+
+        // Add console log after setting executed
+        console.log("After setting executed: ", _executed);
 
         emit MigrationExecuted(lpTokensCreated);
     }

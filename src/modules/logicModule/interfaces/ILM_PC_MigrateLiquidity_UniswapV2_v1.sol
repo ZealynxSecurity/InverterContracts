@@ -23,7 +23,6 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
         address dexFactoryAddress;
         bool closeBuyOnThreshold;
         bool closeSellOnThreshold;
-        bool executed;
     }
 
     //--------------------------------------------------------------------------
@@ -57,6 +56,10 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
 
     //--------------------------------------------------------------------------
     // Functions
+
+    /// @notice Gets the executed flag
+    /// @return bool Whether the migration has been executed
+    function getExecuted() external view returns (bool);
 
     /// @notice Configures a new liquidity migration
     /// @param  migration The liquidity migration configuration

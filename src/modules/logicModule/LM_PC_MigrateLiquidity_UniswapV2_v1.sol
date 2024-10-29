@@ -59,7 +59,7 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     // Modifiers
 
     modifier notExecuted() {
-        if (_currentMigration.executed) {
+        if (_executed) {
             revert Module__LM_PC_MigrateLiquidity__AlreadyExecuted();
         }
         _;
@@ -68,20 +68,11 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     //--------------------------------------------------------------------------
     // Storage
 
-    /// @dev Address of collateral token
-    address private _collateralToken;
-
-    /// @dev Address of the funding manager
-    address private _fundingManager;
-
-    /// @dev Address of the issuance token
-    address private _issuanceToken;
-
-    // @dev BondingCurve instance
-    BondingCurve private _bondingCurve;
-
     /// @dev State of the current migration
     LiquidityMigrationConfig private _currentMigration;
+
+    /// @dev Executed flag
+    bool private _executed;
 
     //--------------------------------------------------------------------------
     // Initialization
@@ -94,19 +85,16 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata);
 
-        _fundingManager = address(orchestrator().fundingManager());
-
-        _collateralToken = address(orchestrator().fundingManager().token());
-
-        _bondingCurve = BondingCurve(_fundingManager);
-
-        _issuanceToken = address(_bondingCurve.getIssuanceToken());
-
         (_currentMigration) = abi.decode(configData, (LiquidityMigrationConfig));
     }
 
     //--------------------------------------------------------------------------
     // View Functions
+
+    /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
+    function getExecuted() external view returns (bool) {
+        return _executed;
+    }
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
     function getMigrationConfig()
@@ -120,13 +108,17 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
     function isMigrationReady() public view returns (bool) {
         // Check if migration has been executed
-        if (_currentMigration.executed) {
+        if (_executed) {
             return false;
         }
 
+        address collateralToken =
+            address(orchestrator().fundingManager().token());
+
         if (
-            IERC20(_collateralToken).balanceOf(_fundingManager)
-                < _currentMigration.collateralMigrateThreshold
+            IERC20(collateralToken).balanceOf(
+                address(orchestrator().fundingManager())
+            ) < _currentMigration.collateralMigrateThreshold
         ) {
             return false;
         }
@@ -174,6 +166,12 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             revert Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
         }
 
+        address fundingManager = address(orchestrator().fundingManager());
+        BondingCurve bondingCurve = BondingCurve(fundingManager);
+        address collateralToken =
+            address(orchestrator().fundingManager().token());
+        address issuanceToken = address(bondingCurve.getIssuanceToken());
+
         // Get the UniswapV2 Router and Factory interfaces
         IUniswapV2Router02 router =
             IUniswapV2Router02(_currentMigration.dexRouterAddress);
@@ -181,21 +179,21 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             IUniswapV2Factory(_currentMigration.dexFactoryAddress);
 
         // Get token addresses from the payment processor
-        address tokenA = address(_collateralToken);
-        address tokenB = address(_issuanceToken);
+        address tokenA = address(collateralToken);
+        address tokenB = address(bondingCurve);
 
         // Transfer collateral tokens to this contract
-        _bondingCurve.transferOrchestratorToken(
+        bondingCurve.transferOrchestratorToken(
             address(this), _currentMigration.collateralMigrationAmount
         );
 
         // Calculate issuance migration amount
-        uint issuanceMigrationAmount = _bondingCurve.calculatePurchaseReturn(
+        uint issuanceMigrationAmount = bondingCurve.calculatePurchaseReturn(
             _currentMigration.collateralMigrationAmount
         );
 
         // Mint issuance tokens to be used as liquidity
-        IERC20Issuance_v1(_issuanceToken).mint(
+        IERC20Issuance_v1(issuanceToken).mint(
             address(this), issuanceMigrationAmount
         );
 
@@ -226,7 +224,7 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             block.timestamp + 15 minutes
         );
 
-        _currentMigration.executed = true;
+        _executed = true;
 
         emit MigrationExecuted(lpTokensCreated);
     }

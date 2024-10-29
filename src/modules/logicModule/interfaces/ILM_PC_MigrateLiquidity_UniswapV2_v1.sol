@@ -18,8 +18,6 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
         uint collateralMigrationAmount;
         uint collateralMigrateThreshold;
         address dexRouterAddress;
-        bool closeBuyOnThreshold;
-        bool closeSellOnThreshold;
     }
 
     /// @notice Struct used to inform about the result of a liquidity migration.

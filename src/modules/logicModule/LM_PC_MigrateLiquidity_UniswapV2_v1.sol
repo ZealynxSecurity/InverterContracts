@@ -151,10 +151,6 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             migration.collateralMigrateThreshold == 0
                 || migration.dexRouterAddress == address(0)
                 || migration.collateralMigrationAmount == 0
-                || migration.closeBuyOnThreshold != true
-                    && migration.closeBuyOnThreshold != false
-                || migration.closeSellOnThreshold != true
-                    && migration.closeSellOnThreshold != false
         ) {
             revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
         }
@@ -164,8 +160,6 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         _currentMigration.collateralMigrationAmount =
             migration.collateralMigrationAmount;
         _currentMigration.dexRouterAddress = migration.dexRouterAddress;
-        _currentMigration.closeBuyOnThreshold = migration.closeBuyOnThreshold;
-        _currentMigration.closeSellOnThreshold = migration.closeSellOnThreshold;
 
         emit MigrationConfigured(
             migration.collateralMigrationAmount,

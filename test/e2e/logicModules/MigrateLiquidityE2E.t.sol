@@ -129,9 +129,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
                         .LiquidityMigrationConfig({
                         collateralMigrationAmount: COLLATERAL_MIGRATION_AMOUNT,
                         collateralMigrateThreshold: COLLATERAL_MIGRATION_THRESHOLD,
-                        dexRouterAddress: address(uniswapRouter),
-                        closeBuyOnThreshold: true,
-                        closeSellOnThreshold: false
+                        dexRouterAddress: address(uniswapRouter)
                     })
                 )
             )

@@ -13,6 +13,3 @@
 [submodule "lib/uma-protocol"]
 	path = lib/uma-protocol
 	url = https://github.com/UMAprotocol/protocol
-[submodule "lib/UniswapV2WithSolidity0.8"]
-	path = lib/UniswapV2WithSolidity0.8
-	url = https://github.com/ponymano1/UniswapV2WithSolidity0.8

@@ -12,12 +12,20 @@ import {
 
 // SuT
 import {
+    FM_BC_Bancor_Redeeming_VirtualSupply_v1,
+    IFM_BC_Bancor_Redeeming_VirtualSupply_v1
+} from
+    "test/modules/fundingManager/bondingCurve/FM_BC_Bancor_Redeeming_VirtualSupply_v1.t.sol";
+import {IBondingCurveBase_v1} from
+    "@fm/bondingCurve/interfaces/IBondingCurveBase_v1.sol";
+import {
     LM_PC_MigrateLiquidity_UniswapV2_v1,
     ILM_PC_MigrateLiquidity_UniswapV2_v1
 } from "@lm/LM_PC_MigrateLiquidity_UniswapV2_v1.sol";
 import {FM_Rebasing_v1} from "@fm/rebasing/FM_Rebasing_v1.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
+import {ERC20Issuance_v1} from "src/external/token/ERC20Issuance_v1.sol";
 
 // Uniswap Dependencies
 import {IUniswapV2Factory} from "@unicore/interfaces/IUniswapV2Factory.sol";
@@ -36,15 +44,11 @@ contract MigrateLiquidityE2ETest is E2ETest {
     UniswapV2Router02 uniswapRouter;
     WETH9 weth;
 
-    // Roles
-    address migrationConfigurator = makeAddr("migrationConfigurator");
-    address migrationExecutor = makeAddr("migrationExecutor");
-
     // Constants
-    uint constant INITIAL_MINT_AMOUNT = 1000e18;
-    uint constant TRANSITION_THRESHOLD = 500e18;
-    uint constant INITIAL_LIQUIDITY = 100e18;
+    uint constant COLLATERAL_MIGRATION_THRESHOLD = 1000e18;
+    uint constant BUY_AMOUNT = 1000e18;
 
+    // Handle Setup
     function setUp() public override {
         // Setup common E2E framework
         super.setUp();
@@ -56,11 +60,34 @@ contract MigrateLiquidityE2ETest is E2ETest {
             new UniswapV2Router02(address(uniswapFactory), address(weth));
 
         // Set Up Modules
+
         // FundingManager
-        setUpRebasingFundingManager();
+        setUpBancorVirtualSupplyBondingCurveFundingManager();
+
+        // BancorFormula 'formula' is instantiated in the E2EModuleRegistry
+
+        ERC20Issuance_v1 issuanceToken = new ERC20Issuance_v1(
+            "Bonding Curve Token", "BCT", 18, type(uint).max - 1, address(this)
+        );
+
+        IFM_BC_Bancor_Redeeming_VirtualSupply_v1.BondingCurveProperties memory
+            bc_properties = IFM_BC_Bancor_Redeeming_VirtualSupply_v1
+                .BondingCurveProperties({
+                formula: address(formula),
+                reserveRatioForBuying: 333_333,
+                reserveRatioForSelling: 333_333,
+                buyFee: 0,
+                sellFee: 0,
+                buyIsOpen: true,
+                sellIsOpen: true,
+                initialIssuanceSupply: 10,
+                initialCollateralSupply: 30
+            });
+
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
-                rebasingFundingManagerMetadata, abi.encode(address(token))
+                bancorVirtualSupplyBondingCurveFundingManagerMetadata,
+                abi.encode(address(issuanceToken), bc_properties, token)
             )
         );
 
@@ -84,28 +111,64 @@ contract MigrateLiquidityE2ETest is E2ETest {
         setUpMigrationManager();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
-                migrationManagerMetadata, bytes("")
+                migrationManagerMetadata,
+                abi.encode(
+                    COLLATERAL_MIGRATION_THRESHOLD,
+                    address(uniswapRouter),
+                    address(uniswapFactory),
+                    true, // closeBuyOnThreshold
+                    false // closeSellOnThreshold
+                )
             )
         );
     }
 
+    // Test
     function test_e2e_MigrateLiquidityLifecycle() public {
         //--------------------------------------------------------------------------
         // Orchestrator Initialization
         //--------------------------------------------------------------------------
+
+        // Set WorkflowConfig
         IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig =
         IOrchestratorFactory_v1.WorkflowConfig({
             independentUpdates: false,
             independentUpdateAdmin: address(0)
         });
 
+        // Set Orchestrator
         IOrchestrator_v1 orchestrator =
             _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
 
-        FM_Rebasing_v1 fundingManager =
-            FM_Rebasing_v1(address(orchestrator.fundingManager()));
+        // Set FundingManager
+        FM_BC_Bancor_Redeeming_VirtualSupply_v1 fundingManager =
+        FM_BC_Bancor_Redeeming_VirtualSupply_v1(
+            address(orchestrator.fundingManager())
+        );
 
-        // Find Migration Manager
+        // Set Minter
+        issuanceToken.setMinter(address(fundingManager), true);
+
+        // Mint Collateral To Buy From the FundingManager
+        token.mint(address(this), BUY_AMOUNT);
+        uint buf_minAmountOut =
+            fundingManager.calculatePurchaseReturn(BUY_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
+
+        vm.startPrank(address(this));
+        {
+            // Approve tokens to fundingManager.
+            token.approve(address(fundingManager), BUY_AMOUNT);
+
+            // Deposit tokens, i.e. fund the fundingmanager.
+            fundingManager.buy(BUY_AMOUNT, buf_minAmountOut);
+
+            // After the deposit, received some amount of receipt tokens
+            // from the fundingmanager.
+            assertTrue(issuanceToken.balanceOf(alice) > 0);
+        }
+        vm.stopPrank();
+
+        // Find and Set Migration Manager
         LM_PC_MigrateLiquidity_UniswapV2_v1 migrationManager;
         address[] memory modulesList = orchestrator.listModules();
         for (uint i; i < modulesList.length; ++i) {
@@ -120,39 +183,16 @@ contract MigrateLiquidityE2ETest is E2ETest {
             }
         }
 
-        // Grant roles
-        migrationManager.grantModuleRole(
-            migrationManager.MIGRATION_CONFIGURATOR_ROLE(),
-            migrationConfigurator
+        // Set Migration Manager As Minter
+        issuanceToken.setMinter(address(migrationManager), true);
+
+        // Verify Migration Manager configuration
+        ILM_PC_MigrateLiquidity_UniswapV2_v1.LiquidityMigrationConfig memory
+            migration = migrationManager.getMigrationConfig();
+
+        assertEq(
+            migration.collateralMigrateThreshold, COLLATERAL_MIGRATION_THRESHOLD
         );
-        migrationManager.grantModuleRole(
-            migrationManager.MIGRATION_EXECUTOR_ROLE(), migrationExecutor
-        );
-
-        // Initial funding
-        uint initialDeposit = INITIAL_LIQUIDITY * 2;
-        token.mint(address(this), initialDeposit);
-        token.approve(address(fundingManager), initialDeposit);
-        fundingManager.deposit(initialDeposit);
-
-        // Configure migration
-        vm.startPrank(migrationConfigurator);
-        uint migrationId = migrationManager.configureMigration(
-            INITIAL_MINT_AMOUNT,
-            TRANSITION_THRESHOLD,
-            address(uniswapRouter),
-            address(uniswapFactory),
-            true, // closeBuyOnThreshold
-            false // closeSellOnThreshold
-        );
-        vm.stopPrank();
-
-        // Verify configuration
-        ILM_PC_MigrateLiquidity_UniswapV2_v1.LiquidityMigration memory migration =
-            migrationManager.getMigrationConfig(migrationId);
-
-        assertEq(migration.initialMintAmount, INITIAL_MINT_AMOUNT);
-        assertEq(migration.transitionThreshold, TRANSITION_THRESHOLD);
         assertEq(migration.dexRouterAddress, address(uniswapRouter));
         assertEq(migration.dexFactoryAddress, address(uniswapFactory));
         assertTrue(migration.closeBuyOnThreshold);
@@ -165,8 +205,8 @@ contract MigrateLiquidityE2ETest is E2ETest {
         assertEq(pairAddress, address(0), "Pool should not exist yet");
 
         // Execute migration
-        vm.startPrank(migrationExecutor);
-        migrationManager.executeMigration(migrationId);
+        vm.startPrank(address(this));
+        migrationManager.executeMigration();
         vm.stopPrank();
 
         // Verify pool creation and liquidity
@@ -186,17 +226,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
         }
 
         // Verify migration completion
-        migration = migrationManager.getMigrationConfig(migrationId);
+        migration = migrationManager.getMigrationConfig();
         assertTrue(migration.executed, "Migration should be marked as executed");
-    }
-
-    function setUpMigrationManager() internal {
-        migrationManagerMetadata = Module_v1.Metadata({
-            name: "Migration Manager",
-            version: 1,
-            author: "Inverter Network",
-            description: "Manages liquidity migration to Uniswap V2",
-            license: "LGPL-3.0-only"
-        });
     }
 }

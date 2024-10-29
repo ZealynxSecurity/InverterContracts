@@ -9,16 +9,16 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     // Structs
 
     /// @notice Struct used to store information about a liquidity migration.
-    /// @param  initialMintAmount Amount of tokens to mint initially and hold for liquidity.
-    /// @param  transitionThreshold The point at which the curve triggers migration.
+    /// @param  collateralMigrationAmount Amount of collateral tokens to migrate.
+    /// @param  collateralMigrateThreshold The point at which the curve triggers migration.
     /// @param  dexRouterAddress Address of the UniswapV2 router contract.
     /// @param  dexFactoryAddress Address of the UniswapV2 factory contract.
     /// @param  closeBuyOnThreshold Whether to close buying when threshold is reached.
     /// @param  closeSellOnThreshold Whether to close selling when threshold is reached.
     /// @param  executed Whether the migration has been executed.
-    struct LiquidityMigration {
-        uint initialMintAmount;
-        uint transitionThreshold;
+    struct LiquidityMigrationConfig {
+        uint collateralMigrationAmount;
+        uint collateralMigrateThreshold;
         address dexRouterAddress;
         address dexFactoryAddress;
         bool closeBuyOnThreshold;
@@ -45,54 +45,33 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     // Events
 
     /// @notice Event emitted when a new migration is configured
-    /// @param  migrationId The ID of the migration configuration
     /// @param  initialMintAmount Amount of tokens initially minted
     /// @param  transitionThreshold The threshold point
-    event MigrationConfigured(
-        uint indexed migrationId,
-        uint initialMintAmount,
-        uint transitionThreshold
-    );
+    event MigrationConfigured(uint initialMintAmount, uint transitionThreshold);
 
     /// @notice Event emitted when migration is executed
-    /// @param  migrationId The ID of the executed migration
     /// @param  lpTokensCreated Amount of LP tokens created
-    event MigrationExecuted(uint indexed migrationId, uint lpTokensCreated);
+    event MigrationExecuted(uint lpTokensCreated);
 
     //--------------------------------------------------------------------------
     // Functions
 
     /// @notice Configures a new liquidity migration
-    /// @param  initialMintAmount Amount of tokens to mint initially
-    /// @param  transitionThreshold Point at which to trigger migration
-    /// @param  dexRouterAddress UniswapV2 router address
-    /// @param  dexFactoryAddress UniswapV2 factory address
-    /// @param  closeBuyOnThreshold Whether to close buying at threshold
-    /// @param  closeSellOnThreshold Whether to close selling at threshold
-    /// @return migrationId The ID of the configured migration
-    function configureMigration(
-        uint initialMintAmount,
-        uint transitionThreshold,
-        address dexRouterAddress,
-        address dexFactoryAddress,
-        bool closeBuyOnThreshold,
-        bool closeSellOnThreshold
-    ) external returns (uint migrationId);
+    /// @param  migration The liquidity migration configuration
+    function configureMigration(LiquidityMigrationConfig calldata migration)
+        external;
 
     /// @notice Executes the configured migration when threshold is reached
-    /// @param  migrationId The ID of the migration to execute
-    function executeMigration(uint migrationId) external;
+    function executeMigration() external;
 
     /// @notice Gets the migration configuration
-    /// @param  migrationId The ID of the migration
     /// @return The migration configuration
-    function getMigrationConfig(uint migrationId)
+    function getMigrationConfig()
         external
         view
-        returns (LiquidityMigration memory);
+        returns (LiquidityMigrationConfig memory);
 
     /// @notice Checks if a migration is ready to execute
-    /// @param  migrationId The ID of the migration
     /// @return bool Whether the migration can be executed
-    function isMigrationReady(uint migrationId) external view returns (bool);
+    function isMigrationReady() external view returns (bool);
 }

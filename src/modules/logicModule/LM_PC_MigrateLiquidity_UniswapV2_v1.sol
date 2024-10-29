@@ -18,12 +18,15 @@ import {
     Module_v1
 } from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
 
+// External Interfaces
+import {IUniswapV2Router02} from "@uniperi/interfaces/IUniswapV2Router02.sol";
+import {IUniswapV2Factory} from "@unicore/interfaces/IUniswapV2Factory.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {IERC20Issuance_v1} from "src/external/token/IERC20Issuance_v1.sol";
+
 // External Dependencies
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
-
-// Internal Libraries
-import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 
 contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     ILM_PC_MigrateLiquidity_UniswapV2_v1,
@@ -42,48 +45,30 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             || super.supportsInterface(interfaceId);
     }
 
-    using LinkedIdList for LinkedIdList.List;
-
     //--------------------------------------------------------------------------
     // Modifiers
 
-    modifier validMigrationId(uint migrationId) {
-        if (!isExistingMigrationId(migrationId)) {
-            revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
-        }
-        _;
-    }
-
-    modifier notExecuted(uint migrationId) {
-        if (_migrationRegistry[migrationId].executed) {
+    modifier notExecuted() {
+        if (_currentMigration.executed) {
             revert Module__LM_PC_MigrateLiquidity__AlreadyExecuted();
         }
         _;
     }
 
     //--------------------------------------------------------------------------
-    // Constants
-
-    /// @dev Role for configuring migrations
-    bytes32 public constant MIGRATION_CONFIGURATOR_ROLE =
-        "MIGRATION_CONFIGURATOR";
-    /// @dev Role for executing migrations
-    bytes32 public constant MIGRATION_EXECUTOR_ROLE = "MIGRATION_EXECUTOR";
-
-    //--------------------------------------------------------------------------
     // Storage
 
-    /// @dev Value for what the next id will be
-    uint private _nextId;
+    /// @dev Address of collateral token
+    address public immutable collateralToken;
 
-    /// @dev Registry mapping ids to LiquidityMigration structs
-    mapping(uint => LiquidityMigration) private _migrationRegistry;
+    /// @dev Address of issuance token
+    address public immutable issuanceToken;
 
-    /// @dev List of Migration IDs
-    LinkedIdList.List private _migrationList;
+    /// @dev Address of the funding manager
+    address private immutable _fundingManager;
 
-    /// @dev Storage gap for future upgrades
-    uint[50] private __gap;
+    /// @dev State of the current migration
+    LiquidityMigrationConfig private _currentMigration;
 
     //--------------------------------------------------------------------------
     // Initialization
@@ -92,107 +77,162 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata,
-        bytes memory
+        bytes memory configData
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata);
-        _migrationList.init();
+
+        _fundingManager = address(orchestrator().fundingManager());
+
+        collateralToken = address(orchestrator().fundingManager().token());
+
+        issuanceToken =
+            address(orchestrator().fundingManager().getIssuanceToken());
+
+        (_currentMigration) = abi.decode(configData, (LiquidityMigrationConfig));
     }
 
     //--------------------------------------------------------------------------
     // View Functions
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
-    function getMigrationConfig(uint migrationId)
+    function getMigrationConfig()
         external
         view
-        validMigrationId(migrationId)
-        returns (LiquidityMigration memory)
+        returns (LiquidityMigrationConfig memory)
     {
-        return _migrationRegistry[migrationId];
+        return _currentMigration;
     }
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
-    function isMigrationReady(uint migrationId)
-        external
-        view
-        validMigrationId(migrationId)
-        returns (bool)
-    {
-        LiquidityMigration memory migration = _migrationRegistry[migrationId];
-        // Check if threshold has been reached
-        // Implementation specific to curve threshold check
-        return !migration.executed; // Add threshold check logic
-    }
+    function isMigrationReady() public view returns (bool) {
+        // Check if migration has been executed
+        if (_currentMigration.executed) {
+            return false;
+        }
 
-    function isExistingMigrationId(uint migrationId)
-        public
-        view
-        returns (bool)
-    {
-        return _migrationList.isExistingId(migrationId);
+        if (
+            IERC20(collateralToken).balanceOf(_fundingManager)
+                < _currentMigration.collateralMigrateThreshold
+        ) {
+            return false;
+        }
+
+        return true;
     }
 
     //--------------------------------------------------------------------------
     // Mutating Functions
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
-    function configureMigration(
-        uint initialMintAmount,
-        uint transitionThreshold,
-        address dexRouterAddress,
-        address dexFactoryAddress,
-        bool closeBuyOnThreshold,
-        bool closeSellOnThreshold
-    ) external onlyModuleRole(MIGRATION_CONFIGURATOR_ROLE) returns (uint) {
-        if (initialMintAmount == 0 || transitionThreshold == 0) {
+    function configureMigration(LiquidityMigrationConfig calldata migration)
+        external
+        returns (bool)
+    {
+        if (
+            migration.issuanceMigrationAmount == 0
+                || migration.collateralMigrateThreshold == 0
+        ) {
             revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
         }
 
-        if (dexRouterAddress == address(0) || dexFactoryAddress == address(0)) {
+        if (
+            migration.dexRouterAddress == address(0)
+                || migration.dexFactoryAddress == address(0)
+        ) {
             revert Module__LM_PC_MigrateLiquidity__InvalidDEXAddresses();
         }
 
-        uint migrationId = ++_nextId;
-        _migrationList.addId(migrationId);
-
-        LiquidityMigration storage migration = _migrationRegistry[migrationId];
-        migration.initialMintAmount = initialMintAmount;
-        migration.transitionThreshold = transitionThreshold;
-        migration.dexRouterAddress = dexRouterAddress;
-        migration.dexFactoryAddress = dexFactoryAddress;
-        migration.closeBuyOnThreshold = closeBuyOnThreshold;
-        migration.closeSellOnThreshold = closeSellOnThreshold;
-        migration.executed = false;
+        _currentMigration.issuanceMigrationAmount =
+            migration.issuanceMigrationAmount;
+        _currentMigration.collateralMigrateThreshold =
+            migration.collateralMigrateThreshold;
+        _currentMigration.dexRouterAddress = migration.dexRouterAddress;
+        _currentMigration.dexFactoryAddress = migration.dexFactoryAddress;
+        _currentMigration.closeBuyOnThreshold = migration.closeBuyOnThreshold;
+        _currentMigration.closeSellOnThreshold = migration.closeSellOnThreshold;
+        _currentMigration.executed = false;
 
         emit MigrationConfigured(
-            migrationId, initialMintAmount, transitionThreshold
+            migration.issuanceMigrationAmount,
+            migration.collateralMigrateThreshold
         );
 
-        return migrationId;
+        return true;
     }
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
-    function executeMigration(uint migrationId)
-        external
-        onlyModuleRole(MIGRATION_EXECUTOR_ROLE)
-        validMigrationId(migrationId)
-        notExecuted(migrationId)
-    {
-        LiquidityMigration storage migration = _migrationRegistry[migrationId];
-
-        if (!this.isMigrationReady(migrationId)) {
+    function executeMigration() external notExecuted {
+        if (!isMigrationReady()) {
             revert Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
         }
 
-        // Implementation specific logic for:
-        // 1. Creating liquidity pool
-        // 2. Depositing tokens
-        // 3. Optional curve closure
+        // Get the UniswapV2 Router and Factory interfaces
+        IUniswapV2Router02 router =
+            IUniswapV2Router02(_currentMigration.dexRouterAddress);
+        IUniswapV2Factory factory =
+            IUniswapV2Factory(_currentMigration.dexFactoryAddress);
 
-        uint lpTokensCreated = 0; // Add actual LP token calculation
+        // Get token addresses from the payment processor
+        address tokenA = address(collateralToken);
+        address tokenB = address(issuanceToken);
 
-        migration.executed = true;
+        // Transfer collateral tokens to this contract
+        orchestrator().fundingManager().transferOrchestratorToken(
+            address(this), _currentMigration.collateralMigrationAmount
+        );
 
-        emit MigrationExecuted(migrationId, lpTokensCreated);
+        // Calculate issuance migration amount
+        uint issuanceMigrationAmount = orchestrator().fundingManager()
+            .calculatePurchaseReturn(_currentMigration.collateralMigrationAmount);
+
+        // Mint issuance tokens to be used as liquidity
+        IERC20Issuance_v1(issuanceToken).mint(
+            address(this), issuanceMigrationAmount
+        );
+
+        // Approve router to spend tokens
+        IERC20(tokenA).approve(
+            _currentMigration.dexRouterAddress,
+            _currentMigration.collateralMigrationAmount
+        );
+        IERC20(tokenB).approve(
+            _currentMigration.dexRouterAddress, issuanceMigrationAmount
+        );
+
+        // Create the pair if it doesn't exist
+        address pair = factory.getPair(tokenA, tokenB);
+        if (pair == address(0)) {
+            pair = factory.createPair(tokenA, tokenB);
+        }
+
+        // Add liquidity
+        (uint amountA, uint amountB, uint lpTokensCreated) = router.addLiquidity(
+            tokenA,
+            tokenB,
+            _currentMigration.collateralMigrationAmount,
+            issuanceMigrationAmount,
+            _currentMigration.collateralMigrationAmount * 95 / 100, // 5% slippage tolerance
+            issuanceMigrationAmount * 95 / 100, // 5% slippage tolerance
+            address(this),
+            block.timestamp + 15 minutes
+        );
+
+        // Handle curve closure if configured
+        // if (
+        //     _currentMigration.closeBuyOnThreshold
+        //         || _currentMigration.closeSellOnThreshold
+        // ) {
+        //     IPaymentProcessor_v1 processor = getPaymentProcessor();
+        //     if (_currentMigration.closeBuyOnThreshold) {
+        //         processor.closeBuyOrders();
+        //     }
+        //     if (_currentMigration.closeSellOnThreshold) {
+        //         processor.closeSellOrders();
+        //     }
+        // }
+
+        _currentMigration.executed = true;
+
+        emit MigrationExecuted(lpTokensCreated);
     }
 }

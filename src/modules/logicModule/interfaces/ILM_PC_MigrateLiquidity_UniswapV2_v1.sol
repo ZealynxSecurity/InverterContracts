@@ -59,7 +59,8 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     /// @notice Configures a new liquidity migration
     /// @param  migration The liquidity migration configuration
     function configureMigration(LiquidityMigrationConfig calldata migration)
-        external;
+        external
+        returns (bool);
 
     /// @notice Executes the configured migration when threshold is reached
     function executeMigration() external;

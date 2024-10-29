@@ -48,6 +48,8 @@ contract MigrateLiquidityE2ETest is E2ETest {
     uint constant COLLATERAL_MIGRATION_THRESHOLD = 1000e18;
     uint constant BUY_AMOUNT = 1000e18;
 
+    ERC20Issuance_v1 issuanceToken;
+
     // Handle Setup
     function setUp() public override {
         // Setup common E2E framework
@@ -66,7 +68,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
 
         // BancorFormula 'formula' is instantiated in the E2EModuleRegistry
 
-        ERC20Issuance_v1 issuanceToken = new ERC20Issuance_v1(
+        issuanceToken = new ERC20Issuance_v1(
             "Bonding Curve Token", "BCT", 18, type(uint).max - 1, address(this)
         );
 
@@ -108,10 +110,10 @@ contract MigrateLiquidityE2ETest is E2ETest {
         );
 
         // Migration Module
-        setUpMigrationManager();
+        setUpLM_PC_MigrateLiquidity_UniswapV2_v1();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
-                migrationManagerMetadata,
+                LM_PC_MigrateLiquidity_UniswapV2_v1Metadata,
                 abi.encode(
                     COLLATERAL_MIGRATION_THRESHOLD,
                     address(uniswapRouter),
@@ -154,6 +156,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
         uint buf_minAmountOut =
             fundingManager.calculatePurchaseReturn(BUY_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
 
+        // Buy from the FundingManager
         vm.startPrank(address(this));
         {
             // Approve tokens to fundingManager.
@@ -164,7 +167,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
 
             // After the deposit, received some amount of receipt tokens
             // from the fundingmanager.
-            assertTrue(issuanceToken.balanceOf(alice) > 0);
+            assertTrue(issuanceToken.balanceOf(address(this)) > 0);
         }
         vm.stopPrank();
 

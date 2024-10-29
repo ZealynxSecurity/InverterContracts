@@ -4,13 +4,10 @@ pragma solidity 0.8.23;
 // Internal Interfaces
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
-import {IAuthorizer_v1} from "@aut/IAuthorizer_v1.sol";
 import {ILM_PC_MigrateLiquidity_UniswapV2_v1} from
     "@lm/interfaces/ILM_PC_MigrateLiquidity_UniswapV2_v1.sol";
-import {
-    IERC20PaymentClientBase_v1,
-    IPaymentProcessor_v1
-} from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v1} from
+    "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
 
 // Internal Dependencies
 import {
@@ -216,20 +213,6 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             address(this),
             block.timestamp + 15 minutes
         );
-
-        // Handle curve closure if configured
-        // if (
-        //     _currentMigration.closeBuyOnThreshold
-        //         || _currentMigration.closeSellOnThreshold
-        // ) {
-        //     IPaymentProcessor_v1 processor = getPaymentProcessor();
-        //     if (_currentMigration.closeBuyOnThreshold) {
-        //         processor.closeBuyOrders();
-        //     }
-        //     if (_currentMigration.closeSellOnThreshold) {
-        //         processor.closeSellOrders();
-        //     }
-        // }
 
         _currentMigration.executed = true;
 

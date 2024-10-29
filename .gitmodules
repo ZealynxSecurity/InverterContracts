@@ -16,3 +16,6 @@
 [submodule "lib/UniswapV2WithSolidity0.8"]
 	path = lib/UniswapV2WithSolidity0.8
 	url = https://github.com/ponymano1/UniswapV2WithSolidity0.8
+[submodule "lib/unifap-v2"]
+	path = lib/unifap-v2
+	url = https://github.com/lonerapier/unifap-v2

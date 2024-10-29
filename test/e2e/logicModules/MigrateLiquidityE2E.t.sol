@@ -32,11 +32,10 @@ contract MigrateLiquidityE2ETest is E2ETest {
     // Module Configurations
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
-    // Uniswap contracts
-
     // Constants
     uint constant COLLATERAL_MIGRATION_THRESHOLD = 1000e18;
     uint constant COLLATERAL_MIGRATION_AMOUNT = 1000e18;
+    uint constant BUY_FROM_FUNDING_MANAGER_AMOUNT = 1000e18;
     ERC20Issuance_v1 issuanceToken;
     // Uniswap
     address uniswapFactoryAddress = 0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f;
@@ -48,22 +47,20 @@ contract MigrateLiquidityE2ETest is E2ETest {
         //--------------------------------------------------------------------------
         // Setup
         //--------------------------------------------------------------------------
+        super.setUp();
 
-        // Step -1: Make global token address persistent
-        vm.makePersistent(0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f);
+        // Step 0: Make global addresses persistent
+        vm.makePersistent(address(token));
+        vm.makePersistent(address(formula));
 
-        // Step 0: Create both forks first
+        // Step 1: Create both forks first
         uint anvilFork = vm.createFork("http://localhost:8545");
         uint mainnetFork = vm.createFork("https://rpc.ankr.com/eth", 17_480_237);
 
-        // Step 1: Select mainnet fork and set up Uniswap contracts
+        // Step 2: Select mainnet fork and set up Uniswap contracts
         vm.selectFork(mainnetFork);
         uniswapFactory = IUniswapV2Factory(uniswapFactoryAddress);
         uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
-
-        // Step 2: Make addresses persistent (do this while on mainnet fork)
-        vm.makePersistent(uniswapFactoryAddress);
-        vm.makePersistent(uniswapRouterAddress);
 
         // Step 3: Create the contract state on mainnet fork
         bytes memory factoryCode = address(uniswapFactory).code;
@@ -73,9 +70,6 @@ contract MigrateLiquidityE2ETest is E2ETest {
         vm.selectFork(anvilFork);
         vm.etch(uniswapFactoryAddress, factoryCode);
         vm.etch(uniswapRouterAddress, routerCode);
-
-        // Continue with the rest of the setup
-        super.setUp();
 
         // Set Up Modules
 
@@ -192,19 +186,24 @@ contract MigrateLiquidityE2ETest is E2ETest {
         issuanceToken.setMinter(address(migrationManager), true);
 
         // 2. Mint Collateral To Buy From the FundingManager
-        token.mint(address(this), COLLATERAL_MIGRATION_AMOUNT);
+        token.mint(address(this), BUY_FROM_FUNDING_MANAGER_AMOUNT);
 
         // 3. Calculate Minimum Amount Out
-        uint buf_minAmountOut =
-            fundingManager.calculatePurchaseReturn(COLLATERAL_MIGRATION_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
+        uint buf_minAmountOut = fundingManager.calculatePurchaseReturn(
+            BUY_FROM_FUNDING_MANAGER_AMOUNT
+        ); // buffer variable to store the minimum amount out on calls to the buy and sell functions
 
         // 4. Buy from the FundingManager
         vm.startPrank(address(this));
         {
             // 4.1. Approve tokens to fundingManager.
-            token.approve(address(fundingManager), COLLATERAL_MIGRATION_AMOUNT);
+            token.approve(
+                address(fundingManager), BUY_FROM_FUNDING_MANAGER_AMOUNT
+            );
             // 4.2. Deposit tokens, i.e. fund the fundingmanager.
-            fundingManager.buy(COLLATERAL_MIGRATION_AMOUNT, buf_minAmountOut);
+            fundingManager.buy(
+                BUY_FROM_FUNDING_MANAGER_AMOUNT, buf_minAmountOut
+            );
             // 4.3. After the deposit, check that the user has received them
             assertTrue(
                 issuanceToken.balanceOf(address(this)) > 0,

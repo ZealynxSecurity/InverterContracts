@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-import "forge-std/console.sol";
-
 // Internal Interfaces
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
@@ -23,6 +21,7 @@ import {IBondingCurveBase_v1} from
 
 // External Interfaces
 import {IUniswapV2Router02} from "@ex/interfaces/uniswap/IUniswapV2Router02.sol";
+import {IUniswapV2Factory} from "@ex/interfaces/uniswap/IUniswapV2Factory.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {IERC20Issuance_v1} from "src/external/token/IERC20Issuance_v1.sol";
 
@@ -177,7 +176,11 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     }
 
     /// @inheritdoc ILM_PC_MigrateLiquidity_UniswapV2_v1
-    function executeMigration() external notExecuted {
+    function executeMigration()
+        external
+        notExecuted
+        returns (LiquidityMigrationResult memory)
+    {
         if (!isMigrationReady()) {
             revert Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
         }
@@ -214,6 +217,9 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             _currentMigration.dexRouterAddress, issuanceMigrationAmount
         );
 
+        address pairAddress =
+            IUniswapV2Factory(router.factory()).createPair(tokenA, tokenB);
+
         // Add liquidity
         (uint amountA, uint amountB, uint lpTokensCreated) = router.addLiquidity(
             tokenA,
@@ -232,15 +238,20 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         // Verify the liquidity addition was successful
         require(amountA > 0 && amountB > 0, "Liquidity addition failed");
 
-        // Add console log before setting executed
-        console.log("Before setting executed: ", _executed);
-
         // Mark as executed before emitting event
         _executed = true;
 
-        // Add console log after setting executed
-        console.log("After setting executed: ", _executed);
+        LiquidityMigrationResult memory result = LiquidityMigrationResult({
+            pairAddress: pairAddress,
+            lpTokensCreated: lpTokensCreated,
+            token0: tokenA,
+            token1: tokenB,
+            amount0: amountA,
+            amount1: amountB
+        });
 
-        emit MigrationExecuted(lpTokensCreated);
+        emit MigrationExecuted(result);
+
+        return result;
     }
 }

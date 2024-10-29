@@ -22,6 +22,22 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
         bool closeSellOnThreshold;
     }
 
+    /// @notice Struct used to inform about the result of a liquidity migration.
+    /// @param  pairAddress Address of the created pair
+    /// @param  lpTokensCreated Amount of LP tokens created
+    /// @param  token0 Address of the first token
+    /// @param  token1 Address of the second token
+    /// @param  amount0 Amount of the first token
+    /// @param  amount1 Amount of the second token
+    struct LiquidityMigrationResult {
+        address pairAddress;
+        uint lpTokensCreated;
+        address token0;
+        address token1;
+        uint amount0;
+        uint amount1;
+    }
+
     //--------------------------------------------------------------------------
     // Errors
 
@@ -45,8 +61,8 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     );
 
     /// @notice Event emitted when migration is executed
-    /// @param  lpTokensCreated Amount of LP tokens created
-    event MigrationExecuted(uint lpTokensCreated);
+    /// @param  result The result of the migration
+    event MigrationExecuted(LiquidityMigrationResult result);
 
     //--------------------------------------------------------------------------
     // Functions
@@ -56,7 +72,9 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     function getExecuted() external view returns (bool);
 
     /// @notice Executes the configured migration when threshold is reached
-    function executeMigration() external;
+    function executeMigration()
+        external
+        returns (LiquidityMigrationResult memory);
 
     /// @notice Gets the migration configuration
     /// @return The migration configuration

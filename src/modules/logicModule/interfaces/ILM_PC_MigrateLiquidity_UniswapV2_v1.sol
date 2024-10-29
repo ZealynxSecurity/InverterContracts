@@ -12,15 +12,12 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     /// @param  collateralMigrationAmount Amount of collateral tokens to migrate.
     /// @param  collateralMigrateThreshold The point at which the curve triggers migration.
     /// @param  dexRouterAddress Address of the UniswapV2 router contract.
-    /// @param  dexFactoryAddress Address of the UniswapV2 factory contract.
     /// @param  closeBuyOnThreshold Whether to close buying when threshold is reached.
     /// @param  closeSellOnThreshold Whether to close selling when threshold is reached.
-    /// @param  executed Whether the migration has been executed.
     struct LiquidityMigrationConfig {
         uint collateralMigrationAmount;
         uint collateralMigrateThreshold;
         address dexRouterAddress;
-        address dexFactoryAddress;
         bool closeBuyOnThreshold;
         bool closeSellOnThreshold;
     }

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-import "forge-std/console.sol";
-
 // Internal Interfaces
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
@@ -23,7 +21,6 @@ import {IBondingCurveBase_v1} from
 
 // External Interfaces
 import {IUniswapV2Router02} from "@uniperi/interfaces/IUniswapV2Router02.sol";
-import {IUniswapV2Factory} from "@unicore/interfaces/IUniswapV2Factory.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {IERC20Issuance_v1} from "src/external/token/IERC20Issuance_v1.sol";
 
@@ -154,17 +151,13 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
         }
 
-        if (
-            migration.dexRouterAddress == address(0)
-                || migration.dexFactoryAddress == address(0)
-        ) {
+        if (migration.dexRouterAddress == address(0)) {
             revert Module__LM_PC_MigrateLiquidity__InvalidDEXAddresses();
         }
 
         _currentMigration.collateralMigrateThreshold =
             migration.collateralMigrateThreshold;
         _currentMigration.dexRouterAddress = migration.dexRouterAddress;
-        _currentMigration.dexFactoryAddress = migration.dexFactoryAddress;
         _currentMigration.closeBuyOnThreshold = migration.closeBuyOnThreshold;
         _currentMigration.closeSellOnThreshold = migration.closeSellOnThreshold;
 
@@ -182,7 +175,7 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             revert Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
         }
 
-        // Get the UniswapV2 Router and Factory interfaces
+        // Get the UniswapV2 Router
         IUniswapV2Router02 router =
             IUniswapV2Router02(_currentMigration.dexRouterAddress);
 

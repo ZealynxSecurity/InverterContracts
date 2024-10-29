@@ -118,7 +118,6 @@ contract MigrateLiquidityE2ETest is E2ETest {
                         collateralMigrationAmount: COLLATERAL_MIGRATION_AMOUNT,
                         collateralMigrateThreshold: COLLATERAL_MIGRATION_THRESHOLD,
                         dexRouterAddress: address(uniswapRouter),
-                        dexFactoryAddress: address(uniswapFactory),
                         closeBuyOnThreshold: true,
                         closeSellOnThreshold: false
                     })
@@ -208,11 +207,6 @@ contract MigrateLiquidityE2ETest is E2ETest {
             address(uniswapRouter),
             "Dex router address mismatch"
         );
-        assertEq(
-            migration.dexFactoryAddress,
-            address(uniswapFactory),
-            "Dex factory address mismatch"
-        );
         assertTrue(
             migration.closeBuyOnThreshold, "Close buy on threshold mismatch"
         );
@@ -222,14 +216,15 @@ contract MigrateLiquidityE2ETest is E2ETest {
         assertFalse(executed, "Migration should not be executed yet");
         // 6. Check no pool exists yet
         address pairAddress =
-            uniswapFactory.getPair(address(token), address(weth));
+            uniswapFactory.getPair(address(token), address(issuanceToken));
         assertEq(pairAddress, address(0), "Pool should not exist yet");
         // 7. Execute migration
         vm.startPrank(address(this));
         migrationManager.executeMigration();
         vm.stopPrank();
         // 8. Verify pool creation and liquidity
-        pairAddress = uniswapFactory.getPair(address(token), address(weth));
+        pairAddress =
+            uniswapFactory.getPair(address(token), address(issuanceToken));
         assertTrue(pairAddress != address(0), "Pool should exist");
         // 8.1. Get pair
         IUniswapV2Pair pair = IUniswapV2Pair(pairAddress);
@@ -238,9 +233,9 @@ contract MigrateLiquidityE2ETest is E2ETest {
         // 8.3. Verify reserves based on token ordering
         if (pair.token0() == address(token)) {
             assertGt(reserve0, 0, "Token reserves should be positive");
-            assertGt(reserve1, 0, "WETH reserves should be positive");
+            assertGt(reserve1, 0, "IssuanceToken reserves should be positive");
         } else {
-            assertGt(reserve0, 0, "WETH reserves should be positive");
+            assertGt(reserve0, 0, "IssuanceToken reserves should be positive");
             assertGt(reserve1, 0, "Token reserves should be positive");
         }
         // 9. Verify migration completion

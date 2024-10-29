@@ -115,6 +115,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
             IOrchestratorFactory_v1.ModuleConfig(
                 LM_PC_MigrateLiquidity_UniswapV2_v1Metadata,
                 abi.encode(
+                    BUY_AMOUNT,
                     COLLATERAL_MIGRATION_THRESHOLD,
                     address(uniswapRouter),
                     address(uniswapFactory),

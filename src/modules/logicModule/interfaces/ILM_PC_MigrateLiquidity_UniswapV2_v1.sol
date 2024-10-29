@@ -45,9 +45,11 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
     // Events
 
     /// @notice Event emitted when a new migration is configured
-    /// @param  initialMintAmount Amount of tokens initially minted
-    /// @param  transitionThreshold The threshold point
-    event MigrationConfigured(uint initialMintAmount, uint transitionThreshold);
+    /// @param  collateralMigrationAmount Amount of tokens which will be migrated
+    /// @param  collateralMigrateThreshold The threshold point to trigger migration
+    event MigrationConfigured(
+        uint collateralMigrationAmount, uint collateralMigrateThreshold
+    );
 
     /// @notice Event emitted when migration is executed
     /// @param  lpTokensCreated Amount of LP tokens created

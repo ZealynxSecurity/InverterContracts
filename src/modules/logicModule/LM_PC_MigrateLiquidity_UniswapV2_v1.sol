@@ -14,6 +14,10 @@ import {
     ERC20PaymentClientBase_v1,
     Module_v1
 } from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+import {IFM_BC_Bancor_Redeeming_VirtualSupply_v1} from
+    "@fm/bondingCurve/interfaces/IFM_BC_Bancor_Redeeming_VirtualSupply_v1.sol";
+import {IBondingCurveBase_v1} from
+    "@fm/bondingCurve/interfaces/IBondingCurveBase_v1.sol";
 
 // External Interfaces
 import {IUniswapV2Router02} from "@uniperi/interfaces/IUniswapV2Router02.sol";
@@ -24,6 +28,15 @@ import {IERC20Issuance_v1} from "src/external/token/IERC20Issuance_v1.sol";
 // External Dependencies
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
+
+interface BondingCurve is IBondingCurveBase_v1 {
+    /// @notice Transfer a specified amount of Tokens to a designated receiver address.
+    /// @dev    This function MUST be restricted to be called only by the {Orchestrator_v1}.
+    /// @dev    This function CAN update internal user balances to account for the new token balance.
+    /// @param  to The address that will receive the tokens.
+    /// @param  amount The amount of tokens to be transfered.
+    function transferOrchestratorToken(address to, uint amount) external;
+}
 
 contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     ILM_PC_MigrateLiquidity_UniswapV2_v1,
@@ -56,13 +69,16 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     // Storage
 
     /// @dev Address of collateral token
-    address public immutable collateralToken;
-
-    /// @dev Address of issuance token
-    address public immutable issuanceToken;
+    address private _collateralToken;
 
     /// @dev Address of the funding manager
-    address private immutable _fundingManager;
+    address private _fundingManager;
+
+    /// @dev Address of the issuance token
+    address private _issuanceToken;
+
+    // @dev BondingCurve instance
+    BondingCurve private _bondingCurve;
 
     /// @dev State of the current migration
     LiquidityMigrationConfig private _currentMigration;
@@ -80,10 +96,11 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
 
         _fundingManager = address(orchestrator().fundingManager());
 
-        collateralToken = address(orchestrator().fundingManager().token());
+        _collateralToken = address(orchestrator().fundingManager().token());
 
-        issuanceToken =
-            address(orchestrator().fundingManager().getIssuanceToken());
+        _bondingCurve = BondingCurve(_fundingManager);
+
+        _issuanceToken = address(_bondingCurve.getIssuanceToken());
 
         (_currentMigration) = abi.decode(configData, (LiquidityMigrationConfig));
     }
@@ -108,7 +125,7 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         }
 
         if (
-            IERC20(collateralToken).balanceOf(_fundingManager)
+            IERC20(_collateralToken).balanceOf(_fundingManager)
                 < _currentMigration.collateralMigrateThreshold
         ) {
             return false;
@@ -125,10 +142,7 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         external
         returns (bool)
     {
-        if (
-            migration.issuanceMigrationAmount == 0
-                || migration.collateralMigrateThreshold == 0
-        ) {
+        if (migration.collateralMigrateThreshold == 0) {
             revert Module__LM_PC_MigrateLiquidity__InvalidParameters();
         }
 
@@ -139,18 +153,15 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             revert Module__LM_PC_MigrateLiquidity__InvalidDEXAddresses();
         }
 
-        _currentMigration.issuanceMigrationAmount =
-            migration.issuanceMigrationAmount;
         _currentMigration.collateralMigrateThreshold =
             migration.collateralMigrateThreshold;
         _currentMigration.dexRouterAddress = migration.dexRouterAddress;
         _currentMigration.dexFactoryAddress = migration.dexFactoryAddress;
         _currentMigration.closeBuyOnThreshold = migration.closeBuyOnThreshold;
         _currentMigration.closeSellOnThreshold = migration.closeSellOnThreshold;
-        _currentMigration.executed = false;
 
         emit MigrationConfigured(
-            migration.issuanceMigrationAmount,
+            migration.collateralMigrationAmount,
             migration.collateralMigrateThreshold
         );
 
@@ -170,20 +181,21 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             IUniswapV2Factory(_currentMigration.dexFactoryAddress);
 
         // Get token addresses from the payment processor
-        address tokenA = address(collateralToken);
-        address tokenB = address(issuanceToken);
+        address tokenA = address(_collateralToken);
+        address tokenB = address(_issuanceToken);
 
         // Transfer collateral tokens to this contract
-        orchestrator().fundingManager().transferOrchestratorToken(
+        _bondingCurve.transferOrchestratorToken(
             address(this), _currentMigration.collateralMigrationAmount
         );
 
         // Calculate issuance migration amount
-        uint issuanceMigrationAmount = orchestrator().fundingManager()
-            .calculatePurchaseReturn(_currentMigration.collateralMigrationAmount);
+        uint issuanceMigrationAmount = _bondingCurve.calculatePurchaseReturn(
+            _currentMigration.collateralMigrationAmount
+        );
 
         // Mint issuance tokens to be used as liquidity
-        IERC20Issuance_v1(issuanceToken).mint(
+        IERC20Issuance_v1(_issuanceToken).mint(
             address(this), issuanceMigrationAmount
         );
 

@@ -42,7 +42,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
 
     // Constants
     uint constant COLLATERAL_MIGRATION_THRESHOLD = 1000e18;
-    uint constant BUY_AMOUNT = 1000e18;
+    uint constant COLLATERAL_MIGRATION_AMOUNT = 1000e18;
     ERC20Issuance_v1 issuanceToken;
 
     function setUp() public override {
@@ -115,7 +115,7 @@ contract MigrateLiquidityE2ETest is E2ETest {
                 abi.encode(
                     ILM_PC_MigrateLiquidity_UniswapV2_v1
                         .LiquidityMigrationConfig({
-                        collateralMigrationAmount: BUY_AMOUNT,
+                        collateralMigrationAmount: COLLATERAL_MIGRATION_AMOUNT,
                         collateralMigrateThreshold: COLLATERAL_MIGRATION_THRESHOLD,
                         dexRouterAddress: address(uniswapRouter),
                         dexFactoryAddress: address(uniswapFactory),
@@ -173,17 +173,17 @@ contract MigrateLiquidityE2ETest is E2ETest {
         // 1.1. Set Migration Manager As Minter
         issuanceToken.setMinter(address(migrationManager), true);
         // 2. Mint Collateral To Buy From the FundingManager
-        token.mint(address(this), BUY_AMOUNT);
+        token.mint(address(this), COLLATERAL_MIGRATION_AMOUNT);
         // 3. Calculate Minimum Amount Out
         uint buf_minAmountOut =
-            fundingManager.calculatePurchaseReturn(BUY_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
+            fundingManager.calculatePurchaseReturn(COLLATERAL_MIGRATION_AMOUNT); // buffer variable to store the minimum amount out on calls to the buy and sell functions
         // 4. Buy from the FundingManager
         vm.startPrank(address(this));
         {
             // 4.1. Approve tokens to fundingManager.
-            token.approve(address(fundingManager), BUY_AMOUNT);
+            token.approve(address(fundingManager), COLLATERAL_MIGRATION_AMOUNT);
             // 4.2. Deposit tokens, i.e. fund the fundingmanager.
-            fundingManager.buy(BUY_AMOUNT, buf_minAmountOut);
+            fundingManager.buy(COLLATERAL_MIGRATION_AMOUNT, buf_minAmountOut);
             // 4.3. After the deposit, check that the user has received them
             assertTrue(
                 issuanceToken.balanceOf(address(this)) > 0,

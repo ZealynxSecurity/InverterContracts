@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
+import "forge-std/console.sol";
+
 // Internal Interfaces
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
@@ -68,8 +70,20 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     //--------------------------------------------------------------------------
     // Storage
 
+    /// @dev Address of the funding manager
+    address private _fundingManagerAddress;
+
+    /// @dev Address of the issuance token
+    address private _issuanceTokenAddress;
+
+    /// @dev Address of the collateral token
+    address private _collateralTokenAddress;
+
     /// @dev State of the current migration
     LiquidityMigrationConfig private _currentMigration;
+
+    /// @dev Bonding Curve instance
+    BondingCurve private _bondingCurve;
 
     /// @dev Executed flag
     bool private _executed;
@@ -84,6 +98,12 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         bytes memory configData
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata);
+
+        _fundingManagerAddress = address(orchestrator().fundingManager());
+        _bondingCurve = BondingCurve(_fundingManagerAddress);
+        _collateralTokenAddress =
+            address(orchestrator().fundingManager().token());
+        _issuanceTokenAddress = address(_bondingCurve.getIssuanceToken());
 
         (_currentMigration) = abi.decode(configData, (LiquidityMigrationConfig));
     }
@@ -112,14 +132,10 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             return false;
         }
 
-        address collateralToken =
-            address(orchestrator().fundingManager().token());
+        uint collateralBalance =
+            IERC20(_collateralTokenAddress).balanceOf(_fundingManagerAddress);
 
-        if (
-            IERC20(collateralToken).balanceOf(
-                address(orchestrator().fundingManager())
-            ) < _currentMigration.collateralMigrateThreshold
-        ) {
+        if (collateralBalance < _currentMigration.collateralMigrateThreshold) {
             return false;
         }
 
@@ -166,34 +182,26 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             revert Module__LM_PC_MigrateLiquidity__ThresholdNotReached();
         }
 
-        address fundingManager = address(orchestrator().fundingManager());
-        BondingCurve bondingCurve = BondingCurve(fundingManager);
-        address collateralToken =
-            address(orchestrator().fundingManager().token());
-        address issuanceToken = address(bondingCurve.getIssuanceToken());
-
         // Get the UniswapV2 Router and Factory interfaces
         IUniswapV2Router02 router =
             IUniswapV2Router02(_currentMigration.dexRouterAddress);
-        IUniswapV2Factory factory =
-            IUniswapV2Factory(_currentMigration.dexFactoryAddress);
 
         // Get token addresses from the payment processor
-        address tokenA = address(collateralToken);
-        address tokenB = address(bondingCurve);
+        address tokenA = _collateralTokenAddress;
+        address tokenB = _issuanceTokenAddress;
 
         // Transfer collateral tokens to this contract
-        bondingCurve.transferOrchestratorToken(
+        _bondingCurve.transferOrchestratorToken(
             address(this), _currentMigration.collateralMigrationAmount
         );
 
         // Calculate issuance migration amount
-        uint issuanceMigrationAmount = bondingCurve.calculatePurchaseReturn(
+        uint issuanceMigrationAmount = _bondingCurve.calculatePurchaseReturn(
             _currentMigration.collateralMigrationAmount
         );
 
         // Mint issuance tokens to be used as liquidity
-        IERC20Issuance_v1(issuanceToken).mint(
+        IERC20Issuance_v1(_issuanceTokenAddress).mint(
             address(this), issuanceMigrationAmount
         );
 
@@ -206,12 +214,6 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             _currentMigration.dexRouterAddress, issuanceMigrationAmount
         );
 
-        // Create the pair if it doesn't exist
-        address pair = factory.getPair(tokenA, tokenB);
-        if (pair == address(0)) {
-            pair = factory.createPair(tokenA, tokenB);
-        }
-
         // Add liquidity
         (uint amountA, uint amountB, uint lpTokensCreated) = router.addLiquidity(
             tokenA,
@@ -220,7 +222,10 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             issuanceMigrationAmount,
             _currentMigration.collateralMigrationAmount * 95 / 100, // 5% slippage tolerance
             issuanceMigrationAmount * 95 / 100, // 5% slippage tolerance
-            address(this),
+            orchestrator().authorizer().getRoleMember(
+                0x0000000000000000000000000000000000000000000000000000000000000000,
+                0
+            ),
             block.timestamp + 15 minutes
         );
 

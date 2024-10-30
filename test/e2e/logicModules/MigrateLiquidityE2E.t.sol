@@ -11,9 +11,13 @@ import {
     IOrchestrator_v1
 } from "test/e2e/E2ETest.sol";
 // Uniswap Dependencies
-import {IUniswapV2Factory} from "@ex/interfaces/uniswap/IUniswapV2Factory.sol";
 import {IUniswapV2Pair} from "@ex/interfaces/uniswap/IUniswapV2Pair.sol";
+import {IUniswapV2Factory} from "@ex/interfaces/uniswap/IUniswapV2Factory.sol";
 import {IUniswapV2Router02} from "@ex/interfaces/uniswap/IUniswapV2Router02.sol";
+import {uniswapV2FactoryBytecode} from
+    "test/e2e/logicModules/lib/uniswap/uniswapV2FactoryBytecode.sol";
+import {uniswapV2Router02Bytecode} from
+    "test/e2e/logicModules/lib/uniswap/uniswapV2Router02Bytecode.sol";
 // SuT
 import {
     FM_BC_Bancor_Redeeming_VirtualSupply_v1,
@@ -49,27 +53,13 @@ contract MigrateLiquidityE2ETest is E2ETest {
         //--------------------------------------------------------------------------
         super.setUp();
 
-        // Step 0: Make global addresses persistent
-        vm.makePersistent(address(token));
-        vm.makePersistent(address(formula));
+        // Step 1: Deploy Uniswap Contracts
 
-        // Step 1: Create both forks first
-        uint anvilFork = vm.createFork("http://localhost:8545");
-        uint mainnetFork = vm.createFork("https://rpc.ankr.com/eth", 17_480_237);
+        vm.etch(uniswapFactoryAddress, uniswapV2FactoryBytecode);
+        vm.etch(uniswapRouterAddress, uniswapV2Router02Bytecode);
 
-        // Step 2: Select mainnet fork and set up Uniswap contracts
-        vm.selectFork(mainnetFork);
         uniswapFactory = IUniswapV2Factory(uniswapFactoryAddress);
         uniswapRouter = IUniswapV2Router02(uniswapRouterAddress);
-
-        // Step 3: Create the contract state on mainnet fork
-        bytes memory factoryCode = address(uniswapFactory).code;
-        bytes memory routerCode = address(uniswapRouter).code;
-
-        // Step 4: Switch to Anvil fork and etch the contracts
-        vm.selectFork(anvilFork);
-        vm.etch(uniswapFactoryAddress, factoryCode);
-        vm.etch(uniswapRouterAddress, routerCode);
 
         // Set Up Modules
 

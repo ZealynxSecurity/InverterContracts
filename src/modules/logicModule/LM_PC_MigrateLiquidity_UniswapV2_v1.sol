@@ -77,6 +77,9 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
     /// @dev Address of the collateral token
     address private _collateralTokenAddress;
 
+    /// @dev LP Recipient Address
+    address private _lpRecipientAddress;
+
     /// @dev State of the current migration
     LiquidityMigrationConfig private _currentMigration;
 
@@ -102,8 +105,8 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         _collateralTokenAddress =
             address(orchestrator().fundingManager().token());
         _issuanceTokenAddress = address(_bondingCurve.getIssuanceToken());
-
         (_currentMigration) = abi.decode(configData, (LiquidityMigrationConfig));
+        _lpRecipientAddress = _currentMigration.lpTokenRecipientAddress;
     }
 
     //--------------------------------------------------------------------------
@@ -211,21 +214,23 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
             _currentMigration.dexRouterAddress, issuanceMigrationAmount
         );
 
-        address pairAddress =
+        address lpTokenAddress =
             IUniswapV2Factory(router.factory()).createPair(tokenA, tokenB);
 
         // Add liquidity
-        (uint amountA, uint amountB, uint lpTokensCreated) = router.addLiquidity(
+        (uint amountA, uint amountB, uint lpTokenAmount) = router.addLiquidity(
             tokenA,
             tokenB,
             _currentMigration.collateralMigrationAmount,
             issuanceMigrationAmount,
             _currentMigration.collateralMigrationAmount * 95 / 100, // 5% slippage tolerance
             issuanceMigrationAmount * 95 / 100, // 5% slippage tolerance
-            orchestrator().authorizer().getRoleMember(
-                0x0000000000000000000000000000000000000000000000000000000000000000,
-                0
-            ),
+            _lpRecipientAddress != address(0)
+                ? _lpRecipientAddress
+                : orchestrator().authorizer().getRoleMember(
+                    0x0000000000000000000000000000000000000000000000000000000000000000,
+                    0
+                ),
             block.timestamp + 15 minutes
         );
 
@@ -236,8 +241,8 @@ contract LM_PC_MigrateLiquidity_UniswapV2_v1 is
         _executed = true;
 
         LiquidityMigrationResult memory result = LiquidityMigrationResult({
-            pairAddress: pairAddress,
-            lpTokensCreated: lpTokensCreated,
+            lpTokenAddress: lpTokenAddress,
+            lpTokenAmount: lpTokenAmount,
             token0: tokenA,
             token1: tokenB,
             amount0: amountA,

@@ -15,9 +15,9 @@ import {IUniswapV2Pair} from "@ex/interfaces/uniswap/IUniswapV2Pair.sol";
 import {IUniswapV2Factory} from "@ex/interfaces/uniswap/IUniswapV2Factory.sol";
 import {IUniswapV2Router02} from "@ex/interfaces/uniswap/IUniswapV2Router02.sol";
 import {uniswapV2FactoryBytecode} from
-    "test/e2e/logicModules/lib/uniswap/uniswapV2FactoryBytecode.sol";
+    "test/e2e/lib/uniswap/uniswapV2FactoryBytecode.sol";
 import {uniswapV2Router02Bytecode} from
-    "test/e2e/logicModules/lib/uniswap/uniswapV2Router02Bytecode.sol";
+    "test/e2e/lib/uniswap/uniswapV2Router02Bytecode.sol";
 // SuT
 import {
     FM_BC_Bancor_Redeeming_VirtualSupply_v1,
@@ -31,6 +31,7 @@ import {FM_Rebasing_v1} from "@fm/rebasing/FM_Rebasing_v1.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 import {ERC20Issuance_v1} from "src/external/token/ERC20Issuance_v1.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 contract MigrateLiquidityE2ETest is E2ETest {
     // Module Configurations
@@ -119,7 +120,8 @@ contract MigrateLiquidityE2ETest is E2ETest {
                         .LiquidityMigrationConfig({
                         collateralMigrationAmount: COLLATERAL_MIGRATION_AMOUNT,
                         collateralMigrateThreshold: COLLATERAL_MIGRATION_THRESHOLD,
-                        dexRouterAddress: address(uniswapRouter)
+                        dexRouterAddress: address(uniswapRouter),
+                        lpTokenRecipientAddress: address(this)
                     })
                 )
             )
@@ -201,29 +203,32 @@ contract MigrateLiquidityE2ETest is E2ETest {
         vm.stopPrank();
 
         // 5. Check no pool exists yet
-        address pairAddress =
+        address lpTokenAddress =
             uniswapFactory.getPair(address(token), address(issuanceToken));
 
-        assertEq(pairAddress, address(0), "Pool should not exist yet");
+        assertEq(lpTokenAddress, address(0), "Pool should not exist yet");
 
         // 6. Set migration manager instance
         ILM_PC_MigrateLiquidity_UniswapV2_v1.LiquidityMigrationConfig memory
             migration = migrationManager.getMigrationConfig();
 
+        ILM_PC_MigrateLiquidity_UniswapV2_v1.LiquidityMigrationResult memory
+            migrationResult;
+
         // 7. Execute migration
         vm.startPrank(address(this));
-        migrationManager.executeMigration();
+        migrationResult = migrationManager.executeMigration();
         vm.stopPrank();
 
         bool executed = migrationManager.getExecuted();
 
         // 8. Verify pool creation and liquidity
-        pairAddress =
+        lpTokenAddress =
             uniswapFactory.getPair(address(token), address(issuanceToken));
-        assertTrue(pairAddress != address(0), "Pool should exist");
+        assertTrue(lpTokenAddress != address(0), "Pool should exist");
 
         // 9.1. Get pair
-        IUniswapV2Pair pair = IUniswapV2Pair(pairAddress);
+        IUniswapV2Pair pair = IUniswapV2Pair(lpTokenAddress);
 
         // 9.2. Get reserves
         (uint112 reserve0, uint112 reserve1,) = pair.getReserves();
@@ -240,5 +245,12 @@ contract MigrateLiquidityE2ETest is E2ETest {
         // 10. Verify migration completion
         migration = migrationManager.getMigrationConfig();
         assertTrue(executed, "Migration should be marked as executed");
+
+        // 11. Verify LP tokens are received by the migration manager
+        assertGt(
+            IERC20(migrationResult.lpTokenAddress).balanceOf(address(this)),
+            0,
+            "Script should have received LP tokens"
+        );
     }
 }

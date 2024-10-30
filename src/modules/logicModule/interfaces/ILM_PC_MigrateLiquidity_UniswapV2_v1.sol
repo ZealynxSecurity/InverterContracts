@@ -18,18 +18,19 @@ interface ILM_PC_MigrateLiquidity_UniswapV2_v1 is IERC20PaymentClientBase_v1 {
         uint collateralMigrationAmount;
         uint collateralMigrateThreshold;
         address dexRouterAddress;
+        address lpTokenRecipientAddress;
     }
 
     /// @notice Struct used to inform about the result of a liquidity migration.
-    /// @param  pairAddress Address of the created pair
-    /// @param  lpTokensCreated Amount of LP tokens created
+    /// @param  lpTokenAddress Address of the created pair
+    /// @param  lpTokenAmount Amount of LP tokens created
     /// @param  token0 Address of the first token
     /// @param  token1 Address of the second token
     /// @param  amount0 Amount of the first token
     /// @param  amount1 Amount of the second token
     struct LiquidityMigrationResult {
-        address pairAddress;
-        uint lpTokensCreated;
+        address lpTokenAddress;
+        uint lpTokenAmount;
         address token0;
         address token1;
         uint amount0;

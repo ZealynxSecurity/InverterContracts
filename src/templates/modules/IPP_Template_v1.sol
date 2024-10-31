@@ -2,8 +2,7 @@
 pragma solidity ^0.8.0;
 
 // Internal
-
-// External
+import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
 
 /**
  * @title   Inverter Template Payment Processor
@@ -33,7 +32,7 @@ pragma solidity ^0.8.0;
  *
  * @author  Inverter Network
  */
-interface IPP_Template_v1 {
+interface IPP_Template_v1 is IPaymentProcessor_v1 {
     //--------------------------------------------------------------------------
     // Structs
 

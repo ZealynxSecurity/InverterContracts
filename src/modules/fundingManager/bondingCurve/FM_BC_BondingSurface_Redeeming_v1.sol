@@ -79,7 +79,7 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
     // Constants
 
     /// @dev Minimum collateral reserve
-    uint public constant MIN_RESERVE = 1 ether;
+    uint public MIN_RESERVE;
 
     //--------------------------------------------------------------------------
     // Storage
@@ -95,6 +95,9 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
     uint public basePriceMultiplier;
     /// @dev (basePriceMultiplier / capitalRequired)
     uint public basePriceToCapitalRatio;
+
+    /// @dev    Storage gap for future upgrades.
+    uint[50] private __gap;
 
     //--------------------------------------------------------------------------
     // Init Function
@@ -116,6 +119,9 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
 
         // Set accepted token
         _token = IERC20(_acceptedToken);
+
+        // MIN_RESERVE is in relational to the decimals of the workflow collateral token
+        MIN_RESERVE = 10 ** IERC20Metadata(address(_token)).decimals();
 
         // Set issuance token. This also caches the decimals
         _setIssuanceToken(address(_issuanceToken));
@@ -171,7 +177,9 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
         override(BondingCurveBase_v1)
         returns (uint)
     {
-        return _issueTokensFormulaWrapper(1);
+        return formula.spotPrice(
+            _getCapitalAvailable(), capitalRequired, basePriceMultiplier
+        );
     }
 
     /// @notice Calculates and returns the static price for selling the issuance token.
@@ -183,7 +191,9 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint)
     {
-        return _redeemTokensFormulaWrapper(1);
+        return formula.spotPrice(
+            _getCapitalAvailable(), capitalRequired, basePriceMultiplier
+        );
     }
 
     //--------------------------------------------------------------------------
@@ -258,7 +268,7 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
 
         // The asset pool must never be empty.
         if (capitalAvailable - redeemAmount < MIN_RESERVE) {
-            redeemAmount = capitalAvailable - MIN_RESERVE;
+            revert FM_BC_BondingSurface_Redeeming_v1__MinReserveReached();
         }
     }
 
@@ -277,7 +287,12 @@ contract FM_BC_BondingSurface_Redeeming_v1 is
         ) {
             revert InvalidOrchestratorTokenWithdrawAmount();
         }
+
         token().safeTransfer(to, amount);
+
+        if (MIN_RESERVE > token().balanceOf(address(this))) {
+            revert FM_BC_BondingSurface_Redeeming_v1__MinReserveReached();
+        }
 
         emit TransferOrchestratorToken(to, amount);
     }

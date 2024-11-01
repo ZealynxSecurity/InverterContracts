@@ -119,6 +119,9 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
     /// @dev Restricts buying and selling functionalities to specific role.
     bool public buyAndSellIsRestricted;
 
+    /// @dev    Storage gap for future upgrades.
+    uint[50] private __gap;
+
     //--------------------------------------------------------------------------
     // Init Function
 
@@ -164,6 +167,9 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         // Set accepted token
         _token = IERC20(_acceptedToken);
 
+        // MIN_RESERVE is in relational to the decimals of the workflow collateral token
+        MIN_RESERVE = 10 ** IERC20Metadata(address(_token)).decimals();
+
         // Set issuance token. This also caches the decimals
         _setIssuanceToken(address(_issuanceToken));
 
@@ -190,7 +196,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         // Set base price multiplier
         _setBasePriceMultiplier(bondingCurveProperties.basePriceMultiplier);
         // Set buy fee
-        _setBuyFee(0);
+        _setBuyFee(bondingCurveProperties.buyFee);
         // Set sell fee
         _setSellFee(bondingCurveProperties.sellFee);
         // Set buying functionality to open if true. By default buying is false
@@ -212,8 +218,8 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
     //--------------------------------------------------------------------------
     // Modifiers
 
-    modifier isBuyAndSellRestricted() {
-        _isBuyAndSellRestrictedModifier();
+    modifier checkBuyAndSellRestrictions() {
+        _checkBuyAndSellRestrictionsModifier();
         _;
     }
 
@@ -240,7 +246,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         public
         virtual
         override(BondingCurveBase_v1)
-        isBuyAndSellRestricted
+        checkBuyAndSellRestrictions
     {
         super.buyFor(_receiver, _depositAmount, _minAmountOut);
     }
@@ -268,7 +274,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         public
         virtual
         override(RedeemingBondingCurveBase_v1)
-        isBuyAndSellRestricted
+        checkBuyAndSellRestrictions
     {
         super.sellTo(_receiver, _depositAmount, _minAmountOut);
     }
@@ -330,6 +336,10 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         __Module_orchestrator.fundingManager().token().safeTransfer(
             _to, _amount
         );
+        if (MIN_RESERVE > token().balanceOf(address(this))) {
+            revert FM_BC_BondingSurface_Redeeming_v1__MinReserveReached();
+        }
+
         emit RepaymentTransfer(_to, _amount);
     }
 
@@ -375,7 +385,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
         }
 
         // solhint-disable-next-line not-rely-on-time
-        lastSeizeTimestamp = uint64(block.timestamp);
+        lastSeizeTimestamp = block.timestamp;
         _token.transfer(_msgSender(), _amount);
         emit CollateralSeized(_amount);
     }
@@ -428,17 +438,6 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
             address(_lvc), address(liquidityVaultController)
         );
         liquidityVaultController = _lvc;
-    }
-
-    /// @notice Disabled function for setting the buy fee
-    function setBuyFee(uint /*_fee*/ )
-        external
-        pure
-        override(BondingCurveBase_v1)
-    {
-        revert
-            FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1__InvalidFunctionality(
-        );
     }
 
     //--------------------------------------------------------------------------
@@ -537,7 +536,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1 is
 
     /// @dev    Validate if buy and sell is restricted, and if so
     ///         check if the caller has the CURVE_INTERACTION_ROLE
-    function _isBuyAndSellRestrictedModifier() internal view {
+    function _checkBuyAndSellRestrictionsModifier() internal view {
         if (buyAndSellIsRestricted) {
             _checkRoleModifier(CURVE_INTERACTION_ROLE, _msgSender());
         }

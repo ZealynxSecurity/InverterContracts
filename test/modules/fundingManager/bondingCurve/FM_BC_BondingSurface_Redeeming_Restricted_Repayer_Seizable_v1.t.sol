@@ -66,6 +66,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
     uint internal constant MAX_SUPPLY = type(uint).max;
     uint private constant CAPITAL_REQUIREMENT = 1_000_000 * 1e18; // Taken from Topos repo test case
 
+    uint private constant BUY_FEE = 100;
     uint private constant SELL_FEE = 100;
     bool private constant BUY_IS_OPEN = true;
     bool private constant SELL_IS_OPEN = true;
@@ -75,7 +76,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
     bytes32 private constant RISK_MANAGER_ROLE = "RISK_MANAGER";
     bytes32 private constant COVER_MANAGER_ROLE = "COVER_MANAGER";
 
-    uint private constant MIN_RESERVE = 1 ether;
+    uint private MIN_RESERVE = 10 ** _token.decimals();
     uint64 private constant MAX_SEIZE = 100;
     uint64 private constant MAX_SELL_FEE = 100;
     uint private constant BASE_PRICE_MULTIPLIER = 0.000001 ether;
@@ -118,6 +119,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
         // Set pAMM properties
         bc_properties.buyIsOpen = BUY_IS_OPEN;
         bc_properties.sellIsOpen = SELL_IS_OPEN;
+        bc_properties.buyFee = BUY_FEE;
         bc_properties.sellFee = SELL_FEE;
 
         address impl = address(
@@ -164,6 +166,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
             CURVE_INTERACTION_ROLE, targets
         );
     }
+
     //--------------------------------------------------------------------------
     // Test: Initialization
 
@@ -188,6 +191,12 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
             address(_token),
             "Collateral token not set correctly"
         );
+        // MIN_RESERVE
+        assertEq(
+            bondingCurveFundingManager.MIN_RESERVE(),
+            MIN_RESERVE,
+            "MIN_RESERVE has not been set correctly"
+        );
         // Buy/Sell conditions
         assertEq(
             bondingCurveFundingManager.sellFee(),
@@ -196,7 +205,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
         );
         assertEq(
             bondingCurveFundingManager.buyFee(),
-            0,
+            BUY_FEE,
             "Buy fee has not been set correctly"
         );
         assertEq(
@@ -237,6 +246,71 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
     function testReinitFails() public override {
         vm.expectRevert(OZErrors.Initializable__InvalidInitialization);
         bondingCurveFundingManager.init(_orchestrator, _METADATA, abi.encode());
+    }
+
+    /*
+    Test: Init
+    └── Given: decimals are not 18
+        └── When: the function init is called
+            └── Then: it should adapt the MIN_RESERVE accordingly
+    */
+
+    function testInit_GivenDecimalsAreNot18(uint8 decimals) public {
+        //uint 256 only has 77 Decimals
+        if (decimals == 1 || decimals > 77) decimals = 1;
+
+        // set new decimals
+        _token.setDecimals(decimals);
+
+        // Setup bondingCurve properties
+        IFM_BC_BondingSurface_Redeeming_v1.BondingCurveProperties memory
+            bc_properties;
+
+        // Deploy formula and cast to address for encoding
+        BondingSurface bondingSurface = new BondingSurface();
+        formula = address(bondingSurface);
+
+        // Set Formula contract properties
+        bc_properties.formula = formula;
+        bc_properties.capitalRequired = CAPITAL_REQUIREMENT;
+        bc_properties.basePriceMultiplier = BASE_PRICE_MULTIPLIER;
+
+        // Set pAMM properties
+        bc_properties.buyIsOpen = BUY_IS_OPEN;
+        bc_properties.sellIsOpen = SELL_IS_OPEN;
+        bc_properties.buyFee = BUY_FEE;
+        bc_properties.sellFee = SELL_FEE;
+
+        address impl = address(
+            new FM_BC_BondingSurface_Redeeming_Restricted_Repayer_SeizableV1_exposed(
+            )
+        );
+
+        bondingCurveFundingManager =
+        FM_BC_BondingSurface_Redeeming_Restricted_Repayer_SeizableV1_exposed(
+            Clones.clone(impl)
+        );
+
+        bondingCurveFundingManager.init(
+            _orchestrator,
+            _METADATA,
+            abi.encode(
+                address(issuanceToken),
+                address(_token), // fetching from ModuleTest.sol (specifically after the _setUpOrchestrator function call)
+                address(tokenVault),
+                liquidityVaultController,
+                bc_properties,
+                MAX_SEIZE,
+                BUY_AND_SELL_IS_RESTRICTED
+            )
+        );
+
+        //assert that MIN_RESERVE is set correctly
+        assertEq(
+            bondingCurveFundingManager.MIN_RESERVE(),
+            10 ** decimals,
+            "MIN_RESERVE has not been set correctly"
+        );
     }
 
     //--------------------------------------------------------------------------
@@ -345,12 +419,12 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
 
     /*  Test buy() & buyFor() functions
         Please Note: The functions have been extensively tested in the BondingCurveBase_v1.t contract. These
-        tests only check for the placement of the isBuyAndSellRestricted() modifier
-        ├── Given the modifier isBuyAndSellRestricted() is in place
+        tests only check for the placement of the checkBuyAndSellRestrictions() modifier
+        ├── Given the modifier checkBuyAndSellRestrictions() is in place
         │   └── And the modifier condition isn't met
         │       ├── When the function buy() is called
         │       └── Then it should revert
-        └── Given the modifier isBuyAndSellRestricted() is in place
+        └── Given the modifier checkBuyAndSellRestrictions() is in place
             └── And the modifier condition isn't met
                 └── When the function buyFor() is called
                     └── Then it should revert
@@ -474,14 +548,14 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
         bondingCurveFundingManager.restrictBuyAndSell();
     }
 
-    /*  Test internal _isBuyAndSellRestrictedModifier() function
+    /*  Test internal _checkBuyAndSellRestrictionsModifier() function
         └── Given buy and selling is restricted
             └── And the msg.sender does not have the CURVE_INTERACTION_ROLE
-                └── When the function _isBuyAndSellRestrictedModifier() is called
+                └── When the function _checkBuyAndSellRestrictionsModifier() is called
                     └── Then it should revert
     */
 
-    function testInternalIsBuyAndSellRestrictedModifier_revertGivenCallerHasNotCoverManagerRole(
+    function testInternalcheckBuyAndSellRestrictionsModifier_revertGivenCallerHasNotCoverManagerRole(
     ) public {
         // Setup
         bondingCurveFundingManager.restrictBuyAndSell();
@@ -496,7 +570,7 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
             )
         );
         vm.prank(nonAuthorizedBuyer);
-        bondingCurveFundingManager.exposed_isBuyAndSellRestrictedModifier();
+        bondingCurveFundingManager.exposed_checkBuyAndSellRestrictionsModifier();
     }
 
     /*  Test burnIssuanceToken()
@@ -753,6 +827,9 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
                 ├── And: the _amount > the repayable amount available
                 │   └── When: the function transferRepayment() gets called
                 │       └── Then: it should revert
+                ├── And: the _amount > the repayable amount available
+                │   └── When: the function transferRepayment() gets called
+                │       └── Then: it should revert
                 └── And: _amount <= repayable amount available
                     └── When: the function transferRepayment() gets called
                         └── Then: it should transfer _amount to the _to address
@@ -841,6 +918,37 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
             );
             bondingCurveFundingManager.transferRepayment(_to, _amount);
         }
+    }
+
+    function testTransferPayment_revertGivenMinReserveIsReached(
+        address _to,
+        uint _amount
+    ) public {
+        // Valid _to address
+        vm.assume(
+            _to != liquidityVaultController
+                && _to != address(bondingCurveFundingManager) && _to != address(0)
+        );
+        _amount = bound(_amount, 1, UINT256_MAX - MIN_RESERVE); // Protect agains overflow
+
+        // Setup
+        // set and mint the amount needed for this test.
+        _mintCollateralTokenToAddressHelper(
+            address(bondingCurveFundingManager), _amount
+        );
+        // Set capital requirement
+        bondingCurveFundingManager.setCapitalRequired(_amount + MIN_RESERVE);
+        // Set repayable amount
+        bondingCurveFundingManager.setRepayableAmount(_amount + MIN_RESERVE);
+
+        // Execute Tx
+        vm.prank(liquidityVaultController);
+        vm.expectRevert(
+            IFM_BC_BondingSurface_Redeeming_v1
+                .FM_BC_BondingSurface_Redeeming_v1__MinReserveReached
+                .selector
+        );
+        bondingCurveFundingManager.transferRepayment(_to, _amount + MIN_RESERVE);
     }
 
     function testTransferPayment_worksGivenCallerIsLvcAndAmountIsValid(
@@ -1141,22 +1249,6 @@ contract FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1Test is
         bondingCurveFundingManager.setSellFee(_fee);
 
         assertEq(bondingCurveFundingManager.sellFee(), _fee);
-    }
-
-    /*  Test setBuyFee()
-        └──  When the function setBuyFee() gets called
-            └── Then it should revert
-    */
-
-    function testSetBuyFee_revert() public {
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IFM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1
-                    .FM_BC_BondingSurface_Redeeming_Restricted_Repayer_Seizable_v1__InvalidFunctionality
-                    .selector
-            )
-        );
-        bondingCurveFundingManager.setBuyFee(1);
     }
 
     /*  Test setRepayableAmount()

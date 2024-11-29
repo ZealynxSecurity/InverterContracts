@@ -1,20 +1,42 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
+//--------------------------------------------------------------------------
+// Imports
+
+// Internal
 import { ERC20Issuance_v1 } from "@ex/token/ERC20Issuance_v1.sol";
-import { IERC20Issuance_blacklist_v1 } from "./interfaces/IERC20Issuance_blacklist_v1.sol";
+import { IERC20Issuance_Blacklist_v1 } from "./interfaces/IERC20Issuance_Blacklist_v1.sol";
+
+// External
 import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
 import { ERC20 } from "@oz/token/ERC20/ERC20.sol";
 
 /**
- * @title   Blacklist-enabled ERC20 Issuance Token
- * @notice  ERC20 token with minting and blacklist capabilities
- * @dev     Extends ERC20Issuance_v1 with blacklist functionality
+ * @title   ERC20 Issuance Token with Blacklist Functionality
+ *
+ * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with 
+ *          blacklisting capabilities. This allows the owner to restrict specific
+ *          addresses from participating in token operations.
+ *
+ * @dev     This contract inherits from:
+ *              - IERC20Issuance_Blacklist_v1
+ *              - ERC20Issuance_v1
+ *          Key features:
+ *              - Individual address blacklisting
+ *              - Batch blacklisting operations
+ *              - Owner-controlled blacklist management
+ *          All blacklist operations can only be performed by the contract owner.
+ *
  * @custom:security-contact security@inverter.network
+ *                          In case of any concerns or findings, please refer to
+ *                          our Security Policy at security.inverter.network or
+ *                          email us directly!
+ *
  * @author  Zealynx Security
  */
-contract ERC20Issuance_blacklist_v1 is 
-    IERC20Issuance_blacklist_v1, 
+contract ERC20Issuance_Blacklist_v1 is 
+    IERC20Issuance_Blacklist_v1, 
     ERC20Issuance_v1 
 {
     //--------------------------------------------------------------------------
@@ -27,14 +49,8 @@ contract ERC20Issuance_blacklist_v1 is
     // Constants
 
     /// @dev Maximum number of addresses that can be blacklisted in a batch
-    uint256 public constant BATCH_LIMIT = 50;
+    uint256 public constant BATCH_LIMIT = 200;
 
-    //--------------------------------------------------------------------------
-    // Events
-
-    event AddedToBlacklist(address indexed account_);
-    event RemovedFromBlacklist(address indexed account_);
-    
     //--------------------------------------------------------------------------
     // Constructor
 
@@ -68,7 +84,7 @@ contract ERC20Issuance_blacklist_v1 is
     //--------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc IERC20Issuance_blacklist_v1
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function isBlacklisted(
         address account_
     ) public view override returns (bool isBlacklisted_) {
@@ -78,14 +94,16 @@ contract ERC20Issuance_blacklist_v1 is
     //--------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc IERC20Issuance_blacklist_v1
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function addToBlacklist(address account_) public onlyOwner {
-        require(!isBlacklisted(account_));
+        if (isBlacklisted(account_)) {
+            revert ERC20Issuance__AddressAlreadyBlacklisted(account_);
+        }
         _blacklist[account_] = true;
         emit AddedToBlacklist(account_);
     }
 
-    /// @inheritdoc IERC20Issuance_blacklist_v1
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklist(address account_) public onlyOwner {
         if(isBlacklisted(account_)) {
             _blacklist[account_] = false;
@@ -93,23 +111,27 @@ contract ERC20Issuance_blacklist_v1 is
         }
     }
 
-    /// @inheritdoc IERC20Issuance_blacklist_v1
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function addToBlacklistBatchAddresses(
         address[] memory accounts_
     ) external onlyOwner {
         uint256 totalAccount_ = accounts_.length;
-        require(totalAccount_ <= BATCH_LIMIT, "Batch limit exceeded");
+        if (totalAccount_ > BATCH_LIMIT) {
+            revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+        }
         for (uint256 i_; i_ < totalAccount_; ++i_) {
             addToBlacklist(accounts_[i_]);
         }
     }
 
-    /// @inheritdoc IERC20Issuance_blacklist_v1
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklistBatchAddresses(
         address[] calldata accounts_
     ) external onlyOwner {
         uint256 totalAccount_ = accounts_.length;
-        require(totalAccount_ <= BATCH_LIMIT, "Batch limit exceeded");
+        if (totalAccount_ > BATCH_LIMIT) {
+            revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+        }
         for (uint256 i_; i_ < totalAccount_; ++i_) {
             removeFromBlacklist(accounts_[i_]);
         }
@@ -119,7 +141,9 @@ contract ERC20Issuance_blacklist_v1 is
     /// @param account_ Address to mint to
     /// @param amount_ Amount to mint
     function mintAllowed(address account_, uint256 amount_) public onlyMinter {
-        if (isBlacklisted(account_)) revert();
+        if (isBlacklisted(account_)) {
+            revert ERC20Issuance__BlacklistedAddress(account_);
+        }
         _mint(account_, amount_);
     }
 

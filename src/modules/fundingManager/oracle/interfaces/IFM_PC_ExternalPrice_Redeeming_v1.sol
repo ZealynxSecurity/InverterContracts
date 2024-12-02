@@ -137,6 +137,14 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param account_ The non-whitelisted address
     error FM_ExternalPrice__NotWhitelisted(address account_);
 
+    /// @notice Thrown when an invalid address is provided
+    error FM_ExternalPrice__InvalidAddress();
+
+    /// @notice Fee exceeds maximum allowed value
+    /// @param fee The fee that was attempted to be set
+    /// @param maxFee The maximum allowed fee
+    error FM_ExternalPrice__FeeExceedsMaximum(uint256 fee, uint256 maxFee);
+
     //--------------------------------------------------------------------------
     // View Functions
 

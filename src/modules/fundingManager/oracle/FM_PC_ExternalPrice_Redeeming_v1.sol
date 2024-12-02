@@ -78,6 +78,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Role for whitelisted addresses
     bytes32 public constant WHITELISTED_ROLE = "WHITELISTED_USER";
 
+    /// @notice Maximum fee that can be charged for sell operations, expressed in basis points (10000 = 100%)
+    /// @dev Set to 1000 basis points (10%)
+    uint256 private constant MAX_SELL_FEE = 1000; // 10% in basis points
+
     //--------------------------------------------------------------------------
     // State Variables
 
@@ -101,9 +105,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     // For tracking total open redemption amount
     uint private _openRedemptionAmount;
-
-    // For storing order information
-    mapping(uint => RedemptionOrder) private _redemptionOrders;
 
     /// @dev Storage gap for future upgrades
     uint[50] private __gap;
@@ -135,8 +136,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         __Module_init(orchestrator_, metadata_);
 
         // Decode config data
-        (address _oracleAddress, address _issuanceToken, address _acceptedToken)
-        = abi.decode(configData_, (address, address, address));
+        (
+            address _oracleAddress,
+            address _issuanceToken,
+            address _acceptedToken,
+            uint256 _buyFee,
+            uint256 _sellFee
+        ) = abi.decode(configData_, (address, address, address, uint256, uint256));
 
         // Set accepted token
         _token = IERC20(_acceptedToken);
@@ -149,6 +155,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Initialize base functionality (should handle token settings)
         _setIssuanceToken(_issuanceToken);
+
+        // Set fees (checking max sell fee)
+        if (_sellFee > MAX_SELL_FEE) {
+            revert FM_ExternalPrice__FeeExceedsMaximum(_sellFee, MAX_SELL_FEE);
+        }
+        _setBuyFee(_buyFee);
+        _setSellFee(_sellFee);
     }
 
     //--------------------------------------------------------------------------
@@ -267,15 +280,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForRedemption();
     }
 
-    // Add view function to get order details
-    function getOrder(uint orderId_)
-        external
-        view
-        returns (RedemptionOrder memory)
-    {
-        return _redemptionOrders[orderId_];
-    }
-
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getMaxBatchSize() external pure returns (uint maxBatchSize_) {
         return MAX_BATCH_SIZE;
@@ -342,28 +346,25 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Calculate amounts using parent functionality
         uint collateralAmount = calculateSaleReturn(depositAmount_);
-        uint feeAmount = (collateralAmount * sellFee) / BPS; // potentially wrong
+        uint feeAmount = (collateralAmount * sellFee) / BPS;
         uint redemptionAmount = collateralAmount - feeAmount;
 
         // Generate new order ID
         _orderId = _nextOrderId++;
 
-        // Create and store order
-        _redemptionOrders[_orderId] = RedemptionOrder({
-            seller: _msgSender(),
-            sellAmount: depositAmount_,
-            exchangeRate: exchangeRate,
-            collateralAmount: collateralAmount,
-            feePercentage: sellFee,
-            feeAmount: feeAmount,
-            redemptionAmount: redemptionAmount,
-            collateralToken: address(token()),
-            redemptionTime: block.timestamp,
-            state: RedemptionState.PROCESSING
-        });
-
         // Update open redemption amount
         _openRedemptionAmount += redemptionAmount;
+
+        // Create and add payment order
+        PaymentOrder memory order = PaymentOrder({
+            recipient: _msgSender(),
+            paymentToken: address(token()),
+            amount: redemptionAmount,
+            start: block.timestamp,
+            cliff: 0,
+            end: block.timestamp
+        });
+        _addPaymentOrder(order);
 
         // Emit event with all order details
         emit RedemptionOrderCreated(
@@ -395,12 +396,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Sets fee for sell operations
     /// @param fee_ New fee amount
-    function setSellFee(uint256 fee_)
-        public
-        override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
-        onlyOrchestratorAdmin
-    {
-        _setSellFee(fee_);
+    function setSellFee(
+        uint256 fee_
+    ) public override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1) 
+    onlyOrchestratorAdmin {
+        // Check that fee doesn't exceed maximum allowed
+        if (fee_ > MAX_SELL_FEE) {
+            revert FM_ExternalPrice__FeeExceedsMaximum(fee_, MAX_SELL_FEE);
+        }
+
+        super._setSellFee(fee_);
     }
 
     function getSellFee() public pure returns (uint sellFee_) {
@@ -418,13 +423,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(BondingCurveBase_v1)
         returns (uint mintAmount_)
     {
-        // Calculate mint amount through oracle price
-        uint tokenAmount_ = _oracle.getPriceForIssuance() * depositAmount_;
-
-        // Convert mint amount to issuing token decimals
-        mintAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
-            tokenAmount_, EIGHTEEN_DECIMALS, _issuanceTokenDecimals
+        // First convert deposit amount to required decimals
+        uint256 normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
+            depositAmount_,
+            IERC20Metadata(address(token())).decimals(),
+            IERC20Metadata(address(issuanceToken)).decimals()
         );
+
+        // Then calculate the token amount using the normalized amount
+        mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_;
     }
 
     /// @param depositAmount_ The amount being redeemed

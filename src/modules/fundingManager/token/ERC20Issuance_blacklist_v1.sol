@@ -5,17 +5,18 @@ pragma solidity 0.8.23;
 // Imports
 
 // Internal
-import { ERC20Issuance_v1 } from "@ex/token/ERC20Issuance_v1.sol";
-import { IERC20Issuance_Blacklist_v1 } from "./interfaces/IERC20Issuance_Blacklist_v1.sol";
+import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
+import {IERC20Issuance_Blacklist_v1} from
+    "./interfaces/IERC20Issuance_Blacklist_v1.sol";
 
 // External
-import { IERC20 } from "@oz/token/ERC20/IERC20.sol";
-import { ERC20 } from "@oz/token/ERC20/ERC20.sol";
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {ERC20} from "@oz/token/ERC20/ERC20.sol";
 
 /**
  * @title   ERC20 Issuance Token with Blacklist Functionality
  *
- * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with 
+ * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with
  *          blacklisting capabilities. This allows the owner to restrict specific
  *          addresses from participating in token operations.
  *
@@ -35,9 +36,9 @@ import { ERC20 } from "@oz/token/ERC20/ERC20.sol";
  *
  * @author  Zealynx Security
  */
-contract ERC20Issuance_Blacklist_v1 is 
-    IERC20Issuance_Blacklist_v1, 
-    ERC20Issuance_v1 
+contract ERC20Issuance_Blacklist_v1 is
+    IERC20Issuance_Blacklist_v1,
+    ERC20Issuance_v1
 {
     //--------------------------------------------------------------------------
     // Storage
@@ -49,7 +50,7 @@ contract ERC20Issuance_Blacklist_v1 is
     // Constants
 
     /// @dev Maximum number of addresses that can be blacklisted in a batch
-    uint256 public constant BATCH_LIMIT = 200;
+    uint public constant BATCH_LIMIT = 200;
 
     //--------------------------------------------------------------------------
     // Constructor
@@ -63,15 +64,11 @@ contract ERC20Issuance_Blacklist_v1 is
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        uint256 initialSupply_,
+        uint initialSupply_,
         address initialAdmin_
-    ) ERC20Issuance_v1(
-        name_, 
-        symbol_, 
-        decimals_, 
-        initialSupply_, 
-        initialAdmin_
-    ) {}
+    )
+        ERC20Issuance_v1(name_, symbol_, decimals_, initialSupply_, initialAdmin_)
+    {}
 
     //--------------------------------------------------------------------------
     // Modifiers
@@ -85,9 +82,12 @@ contract ERC20Issuance_Blacklist_v1 is
     // View Functions
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function isBlacklisted(
-        address account_
-    ) public view override returns (bool isBlacklisted_) {
+    function isBlacklisted(address account_)
+        public
+        view
+        override
+        returns (bool isBlacklisted_)
+    {
         return _blacklist[account_];
     }
 
@@ -105,34 +105,36 @@ contract ERC20Issuance_Blacklist_v1 is
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklist(address account_) public onlyOwner {
-        if(isBlacklisted(account_)) {
+        if (isBlacklisted(account_)) {
             _blacklist[account_] = false;
             emit RemovedFromBlacklist(account_);
         }
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklistBatchAddresses(
-        address[] memory accounts_
-    ) external onlyOwner {
-        uint256 totalAccount_ = accounts_.length;
+    function addToBlacklistBatchAddresses(address[] memory accounts_)
+        external
+        onlyOwner
+    {
+        uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
             revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
         }
-        for (uint256 i_; i_ < totalAccount_; ++i_) {
+        for (uint i_; i_ < totalAccount_; ++i_) {
             addToBlacklist(accounts_[i_]);
         }
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function removeFromBlacklistBatchAddresses(
-        address[] calldata accounts_
-    ) external onlyOwner {
-        uint256 totalAccount_ = accounts_.length;
+    function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
+        external
+        onlyOwner
+    {
+        uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
             revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
         }
-        for (uint256 i_; i_ < totalAccount_; ++i_) {
+        for (uint i_; i_ < totalAccount_; ++i_) {
             removeFromBlacklist(accounts_[i_]);
         }
     }
@@ -140,7 +142,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @notice Mints tokens if account is not blacklisted
     /// @param account_ Address to mint to
     /// @param amount_ Amount to mint
-    function mintAllowed(address account_, uint256 amount_) public onlyMinter {
+    function mintAllowed(address account_, uint amount_) public onlyMinter {
         if (isBlacklisted(account_)) {
             revert ERC20Issuance__BlacklistedAddress(account_);
         }
@@ -150,7 +152,22 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @notice Redeems tokens if account is not blacklisted
     /// @param account_ Address to redeem from
     /// @param amount_ Amount to redeem
-    function redeem(address account_, uint256 amount_) public onlyAllowed(account_) {
+    function redeem(address account_, uint amount_)
+        public
+        onlyAllowed(account_)
+    {
         // To be implemented
+    }
+
+    // Internal function to enforce restrictions on transfers
+    function _update(address from, address to, uint amount)
+        internal
+        virtual
+        override
+    {
+        if (isBlacklisted(from) || isBlacklisted(to)) {
+            revert ERC20Issuance__BlacklistedAddress(from);
+        }
+        super._update(from, to, amount);
     }
 }

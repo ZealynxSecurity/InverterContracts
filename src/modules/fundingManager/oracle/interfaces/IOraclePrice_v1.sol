@@ -22,9 +22,6 @@ interface IOraclePrice_v1 {
     //--------------------------------------------------------------------------
     // Errors
 
-    /// @notice Thrown when price retrieval fails
-    error OraclePrice__PriceRetrievalFailed();
-
     /// @notice Thrown when price returned is zero
     error OraclePrice__ZeroPrice();
 
@@ -33,11 +30,11 @@ interface IOraclePrice_v1 {
 
     /// @notice Gets current price for token issuance
     /// @return price_ Current price for buying tokens
-    /// @dev May revert with OraclePrice__PriceRetrievalFailed or OraclePrice__ZeroPrice
+    /// @dev May revert with OraclePrice__ZeroPrice
     function getPriceForIssuance() external view returns (uint256 price_);
 
     /// @notice Gets current price for token redemption
     /// @return price_ Current price for selling tokens
-    /// @dev May revert with OraclePrice__PriceRetrievalFailed or OraclePrice__ZeroPrice
+    /// @dev May revert with OraclePrice__ZeroPrice
     function getPriceForRedemption() external view returns (uint256 price_);
 }

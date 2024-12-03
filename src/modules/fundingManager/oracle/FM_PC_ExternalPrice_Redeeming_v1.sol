@@ -6,10 +6,11 @@ pragma solidity 0.8.23;
 
 // Internal
 import {IFM_PC_ExternalPrice_Redeeming_v1} from
-    "./interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+    "src/modules/fundingManager/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IERC20Issuance_Blacklist_v1} from
-    "../token/interfaces/IERC20Issuance_Blacklist_v1.sol";
-import {IOraclePrice_v1} from "./interfaces/IOraclePrice_v1.sol";
+    "src/modules/fundingManager/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
+import {IOraclePrice_v1} from
+    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 import {ERC20PaymentClientBase_v1} from
     "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
 import {IOrchestrator_v1} from
@@ -80,7 +81,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Maximum fee that can be charged for sell operations, expressed in basis points (10000 = 100%)
     /// @dev Set to 1000 basis points (10%)
-    uint256 private constant MAX_SELL_FEE = 1000; // 10% in basis points
+    uint private constant MAX_SELL_FEE = 1000; // 10% in basis points
 
     //--------------------------------------------------------------------------
     // State Variables
@@ -140,9 +141,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             address _oracleAddress,
             address _issuanceToken,
             address _acceptedToken,
-            uint256 _buyFee,
-            uint256 _sellFee
-        ) = abi.decode(configData_, (address, address, address, uint256, uint256));
+            uint _buyFee,
+            uint _sellFee
+        ) = abi.decode(configData_, (address, address, address, uint, uint));
 
         // Set accepted token
         _token = IERC20(_acceptedToken);
@@ -173,7 +174,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         external
         onlyModuleRole(WHITELISTED_ROLE)
     {
-        orchestrator().authorizer().grantRole(generateRoleId(WHITELISTED_ROLE), account_);
+        orchestrator().authorizer().grantRole(
+            generateRoleId(WHITELISTED_ROLE), account_
+        );
         emit AddressWhitelisted(account_);
     }
 
@@ -183,7 +186,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         external
         onlyModuleRole(WHITELISTED_ROLE)
     {
-        orchestrator().authorizer().revokeRole(generateRoleId(WHITELISTED_ROLE), account_);
+        orchestrator().authorizer().revokeRole(
+            generateRoleId(WHITELISTED_ROLE), account_
+        );
         emit AddressRemovedFromWhitelist(account_);
     }
 
@@ -202,7 +207,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             if (accounts_[i_] == address(0)) {
                 revert FM_ExternalPrice__ZeroAddress();
             }
-            orchestrator().authorizer().grantRole(generateRoleId(WHITELISTED_ROLE), accounts_[i_]);
+            orchestrator().authorizer().grantRole(
+                generateRoleId(WHITELISTED_ROLE), accounts_[i_]
+            );
             emit AddressWhitelisted(accounts_[i_]);
         }
         emit BatchWhitelistUpdated(accounts_, true);
@@ -220,7 +227,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         }
 
         for (uint i_; i_ < length_; i_++) {
-            orchestrator().authorizer().revokeRole(generateRoleId(WHITELISTED_ROLE), accounts_[i_]);
+            orchestrator().authorizer().revokeRole(
+                generateRoleId(WHITELISTED_ROLE), accounts_[i_]
+            );
             emit AddressRemovedFromWhitelist(accounts_[i_]);
         }
         emit BatchWhitelistUpdated(accounts_, false);
@@ -234,7 +243,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         view
         returns (bool isWhitelisted_)
     {
-        return orchestrator().authorizer().hasRole(generateRoleId(WHITELISTED_ROLE), account_);
+        return orchestrator().authorizer().hasRole(
+            generateRoleId(WHITELISTED_ROLE), account_
+        );
     }
 
     //--------------------------------------------------------------------------
@@ -396,10 +407,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Sets fee for sell operations
     /// @param fee_ New fee amount
-    function setSellFee(
-        uint256 fee_
-    ) public override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1) 
-    onlyOrchestratorAdmin {
+    function setSellFee(uint fee_)
+        public
+        override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
+        onlyOrchestratorAdmin
+    {
         // Check that fee doesn't exceed maximum allowed
         if (fee_ > MAX_SELL_FEE) {
             revert FM_ExternalPrice__FeeExceedsMaximum(fee_, MAX_SELL_FEE);
@@ -424,7 +436,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         returns (uint mintAmount_)
     {
         // First convert deposit amount to required decimals
-        uint256 normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
+        uint normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             depositAmount_,
             IERC20Metadata(address(token())).decimals(),
             IERC20Metadata(address(issuanceToken)).decimals()

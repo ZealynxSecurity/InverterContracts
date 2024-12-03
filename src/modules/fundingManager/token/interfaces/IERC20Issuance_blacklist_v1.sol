@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
+//--------------------------------------------------------------------------
+// Imports
+
+// Internal
 import { IERC20Issuance_v1 } from "@ex/token/IERC20Issuance_v1.sol";
 
 /**

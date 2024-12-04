@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-//--------------------------------------------------------------------------
 // Imports
 
 // Internal
@@ -32,6 +31,8 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
+import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.sol";
+
 
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
@@ -47,10 +48,8 @@ import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
  *          Key features:
  *              - External price integration
  *              - Payment client functionality
- *              - Blacklist enforcement
  *          Price feeds are managed through an external oracle contract that
- *          implements IOraclePrice_v1. The contract enforces blacklist
- *          restrictions through IERC20Issuance_Blacklist_v1.
+ *          implements IOraclePrice_v1.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
@@ -72,7 +71,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
         returns (bool)
     {
-        return interfaceId_ == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+        return interfaceId_
+            == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
             || super.supportsInterface(interfaceId_);
     }
 
@@ -86,10 +86,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Role for whitelisted addresses
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
-
-    /// @notice Maximum fee that can be charged for sell operations, expressed in basis points (10000 = 100%)
-    /// @dev Set to 1000 basis points (10%)
-    uint private constant MAX_SELL_FEE = 1000; // 10% in basis points
 
     //--------------------------------------------------------------------------
     // State Variables
@@ -110,6 +106,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Number of decimal places used by the collateral token for proper decimal handling
     uint8 private _collateralTokenDecimals;
 
+    /// @dev Maximum fee that can be charged for sell operations, in basis points
+    /// @notice Maximum allowed fee percentage for selling tokens
+    uint private _maxSellFee;
+
+    /// @dev Maximum fee that can be charged for buy operations, in basis points
+    /// @notice Maximum allowed fee percentage for buying tokens
+    uint private _maxBuyFee;
+
     /// @dev Order ID counter for tracking individual orders
     /// @notice Unique identifier for the current order being processed
     uint private _orderId;
@@ -122,22 +126,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Tracks the sum of all pending redemption orders
     uint private _openRedemptionAmount;
 
+    /// @dev Flag indicating if direct operations are only allowed
+    bool private _isDirectOperationsOnly;
+
     /// @dev Storage gap for future upgrades
     uint[50] private __gap;
 
     //--------------------------------------------------------------------------
     // Modifiers
 
-    modifier notBlacklisted() {
-        if (
-            IERC20Issuance_Blacklist_v1(address(issuanceToken)).isBlacklisted(
-                _msgSender()
-            )
-        ) {
-            revert FM_ExternalPrice__AddressBlacklisted(_msgSender());
-        }
-        _;
-    }
 
     //--------------------------------------------------------------------------
     // Initialization Function
@@ -153,34 +150,68 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Decode config data
         (
-            address _oracleAddress,
-            address _issuanceToken,
-            address _acceptedToken,
-            uint _buyFee,
-            uint _sellFee
-        ) = abi.decode(configData_, (address, address, address, uint, uint));
+            address oracleAddress_,
+            address issuanceToken_,
+            address acceptedToken_,
+            uint buyFee_,
+            uint sellFee_,
+            uint maxSellFee_,
+            uint maxBuyFee_,
+            bool isDirectOperationsOnly_
+        ) = abi.decode(
+            configData_, (address, address, address, uint, uint, uint, uint, bool)
+        );
 
         // Set accepted token
-        _token = IERC20(_acceptedToken);
+        _token = IERC20(acceptedToken_);
 
         // Cache token decimals for collateral
         _collateralTokenDecimals = IERC20Metadata(address(_token)).decimals();
 
+        if (
+            !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(
+                type(IOraclePrice_v1).interfaceId
+            )
+        ) {
+            revert Module__InvalidOracleInterface();
+        }
         // Set oracle
-        _oracle = IOraclePrice_v1(_oracleAddress);
+        _oracle = IOraclePrice_v1(oracleAddress_);
 
         // Initialize base functionality (should handle token settings)
-        _setIssuanceToken(_issuanceToken);
+        _setIssuanceToken(issuanceToken_);
 
-        // Set fees (checking max sell fee)
-        if (_sellFee > MAX_SELL_FEE) {
-            revert FM_ExternalPrice__FeeExceedsMaximum(_sellFee, MAX_SELL_FEE);
+        // Set fees (checking max fees)
+        if (buyFee_ > maxBuyFee_) {
+            revert Module__FeeExceedsMaximum(buyFee_, maxBuyFee_);
         }
-        _setBuyFee(_buyFee);
-        _setSellFee(_sellFee);
+        if (sellFee_ > maxSellFee_) {
+            revert Module__FeeExceedsMaximum(sellFee_, maxSellFee_);
+        }
+
+        // Set fees
+        _setBuyFee(buyFee_);
+        _setSellFee(sellFee_);
+
+        _setMaxBuyFee(maxBuyFee_);
+        _setMaxSellFee(maxSellFee_);
+
+        // Set direct operations only flag
+        setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     //--------------------------------------------------------------------------
+    // Modifiers
+
+    /// @notice Modifier to check if direct operations are only allowed
+    modifier onlyDirectOperations() {
+        if (_isDirectOperationsOnly) {
+            revert Module__ThirdPartyOperationsDisabled();
+        }
+        _;
+    }
+
+    //----------------------------------------------------------
     // View Functions
 
     /// @inheritdoc IFundingManager_v1
@@ -189,8 +220,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _token;
     }
 
-    /// @notice Gets current static price for buying tokens
-    /// @return price_ The current buy price
+    /// @notice Calculates and returns the static price for buying the issuance token.
+    /// @return uint The static price for buying the issuance token.
     function getStaticPriceForBuying()
         public
         view
@@ -200,8 +231,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForIssuance();
     }
 
-    /// @notice Gets current static price for selling tokens
-    /// @return price_ The current sell price
+    /// @notice Calculates and returns the static price for selling the issuance token.
+    /// @return uint The static price for selling the issuance token.
     function getStaticPriceForSelling()
         public
         view
@@ -229,11 +260,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // External Functions
 
-    // @audit-info Scenario: Project deposits collateral into the FM
+    // @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     /// @notice Allows depositing collateral to provide reserves for redemptions
     /// @param amount_ The amount of collateral to deposit
-    function depositReserve(uint amount_) external onlyOrchestratorAdmin {
-        if (amount_ == 0) revert FM_ExternalPrice__InvalidAmount();
+    function depositReserve(uint amount_) external override onlyOrchestratorAdmin {
+        if (amount_ == 0) revert Module__InvalidAmount();
 
         // Transfer collateral from sender to FM
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
@@ -245,27 +276,40 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // Public Functions
 
     /// @inheritdoc BondingCurveBase_v1
+    /// @dev Only whitelisted addresses can buy
     /// @param collateralAmount_ The amount of collateral to spend
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
-        notBlacklisted
     {
         super.buyFor(_msgSender(), collateralAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    /// @param receiver_ Address to receive collateral
+    /// @inheritdoc BondingCurveBase_v1
+    /// @dev Only whitelisted addresses can buy
+    /// @param receiver_ Address to receive tokens
+    /// @param depositAmount_ The amount of collateral to spend
+    /// @param minAmountOut_ The minimum amount of tokens to receive
+    function buyFor(address receiver_, uint depositAmount_, uint minAmountOut_)
+        public
+        override(BondingCurveBase_v1)
+        onlyModuleRole(WHITELIST_ROLE)
+        onlyDirectOperations
+    {
+        super.buyFor(receiver_, depositAmount_, minAmountOut_);
+    }
+
+    /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @dev Only whitelisted addresses can sell
     /// @param depositAmount_ Amount of tokens to sell
     /// @param minAmountOut_ Minimum collateral to receive
-    function sell(address receiver_, uint depositAmount_, uint minAmountOut_)
-        external
-        override(IFM_PC_ExternalPrice_Redeeming_v1)
+    function sell(uint depositAmount_, uint minAmountOut_)
+        public
+        override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
-        notBlacklisted
     {
-        sellTo(receiver_, depositAmount_, minAmountOut_);
+        sellTo(_msgSender(), depositAmount_, minAmountOut_);
 
         // Get current exchange rate from oracle
         uint exchangeRate = _oracle.getPriceForRedemption();
@@ -308,7 +352,22 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         );
     }
 
+    /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @dev Only whitelisted addresses can sell
+    /// @param receiver_ Address to receive tokens
+    /// @param depositAmount_ Amount of tokens to sell
+    /// @param minAmountOut_ Minimum collateral to receive
+    function sellTo(address receiver_, uint depositAmount_, uint minAmountOut_)
+        public
+        override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
+        onlyModuleRole(WHITELIST_ROLE)
+        onlyDirectOperations
+    {
+        super.sellTo(receiver_, depositAmount_, minAmountOut_);
+    }
+
     /// @inheritdoc IFundingManager_v1
+    /// @dev Only payment clients can transfer orchestrator tokens
     /// @param to_ The recipient address
     /// @param amount_ The amount to transfer
     function transferOrchestratorToken(address to_, uint amount_)
@@ -321,6 +380,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Sets fee for sell operations
+    /// @dev Only orchestrator admin can call
     /// @param fee_ New fee amount
     function setSellFee(uint fee_)
         public
@@ -328,19 +388,83 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         onlyOrchestratorAdmin
     {
         // Check that fee doesn't exceed maximum allowed
-        if (fee_ > MAX_SELL_FEE) {
-            revert FM_ExternalPrice__FeeExceedsMaximum(fee_, MAX_SELL_FEE);
+        if (fee_ > _maxSellFee) {
+            revert Module__FeeExceedsMaximum(fee_, _maxSellFee);
         }
 
         super._setSellFee(fee_);
     }
 
+    /// @notice Gets current sell fee
+    /// @return sellFee_ The current sell fee
     function getSellFee() public pure returns (uint sellFee_) {
         return sellFee_;
     }
 
+    /// @notice Sets fee for buy operations
+    /// @dev Only orchestrator admin can call
+    /// @param fee_ New fee amount
+    function setBuyFee(uint fee_)
+        external
+        override(BondingCurveBase_v1)
+        onlyOrchestratorAdmin
+    {
+        // Check that fee doesn't exceed maximum allowed
+        if (fee_ > _maxBuyFee) {
+            revert Module__FeeExceedsMaximum(fee_, _maxBuyFee);
+        }
+
+        super._setBuyFee(fee_);
+    }
+
+    /// @notice Gets current buy fee
+    /// @return buyFee_ The current buy fee
+    function getBuyFee() public pure returns (uint buyFee_) {
+        return buyFee_;
+    }
+
+    /// @notice Gets the maximum fee that can be charged for buy operations
+    /// @return maxBuyFee_ The maximum fee percentage
+    function getMaxBuyFee() public view returns (uint maxBuyFee_) {
+        return _maxBuyFee;
+    }
+
+    /// @notice Gets the maximum fee that can be charged for sell operations
+    /// @return maxSellFee_ The maximum fee percentage
+    function getMaxSellFee() public view returns (uint maxSellFee_) {
+        return _maxSellFee;
+    }
+
+    /// @notice Sets the direct operations only flag
+    /// @dev Only orchestrator admin can call
+    /// @param isDirectOperationsOnly_ The new value for the flag
+    function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
+        public
+        onlyOrchestratorAdmin
+    {
+        _isDirectOperationsOnly = isDirectOperationsOnly_;
+    }
+
+    /// @notice Gets the direct operations only flag
+    /// @return isDirectOperationsOnly_ The current value of the flag
+    function isDirectOperationsOnly() public view returns (bool) {
+        return _isDirectOperationsOnly;
+    }
+
     //--------------------------------------------------------------------------
     // Internal Functions
+
+    /// @notice Sets the maximum fee that can be charged for buy operations
+    /// @param fee_ The maximum fee percentage to set
+    function _setMaxBuyFee(uint fee_) internal {
+        _maxBuyFee = fee_;
+    }
+
+    /// @notice Sets the maximum fee that can be charged for sell operations
+    /// @param fee_ The maximum fee percentage to set
+    function _setMaxSellFee(uint fee_) internal {
+        _maxSellFee = fee_;
+    }
 
     /// @param depositAmount_ The amount being deposited
     /// @return mintAmount_ The calculated token amount

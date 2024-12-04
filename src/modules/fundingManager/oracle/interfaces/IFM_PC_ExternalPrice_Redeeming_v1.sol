@@ -119,31 +119,19 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // Errors
 
-    /// @notice Thrown when batch operation exceeds size limit
-    /// @param size_ Size of the batch attempted
-    error FM_ExternalPrice__BatchSizeExceeded(uint size_);
-
-    /// @notice Thrown when attempting to interact with zero address
-    error FM_ExternalPrice__ZeroAddress();
-
     /// @notice Thrown when an invalid amount is provided
-    error FM_ExternalPrice__InvalidAmount();
-
-    /// @notice Thrown when interacting with a blacklisted address
-    /// @param account_ The blacklisted address
-    error FM_ExternalPrice__AddressBlacklisted(address account_);
-
-    /// @notice Thrown when non-whitelisted address attempts restricted operation
-    /// @param account_ The non-whitelisted address
-    error FM_ExternalPrice__NotWhitelisted(address account_);
-
-    /// @notice Thrown when an invalid address is provided
-    error FM_ExternalPrice__InvalidAddress();
+    error Module__InvalidAmount();
 
     /// @notice Fee exceeds maximum allowed value
     /// @param fee The fee that was attempted to be set
     /// @param maxFee The maximum allowed fee
-    error FM_ExternalPrice__FeeExceedsMaximum(uint256 fee, uint256 maxFee);
+    error Module__FeeExceedsMaximum(uint256 fee, uint256 maxFee);
+
+    /// @notice Thrown when the oracle contract does not implement the required interface
+    error Module__InvalidOracleInterface();
+
+    /// @notice Thrown when third-party operations are disabled
+    error Module__ThirdPartyOperationsDisabled();
 
     //--------------------------------------------------------------------------
     // View Functions
@@ -161,10 +149,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return orderId_ The current order ID
     function getOrderId() external view returns (uint orderId_);
 
-    /// @notice Sells tokens for collateral through redemption queue
-    /// @param receiver_ Address to receive collateral
-    /// @param depositAmount_ Amount of tokens to sell
-    /// @param minAmountOut_ Minimum collateral to receive
-    function sell(address receiver_, uint depositAmount_, uint minAmountOut_)
-        external;
+    /// @notice Allows depositing collateral to provide reserves for redemptions
+    /// @param amount_ The amount of collateral to deposit
+    function depositReserve(uint amount_) external;
 }

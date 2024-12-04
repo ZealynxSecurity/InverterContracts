@@ -42,34 +42,23 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @param account_ The address that was removed from blacklist
     event RemovedFromBlacklist(address indexed account_);
 
-    /// @notice Emitted when an address is added to the blacklist
-    /// @param account The address that was blacklisted
-    event AddressBlacklisted(address indexed account);
-
-    /// @notice Emitted when an address is removed from the blacklist
-    /// @param account The address that was removed from the blacklist
-    event AddressUnblacklisted(address indexed account);
-
     //--------------------------------------------------------------------------
     // Errors
 
     /// @notice Thrown when attempting to blacklist the zero address
-    error ERC20Issuance__ZeroAddress();
-
-    /// @notice Thrown when attempting to blacklist an already blacklisted address
-    error ERC20Issuance__AlreadyBlacklisted();
+    error ERC20Issuance_Blacklist_ZeroAddress();
 
     /// @notice Thrown when attempting to unblacklist an address that is not blacklisted
-    error ERC20Issuance__NotBlacklisted();
+    error ERC20Issuance_Blacklist_NotBlacklisted();
 
     /// @notice Thrown when attempting to blacklist an address that is already blacklisted
-    error ERC20Issuance__AddressAlreadyBlacklisted(address account);
+    error ERC20Issuance_Blacklist_AddressAlreadyBlacklisted(address account);
 
     /// @notice Thrown when batch operation exceeds the maximum allowed size
-    error ERC20Issuance__BatchLimitExceeded(uint256 provided, uint256 limit);
+    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint256 provided, uint256 limit);
 
     /// @notice Thrown when attempting to mint tokens to a blacklisted address
-    error ERC20Issuance__BlacklistedAddress(address account);
+    error ERC20Issuance_Blacklist_BlacklistedAddress(address account);
 
     //--------------------------------------------------------------------------
     // External Functions
@@ -83,17 +72,17 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
 
     /// @notice Adds an address to blacklist
     /// @param account_ The address to blacklist
-    /// @dev May revert with ERC20Issuance__ZeroAddress or ERC20Issuance__AlreadyBlacklisted
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress 
     function addToBlacklist(address account_) external;
 
     /// @notice Removes an address from blacklist
     /// @param account_ The address to remove
-    /// @dev May revert with ERC20Issuance__ZeroAddress or ERC20Issuance__NotBlacklisted
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress or ERC20Issuance_Blacklist_NotBlacklisted
     function removeFromBlacklist(address account_) external;
 
     /// @notice Adds multiple addresses to blacklist
     /// @param accounts_ Array of addresses to blacklist
-    /// @dev May revert with ERC20Issuance__ZeroAddress or ERC20Issuance__AlreadyBlacklisted
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
     ///      The array size should not exceed the block gas limit. Consider using
     ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
     function addToBlacklistBatchAddresses(
@@ -102,7 +91,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
 
     /// @notice Removes multiple addresses from blacklist
     /// @param accounts_ Array of addresses to remove
-    /// @dev May revert with ERC20Issuance__ZeroAddress or ERC20Issuance__NotBlacklisted
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress or ERC20Issuance_Blacklist_NotBlacklisted
     ///      The array size should not exceed the block gas limit. Consider using
     ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
     function removeFromBlacklistBatchAddresses(

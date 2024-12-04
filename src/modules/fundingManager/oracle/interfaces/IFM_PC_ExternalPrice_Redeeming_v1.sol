@@ -148,9 +148,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // View Functions
 
-    /// @notice Gets the maximum number of addresses that can be whitelisted in a batch
-    /// @return maxBatchSize_ The maximum batch size
-    function getMaxBatchSize() external view returns (uint maxBatchSize_);
 
     /// @notice Gets the current open redemption amount
     /// @return amount_ The total amount of open redemptions
@@ -163,10 +160,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Gets the current order ID
     /// @return orderId_ The current order ID
     function getOrderId() external view returns (uint orderId_);
-
-    /// @notice Buys tokens with provided collateral
-    /// @param collateralAmount_ The amount of collateral to spend
-    function buy(uint collateralAmount_, uint minAmountOut_) external;
 
     /// @notice Sells tokens for collateral through redemption queue
     /// @param receiver_ Address to receive collateral

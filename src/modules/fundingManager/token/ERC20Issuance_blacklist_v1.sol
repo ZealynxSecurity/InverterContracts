@@ -12,6 +12,7 @@ import {IERC20Issuance_Blacklist_v1} from
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {ERC20} from "@oz/token/ERC20/ERC20.sol";
+import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
 import {AccessControl} from "@oz/access/AccessControl.sol";
 
 
@@ -84,12 +85,7 @@ contract ERC20Issuance_Blacklist_v1 is
     // View Functions
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function isBlacklisted(address account_)
-        public
-        view
-        override
-        returns (bool isBlacklisted_)
-    {
+    function isBlacklisted(address account_) public view returns (bool) {
         return _blacklist[account_];
     }
 
@@ -107,21 +103,27 @@ contract ERC20Issuance_Blacklist_v1 is
         public
         onlyBlacklistManager
     {
-        if (isBlacklisted(account_)) {
-            revert ERC20Issuance__AddressAlreadyBlacklisted(account_);
+        if (account_ == address(0)) {
+            revert ERC20Issuance_Blacklist_ZeroAddress();
         }
-        _blacklist[account_] = true;
-        emit AddedToBlacklist(account_);
+        if (!isBlacklisted(account_)) {
+            _blacklist[account_] = true;
+            emit AddedToBlacklist(account_);
+        }
     }
 
     function removeFromBlacklist(address account_)
         public
         onlyBlacklistManager
     {
-        if (isBlacklisted(account_)) {
-            _blacklist[account_] = false;
-            emit RemovedFromBlacklist(account_);
+        if (account_ == address(0)) {
+            revert ERC20Issuance_Blacklist_ZeroAddress();
         }
+        if (!isBlacklisted(account_)) {
+            revert ERC20Issuance_Blacklist_NotBlacklisted();
+        }
+        _blacklist[account_] = false;
+        emit RemovedFromBlacklist(account_);
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
@@ -131,7 +133,7 @@ contract ERC20Issuance_Blacklist_v1 is
     {
         uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
-            revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+            revert ERC20Issuance_Blacklist_BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
         }
         for (uint i_; i_ < totalAccount_; ++i_) {
             addToBlacklist(accounts_[i_]);
@@ -145,7 +147,7 @@ contract ERC20Issuance_Blacklist_v1 is
     {
         uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
-            revert ERC20Issuance__BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+            revert ERC20Issuance_Blacklist_BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
         }
         for (uint i_; i_ < totalAccount_; ++i_) {
             removeFromBlacklist(accounts_[i_]);
@@ -168,33 +170,19 @@ contract ERC20Issuance_Blacklist_v1 is
         revokeRole(BLACKLIST_MANAGER_ROLE, account_);
     }
 
-    /// @notice Mints tokens if account is not blacklisted
-    /// @param account_ Address to mint to
-    /// @param amount_ Amount to mint
-    function mintAllowed(address account_, uint amount_) public {
-        if (isBlacklisted(account_)) {
-            revert ERC20Issuance__BlacklistedAddress(account_);
-        }
-        _mint(account_, amount_);
-    }
-
-    /// @notice Redeems tokens if account is not blacklisted
-    /// @param account_ Address to redeem from
-    /// @param amount_ Amount to redeem
-    function redeem(address account_, uint amount_)
-        public
-    {
-        // To be implemented
-    }
+    //--------------------------------------------------------------------------
+    // Internal Functions
 
     // Internal function to enforce restrictions on transfers
-    function _update(address from, address to, uint amount)
+    function _update(address from, address to, uint256 amount)
         internal
-        virtual
-        override
+        override(ERC20Capped)
     {
-        if (isBlacklisted(from) || isBlacklisted(to)) {
-            revert ERC20Issuance__BlacklistedAddress(from);
+        if (isBlacklisted(from)) {
+            revert ERC20Issuance_Blacklist_BlacklistedAddress(from);
+        }
+        if (isBlacklisted(to)) {
+            revert ERC20Issuance_Blacklist_BlacklistedAddress(to);
         }
         super._update(from, to, amount);
     }

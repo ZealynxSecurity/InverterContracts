@@ -20,11 +20,12 @@ pragma solidity 0.8.23;
  */
 interface ILM_ManualExternalPriceSetter_v1 {
     //--------------------------------------------------------------------------
+    //==========================================================================
     // Events
 
     /// @notice Emitted when a new price is set
     /// @param price The new price that was set
-    event PriceSet(uint price);
+    event PriceSet(uint256 indexed price);
 
     /// @notice Emitted when a new issuance price is set
     /// @param price The new issuance price

@@ -47,7 +47,6 @@ import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
  *          Key features:
  *              - External price integration
  *              - Payment client functionality
- *              - Whitelist management
  *              - Blacklist enforcement
  *          Price feeds are managed through an external oracle contract that
  *          implements IOraclePrice_v1. The contract enforces blacklist
@@ -65,19 +64,28 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ERC20PaymentClientBase_v1,
     RedeemingBondingCurveBase_v1
 {
+    /// @param interfaceId_ The interface identifier to check support for
+    /// @return True if the interface is supported
+    function supportsInterface(bytes4 interfaceId_)
+        public
+        view
+        override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
+        returns (bool)
+    {
+        return interfaceId_ == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+            || super.supportsInterface(interfaceId_);
+    }
+
     using SafeERC20 for IERC20;
 
     //--------------------------------------------------------------------------
     // Constants
 
-    /// @dev Maximum number of addresses that can be whitelisted in a batch
-    uint private constant MAX_BATCH_SIZE = 50;
-
     /// @dev Value is used to convert deposit amount to 18 decimals
     uint8 private constant EIGHTEEN_DECIMALS = 18;
 
     /// @notice Role for whitelisted addresses
-    bytes32 public constant WHITELISTED_ROLE = "WHITELISTED_USER";
+    bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
     /// @notice Maximum fee that can be charged for sell operations, expressed in basis points (10000 = 100%)
     /// @dev Set to 1000 basis points (10%)
@@ -86,25 +94,32 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // State Variables
 
-    /// @dev Oracle price feed contract
+    /// @dev Oracle price feed contract used for price discovery
+    /// @notice Contract that provides external price information for token valuation
     IOraclePrice_v1 private _oracle;
 
     /// @dev Token that is accepted by this funding manager for deposits
+    /// @notice The ERC20 token contract used for collateral in this funding manager
     IERC20 private _token;
 
     /// @dev Token decimals of the issuance token
+    /// @notice Number of decimal places used by the issuance token for proper decimal handling
     uint8 private _issuanceTokenDecimals;
 
     /// @dev Token decimals of the Orchestrator token
+    /// @notice Number of decimal places used by the collateral token for proper decimal handling
     uint8 private _collateralTokenDecimals;
 
-    // For order IDs
+    /// @dev Order ID counter for tracking individual orders
+    /// @notice Unique identifier for the current order being processed
     uint private _orderId;
 
-    // For tracking order IDs
+    /// @dev Counter for generating unique order IDs
+    /// @notice Keeps track of the next available order ID to ensure uniqueness
     uint private _nextOrderId;
 
-    // For tracking total open redemption amount
+    /// @dev Total amount of tokens currently in redemption process
+    /// @notice Tracks the sum of all pending redemption orders
     uint private _openRedemptionAmount;
 
     /// @dev Storage gap for future upgrades
@@ -166,102 +181,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     //--------------------------------------------------------------------------
-    // Whitelist Management Functions
-
-    /// @notice Adds an address to the whitelist
-    /// @param account_ The address to whitelist
-    function addToWhitelist(address account_)
-        external
-        onlyModuleRole(WHITELISTED_ROLE)
-    {
-        orchestrator().authorizer().grantRole(
-            generateRoleId(WHITELISTED_ROLE), account_
-        );
-        emit AddressWhitelisted(account_);
-    }
-
-    /// @notice Removes an address from the whitelist
-    /// @param account_ The address to remove from whitelist
-    function removeFromWhitelist(address account_)
-        external
-        onlyModuleRole(WHITELISTED_ROLE)
-    {
-        orchestrator().authorizer().revokeRole(
-            generateRoleId(WHITELISTED_ROLE), account_
-        );
-        emit AddressRemovedFromWhitelist(account_);
-    }
-
-    /// @notice Adds multiple addresses to the whitelist
-    /// @param accounts_ Array of addresses to whitelist
-    function batchAddToWhitelist(address[] calldata accounts_)
-        external
-        onlyModuleRole(WHITELISTED_ROLE)
-    {
-        uint length_ = accounts_.length;
-        if (length_ > MAX_BATCH_SIZE) {
-            revert FM_ExternalPrice__BatchSizeExceeded(length_);
-        }
-
-        for (uint i_; i_ < length_; i_++) {
-            if (accounts_[i_] == address(0)) {
-                revert FM_ExternalPrice__ZeroAddress();
-            }
-            orchestrator().authorizer().grantRole(
-                generateRoleId(WHITELISTED_ROLE), accounts_[i_]
-            );
-            emit AddressWhitelisted(accounts_[i_]);
-        }
-        emit BatchWhitelistUpdated(accounts_, true);
-    }
-
-    /// @notice Removes multiple addresses from the whitelist
-    /// @param accounts_ Array of addresses to remove from whitelist
-    function batchRemoveFromWhitelist(address[] calldata accounts_)
-        external
-        onlyModuleRole(WHITELISTED_ROLE)
-    {
-        uint length_ = accounts_.length;
-        if (length_ > MAX_BATCH_SIZE) {
-            revert FM_ExternalPrice__BatchSizeExceeded(length_);
-        }
-
-        for (uint i_; i_ < length_; i_++) {
-            orchestrator().authorizer().revokeRole(
-                generateRoleId(WHITELISTED_ROLE), accounts_[i_]
-            );
-            emit AddressRemovedFromWhitelist(accounts_[i_]);
-        }
-        emit BatchWhitelistUpdated(accounts_, false);
-    }
-
-    /// @notice Checks if an address is whitelisted
-    /// @param account_ The address to check
-    /// @return isWhitelisted_ True if address is whitelisted
-    function isWhitelisted(address account_)
-        external
-        view
-        returns (bool isWhitelisted_)
-    {
-        return orchestrator().authorizer().hasRole(
-            generateRoleId(WHITELISTED_ROLE), account_
-        );
-    }
-
-    //--------------------------------------------------------------------------
     // View Functions
-
-    /// @param interfaceId_ The interface identifier to check support for
-    /// @return True if the interface is supported
-    function supportsInterface(bytes4 interfaceId_)
-        public
-        view
-        override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
-        returns (bool)
-    {
-        return interfaceId_ == type(IRedeemingBondingCurveBase_v1).interfaceId
-            || super.supportsInterface(interfaceId_);
-    }
 
     /// @inheritdoc IFundingManager_v1
     /// @return token_ The token address
@@ -289,11 +209,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         returns (uint)
     {
         return _oracle.getPriceForRedemption();
-    }
-
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getMaxBatchSize() external pure returns (uint maxBatchSize_) {
-        return MAX_BATCH_SIZE;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -329,12 +244,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // Public Functions
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc BondingCurveBase_v1
     /// @param collateralAmount_ The amount of collateral to spend
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
-        override(IFM_PC_ExternalPrice_Redeeming_v1, BondingCurveBase_v1)
-        onlyModuleRole(WHITELISTED_ROLE)
+        override(BondingCurveBase_v1)
+        onlyModuleRole(WHITELIST_ROLE)
         notBlacklisted
     {
         super.buyFor(_msgSender(), collateralAmount_, minAmountOut_);
@@ -347,7 +262,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function sell(address receiver_, uint depositAmount_, uint minAmountOut_)
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
-        onlyModuleRole(WHITELISTED_ROLE)
+        onlyModuleRole(WHITELIST_ROLE)
         notBlacklisted
     {
         sellTo(receiver_, depositAmount_, minAmountOut_);

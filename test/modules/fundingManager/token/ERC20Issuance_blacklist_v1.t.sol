@@ -121,14 +121,16 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             └── Then: the operation should succeed (idempotent)
             └── Then: the address should remain blacklisted
     */
-    function testAddToBlacklist_GivenAddressAlreadyBlacklisted() public {
-        vm.startPrank(blacklistManager);
-        exposedToken.addToBlacklist(user);
+    function testAddToBlacklist_GivenAddressAlreadyBlacklisted(address user_) public {
+        vm.assume(user_ != address(0));
         
-        exposedToken.addToBlacklist(user);
+        vm.startPrank(blacklistManager);
+        exposedToken.addToBlacklist(user_);
+        
+        exposedToken.addToBlacklist(user_);
         vm.stopPrank();
         
-        assertTrue(exposedToken.isBlacklisted(user), "User should still be blacklisted");
+        assertTrue(exposedToken.isBlacklisted(user_), "User should still be blacklisted");
     }
 
     /*  Test: Add to blacklist when not blacklisted
@@ -137,13 +139,15 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             └── Then: the address should be successfully blacklisted
             └── Then: isBlacklisted should return true for that address
     */
-    function testAddToBlacklist_GivenAddressNotBlacklisted() public {
-        assertFalse(exposedToken.isBlacklisted(user), "User should not be blacklisted initially");
+    function testAddToBlacklist_GivenAddressNotBlacklisted(address user_) public {
+        vm.assume(user_ != address(0));
+        
+        assertFalse(exposedToken.isBlacklisted(user_), "User should not be blacklisted initially");
         
         vm.prank(blacklistManager);
-        exposedToken.addToBlacklist(user);
+        exposedToken.addToBlacklist(user_);
         
-        assertTrue(exposedToken.isBlacklisted(user), "User should be blacklisted");
+        assertTrue(exposedToken.isBlacklisted(user_), "User should be blacklisted");
     }
 
     /*  Test: Remove from blacklist when not blacklisted
@@ -152,13 +156,15 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             └── Then: the operation should succeed (idempotent)
             └── Then: the address should remain non-blacklisted
     */
-    function testRemoveFromBlacklist_GivenAddressNotBlacklisted() public {
-        assertFalse(exposedToken.isBlacklisted(user), "User should not be blacklisted initially");
+    function testRemoveFromBlacklist_GivenAddressNotBlacklisted(address user_) public {
+        vm.assume(user_ != address(0));
+        
+        assertFalse(exposedToken.isBlacklisted(user_), "User should not be blacklisted initially");
         
         vm.prank(blacklistManager);
-        exposedToken.removeFromBlacklist(user);
+        exposedToken.removeFromBlacklist(user_);
         
-        assertFalse(exposedToken.isBlacklisted(user), "User should still not be blacklisted");
+        assertFalse(exposedToken.isBlacklisted(user_), "User should still not be blacklisted");
     }
 
     /*  Test: Remove from blacklist when blacklisted
@@ -167,14 +173,16 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             └── Then: the address should be successfully removed
             └── Then: isBlacklisted should return false for that address
     */
-    function testRemoveFromBlacklist_GivenAddressBlacklisted() public {
-        vm.startPrank(blacklistManager);
-        exposedToken.addToBlacklist(user);
+    function testRemoveFromBlacklist_GivenAddressBlacklisted(address user_) public {
+        vm.assume(user_ != address(0));
         
-        exposedToken.removeFromBlacklist(user);
+        vm.startPrank(blacklistManager);
+        exposedToken.addToBlacklist(user_);
+        
+        exposedToken.removeFromBlacklist(user_);
         vm.stopPrank();
         
-        assertFalse(exposedToken.isBlacklisted(user), "User should not be blacklisted");
+        assertFalse(exposedToken.isBlacklisted(user_), "User should not be blacklisted");
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -201,7 +209,7 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
         exposedToken.addToBlacklistBatchAddresses(addresses);
         vm.stopPrank();
         
-        for (uint256 i = 0; i < addresses.length; i++) {
+        for (uint256 i; i < addresses.length; ++i) {
             assertTrue(exposedToken.isBlacklisted(addresses[i]), "Address should be blacklisted");
         }
     }
@@ -225,7 +233,7 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
         exposedToken.removeFromBlacklistBatchAddresses(addresses);
         vm.stopPrank();
         
-        for (uint256 i = 0; i < addresses.length; i++) {
+        for (uint256 i; i < addresses.length; ++i) {
             assertFalse(exposedToken.isBlacklisted(addresses[i]), "Address should not be blacklisted");
         }
     }
@@ -260,16 +268,21 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             └── Then: the transfer should complete successfully
             └── Then: the balances should be updated correctly
     */
-    function testUpdate_GivenNeitherAddressBlacklisted() public {
-        assertFalse(exposedToken.isBlacklisted(user), "From address should not be blacklisted");
-        assertFalse(exposedToken.isBlacklisted(user2), "To address should not be blacklisted");
+    function testUpdate_GivenNeitherAddressBlacklisted(address user_, address user2_) public {
+        vm.assume(user_ != user2_);
+        vm.assume(user_ != address(0) && user2_ != address(0));
+        vm.assume(user_ != admin && user2_ != admin);
+        vm.assume(user_ != blacklistManager && user2_ != blacklistManager);
+        
+        assertFalse(exposedToken.isBlacklisted(user_), "From address should not be blacklisted");
+        assertFalse(exposedToken.isBlacklisted(user2_), "To address should not be blacklisted");
         
         // Mint some tokens to the user for transfer
         vm.prank(admin);
-        exposedToken.mint(user, 100);
+        exposedToken.mint(user_, 100);
 
-        vm.prank(user);
-        exposedToken.exposed_update(user, user2, 100);
+        vm.prank(user_);
+        exposedToken.exposed_update(user_, user2_, 100);
     }
 
     /*  Test: Transfer from blacklisted address
@@ -278,15 +291,20 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
         └── When: attempting to transfer tokens
             └── Then: it should revert with BlacklistedAddress error
     */
-    function testUpdate_revertGivenSenderIsBlacklisted() public {
+    function testUpdate_revertGivenSenderIsBlacklisted(address user_, address user2_) public {
+        vm.assume(user_ != user2_);
+        vm.assume(user_ != address(0) && user2_ != address(0));
+        vm.assume(user_ != admin && user2_ != admin);
+        vm.assume(user_ != blacklistManager && user2_ != blacklistManager);
+
         vm.prank(blacklistManager);
-        exposedToken.addToBlacklist(user);
+        exposedToken.addToBlacklist(user_);
 
         vm.expectRevert(abi.encodeWithSelector(
             IERC20Issuance_Blacklist_v1.ERC20Issuance_Blacklist_BlacklistedAddress.selector,
-            user
+            user_
         ));
-        exposedToken.exposed_update(user, user2, 100);
+        exposedToken.exposed_update(user_, user2_, 100);
     }
 
     /*  Test: Transfer to blacklisted address
@@ -295,15 +313,20 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
         └── When: attempting to transfer tokens to the recipient
             └── Then: it should revert with BlacklistedAddress error
     */
-    function testUpdate_revertGivenRecipientIsBlacklisted() public {
+    function testUpdate_revertGivenRecipientIsBlacklisted(address user_, address user2_) public {
+        vm.assume(user_ != user2_);
+        vm.assume(user_ != address(0) && user2_ != address(0));
+        vm.assume(user_ != admin && user2_ != admin);
+        vm.assume(user_ != blacklistManager && user2_ != blacklistManager);
+        
         vm.prank(blacklistManager);
-        exposedToken.addToBlacklist(user2);
+        exposedToken.addToBlacklist(user2_);
 
         vm.expectRevert(abi.encodeWithSelector(
             IERC20Issuance_Blacklist_v1.ERC20Issuance_Blacklist_BlacklistedAddress.selector,
-            user2
+            user2_
         ));
-        exposedToken.exposed_update(user, user2, 100);
+        exposedToken.exposed_update(user_, user2_, 100);
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

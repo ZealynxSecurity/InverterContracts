@@ -50,14 +50,17 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @notice Thrown when attempting to unblacklist an address that is not blacklisted
     error ERC20Issuance_Blacklist_NotBlacklisted();
 
+    /// @notice Thrown when caller does not have blacklist manager role
+    error ERC20Issuance_Blacklist_NotBlacklistManager();
+
+    /// @notice Thrown when attempting to mint tokens to a blacklisted address
+    error ERC20Issuance_Blacklist_BlacklistedAddress(address account);
+
     /// @notice Thrown when attempting to blacklist an address that is already blacklisted
     error ERC20Issuance_Blacklist_AddressAlreadyBlacklisted(address account);
 
     /// @notice Thrown when batch operation exceeds the maximum allowed size
     error ERC20Issuance_Blacklist_BatchLimitExceeded(uint256 provided, uint256 limit);
-
-    /// @notice Thrown when attempting to mint tokens to a blacklisted address
-    error ERC20Issuance_Blacklist_BlacklistedAddress(address account);
 
     //--------------------------------------------------------------------------
     // External Functions

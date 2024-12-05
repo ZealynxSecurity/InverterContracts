@@ -93,7 +93,9 @@ contract ERC20Issuance_Blacklist_v1 is
 
     // Modifier to check for blacklist manager role
     modifier onlyBlacklistManager() {
-        require(hasRole(BLACKLIST_MANAGER_ROLE, msg.sender), "Caller is not a blacklist manager");
+        if (!hasRole(BLACKLIST_MANAGER_ROLE, msg.sender)) {
+            revert ERC20Issuance_Blacklist_NotBlacklistManager();
+        }
         _;
     }
 
@@ -118,11 +120,10 @@ contract ERC20Issuance_Blacklist_v1 is
         if (account_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
         }
-        if (!isBlacklisted(account_)) {
-            revert ERC20Issuance_Blacklist_NotBlacklisted();
+        if (isBlacklisted(account_)) {
+            _blacklist[account_] = false;
+            emit RemovedFromBlacklist(account_);
         }
-        _blacklist[account_] = false;
-        emit RemovedFromBlacklist(account_);
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1

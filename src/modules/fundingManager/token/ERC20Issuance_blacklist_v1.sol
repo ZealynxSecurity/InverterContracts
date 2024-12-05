@@ -12,8 +12,6 @@ import {IERC20Issuance_Blacklist_v1} from
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {ERC20} from "@oz/token/ERC20/ERC20.sol";
 import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
-import {AccessControl} from "@oz/access/AccessControl.sol";
-
 
 /**
  * @title   ERC20 Issuance Token with Blacklist Functionality
@@ -40,8 +38,7 @@ import {AccessControl} from "@oz/access/AccessControl.sol";
  */
 contract ERC20Issuance_Blacklist_v1 is
     IERC20Issuance_Blacklist_v1,
-    ERC20Issuance_v1,
-    AccessControl
+    ERC20Issuance_v1
 {
     //--------------------------------------------------------------------------
     // Storage
@@ -49,14 +46,14 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @dev Mapping of blacklisted addresses
     mapping(address => bool) private _blacklist;
 
+    /// @dev Mapping of blacklist manager addresses
+    mapping (address => bool) private _isBlacklistManager;
+
     //--------------------------------------------------------------------------
     // Constants
 
     /// @dev Maximum number of addresses that can be blacklisted in a batch
     uint public constant BATCH_LIMIT = 200;
-
-    // Define a new role for blacklist management
-    bytes32 public constant BLACKLIST_MANAGER_ROLE = keccak256("BLACKLIST_MANAGER_ROLE");
 
     //--------------------------------------------------------------------------
     // Constructor
@@ -73,11 +70,15 @@ contract ERC20Issuance_Blacklist_v1 is
         uint256 initialSupply_,
         address initialAdmin_
     )
-        ERC20Issuance_v1(name_, symbol_, decimals_, initialSupply_, initialAdmin_)
-        AccessControl()
+        ERC20Issuance_v1(
+            name_,
+            symbol_,
+            decimals_,
+            initialSupply_,
+            initialAdmin_
+        )
     {
-        _grantRole(DEFAULT_ADMIN_ROLE, initialAdmin_);
-        _grantRole(BLACKLIST_MANAGER_ROLE, initialAdmin_);
+        _setBlacklistManager(initialAdmin_, true);
     }
 
     //--------------------------------------------------------------------------
@@ -88,12 +89,15 @@ contract ERC20Issuance_Blacklist_v1 is
         return _blacklist[account_];
     }
 
+    function isBlacklistManager(address account_) public view returns (bool) {
+        return _isBlacklistManager[account_];
+    }
+
     //--------------------------------------------------------------------------
     // External Functions
 
-    // Modifier to check for blacklist manager role
     modifier onlyBlacklistManager() {
-        if (!hasRole(BLACKLIST_MANAGER_ROLE, msg.sender)) {
+        if (!_isBlacklistManager[_msgSender()]) {
             revert ERC20Issuance_Blacklist_NotBlacklistManager();
         }
         _;
@@ -154,26 +158,9 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @notice Grant blacklist manager role
-    function grantBlacklistManagerRole(address account_)
-        public
-        onlyOwner
-    {
-        grantRole(BLACKLIST_MANAGER_ROLE, account_);
-    }
-
-    /// @notice Revoke blacklist manager role
-    function revokeBlacklistManagerRole(address account_)
-        public
-        onlyOwner
-    {
-        revokeRole(BLACKLIST_MANAGER_ROLE, account_);
-    }
-
     //--------------------------------------------------------------------------
     // Internal Functions
 
-    // Internal function to enforce restrictions on transfers
     function _update(address from, address to, uint256 amount)
         internal
         override(ERC20Capped)
@@ -185,5 +172,12 @@ contract ERC20Issuance_Blacklist_v1 is
             revert ERC20Issuance_Blacklist_BlacklistedAddress(to);
         }
         super._update(from, to, amount);
+    }
+
+    function _setBlacklistManager(address account_, bool privileges_)
+        internal
+        onlyOwner
+    {
+        _isBlacklistManager[account_] = privileges_;
     }
 }

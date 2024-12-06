@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-pragma solidity 0.8.23;
+pragma solidity ^0.8.0;
 
+// Imports
+
+// Internal
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
@@ -20,7 +23,7 @@ import {IRedeemingBondingCurveBase_v1} from
  *              - IRedeemingBondingCurveBase_v1
  *          Key operations:
  *              - Token buying with collateral
- *              - Token selling through redemption queue
+ *              - Token selling through creation of payment orders
  *              - Price calculations for tokens and collateral
  *          All operations must respect external price feeds and access control
  *          mechanisms defined in the implementation.
@@ -42,7 +45,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
 
     // Enum for redemption order states
     enum RedemptionState {
-        PENDING,
         COMPLETED,
         CANCELLED,
         PROCESSING
@@ -65,19 +67,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // Events
 
-    /// @notice Emitted when an address is added to the whitelist
-    /// @param account_ The whitelisted address
-    event AddressWhitelisted(address indexed account_);
-
-    /// @notice Emitted when an address is removed from the whitelist
-    /// @param account_ The removed address
-    event AddressRemovedFromWhitelist(address indexed account_);
-
-    /// @notice Emitted when multiple addresses are added/removed from whitelist
-    /// @param accounts_ Array of affected addresses
-    /// @param isAdd_ True if adding to whitelist, false if removing
-    event BatchWhitelistUpdated(address[] accounts_, bool isAdd_);
-
     /// @notice Emitted when reserve tokens are deposited
     /// @param depositor The address depositing tokens
     /// @param amount The amount deposited
@@ -98,6 +87,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     event RedemptionOrderCreated(
         uint indexed orderId,
         address indexed seller,
+        address indexed receiver,
         uint sellAmount,
         uint exchangeRate,
         uint collateralAmount,
@@ -109,35 +99,27 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state
     );
 
-    /// @notice Emitted when a redemption order's state changes
-    /// @param orderId Order identifier
-    /// @param newState New state of the order
-    event RedemptionOrderStateUpdated(
-        uint indexed orderId, RedemptionState newState
-    );
-
     //--------------------------------------------------------------------------
     // Errors
 
     /// @notice Thrown when an invalid amount is provided
-    error Module__InvalidAmount();
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
 
     /// @notice Fee exceeds maximum allowed value
     /// @param fee The fee that was attempted to be set
     /// @param maxFee The maximum allowed fee
-    error Module__FeeExceedsMaximum(uint256 fee, uint256 maxFee);
+    error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(uint256 fee, uint256 maxFee);
 
     /// @notice Thrown when the oracle contract does not implement the required interface
-    error Module__InvalidOracleInterface();
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
 
     /// @notice Thrown when third-party operations are disabled
-    error Module__ThirdPartyOperationsDisabled();
+    error Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
 
     //--------------------------------------------------------------------------
     // View Functions
 
-
-    /// @notice Gets the current open redemption amount
+    /// @notice Gets the current open collateral redemption amount
     /// @return amount_ The total amount of open redemptions
     function getOpenRedemptionAmount() external view returns (uint amount_);
 

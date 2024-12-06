@@ -7,7 +7,7 @@ pragma solidity 0.8.23;
 import {IFM_PC_ExternalPrice_Redeeming_v1} from
     "src/modules/fundingManager/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IERC20Issuance_Blacklist_v1} from
-    "src/modules/fundingManager/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
+    "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from
     "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 import {ERC20PaymentClientBase_v1} from
@@ -25,14 +25,16 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
+import {IERC20PaymentClientBase_v1} from
+    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.sol";
-
+import {ERC165Upgradeable} from
+    "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
@@ -63,6 +65,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ERC20PaymentClientBase_v1,
     RedeemingBondingCurveBase_v1
 {
+    /// @inheritdoc ERC165Upgradeable
     /// @param interfaceId_ The interface identifier to check support for
     /// @return True if the interface is supported
     function supportsInterface(bytes4 interfaceId_)
@@ -107,11 +110,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     uint8 private _collateralTokenDecimals;
 
     /// @dev Maximum fee that can be charged for sell operations, in basis points
-    /// @notice Maximum allowed fee percentage for selling tokens
+    /// @notice Maximum allowed project fee percentage for selling tokens
     uint private _maxSellFee;
 
     /// @dev Maximum fee that can be charged for buy operations, in basis points
-    /// @notice Maximum allowed fee percentage for buying tokens
+    /// @notice Maximum allowed project fee percentage for buying tokens
     uint private _maxBuyFee;
 
     /// @dev Order ID counter for tracking individual orders
@@ -122,7 +125,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Keeps track of the next available order ID to ensure uniqueness
     uint private _nextOrderId;
 
-    /// @dev Total amount of tokens currently in redemption process
+    /// @dev Total amount of collateral tokens currently in redemption process
     /// @notice Tracks the sum of all pending redemption orders
     uint private _openRedemptionAmount;
 
@@ -134,7 +137,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     //--------------------------------------------------------------------------
     // Modifiers
-
 
     //--------------------------------------------------------------------------
     // Initialization Function
@@ -159,7 +161,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             uint maxBuyFee_,
             bool isDirectOperationsOnly_
         ) = abi.decode(
-            configData_, (address, address, address, uint, uint, uint, uint, bool)
+            configData_,
+            (address, address, address, uint, uint, uint, uint, bool)
         );
 
         // Set accepted token
@@ -173,7 +176,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
                 type(IOraclePrice_v1).interfaceId
             )
         ) {
-            revert Module__InvalidOracleInterface();
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
         }
         // Set oracle
         _oracle = IOraclePrice_v1(oracleAddress_);
@@ -183,10 +186,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Set fees (checking max fees)
         if (buyFee_ > maxBuyFee_) {
-            revert Module__FeeExceedsMaximum(buyFee_, maxBuyFee_);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(buyFee_, maxBuyFee_);
         }
         if (sellFee_ > maxSellFee_) {
-            revert Module__FeeExceedsMaximum(sellFee_, maxSellFee_);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(sellFee_, maxSellFee_);
         }
 
         // Set fees
@@ -206,7 +209,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Modifier to check if direct operations are only allowed
     modifier onlyDirectOperations() {
         if (_isDirectOperationsOnly) {
-            revert Module__ThirdPartyOperationsDisabled();
+            revert Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
         }
         _;
     }
@@ -263,8 +266,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     /// @notice Allows depositing collateral to provide reserves for redemptions
     /// @param amount_ The amount of collateral to deposit
-    function depositReserve(uint amount_) external override onlyOrchestratorAdmin {
-        if (amount_ == 0) revert Module__InvalidAmount();
+    function depositReserve(uint amount_) external {
+        if (amount_ == 0) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
+        }
 
         // Transfer collateral from sender to FM
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
@@ -336,9 +341,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         });
         _addPaymentOrder(order);
 
+        // Process payments through the payment processor
+        __Module_orchestrator.paymentProcessor().processPayments(
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
         // Emit event with all order details
         emit RedemptionOrderCreated(
             _orderId,
+            _msgSender(),
             _msgSender(),
             depositAmount_,
             exchangeRate,
@@ -389,7 +400,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Check that fee doesn't exceed maximum allowed
         if (fee_ > _maxSellFee) {
-            revert Module__FeeExceedsMaximum(fee_, _maxSellFee);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(fee_, _maxSellFee);
         }
 
         super._setSellFee(fee_);
@@ -411,7 +422,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Check that fee doesn't exceed maximum allowed
         if (fee_ > _maxBuyFee) {
-            revert Module__FeeExceedsMaximum(fee_, _maxBuyFee);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(fee_, _maxBuyFee);
         }
 
         super._setBuyFee(fee_);
@@ -535,12 +546,5 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Transfer collateral tokens to recipient
         IERC20(token()).safeTransfer(recipient_, amount_);
-    }
-
-    /// @notice Helper function to generate a role ID for this module
-    /// @param role The role to generate an ID for
-    /// @return bytes32 The generated role ID
-    function generateRoleId(bytes32 role) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(address(this), role));
     }
 }

@@ -131,7 +131,13 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return orderId_ The current order ID
     function getOrderId() external view returns (uint orderId_);
 
+    // --------------------------------------------------------------------------
+    // External Functions
+
     /// @notice Allows depositing collateral to provide reserves for redemptions
     /// @param amount_ The amount of collateral to deposit
     function depositReserve(uint amount_) external;
+
+    /// @notice Executes the redemption queue
+    function executeRedemptionQueue() external;
 }

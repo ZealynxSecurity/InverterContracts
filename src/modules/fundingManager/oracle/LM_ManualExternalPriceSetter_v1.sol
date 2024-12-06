@@ -40,6 +40,10 @@ import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.so
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 contract LM_ManualExternalPriceSetter_v1 is
@@ -124,7 +128,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
         // Normalize price to internal decimal precision
         _issuancePrice = _normalizePrice(price_, _collateralTokenDecimals);
-        emit IssuancePriceSet(price_);
+        emit IssuancePriceSet(price_, block.timestamp);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -136,7 +140,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
         // Normalize price to internal decimal precision
         _redemptionPrice = _normalizePrice(price_, _issuanceTokenDecimals);
-        emit RedemptionPriceSet(price_);
+        emit RedemptionPriceSet(price_, block.timestamp);
     }
 
     /// @notice  Gets current price for token issuance (buying tokens)

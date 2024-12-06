@@ -58,6 +58,10 @@ import {ERC165Upgradeable} from
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 contract FM_PC_ExternalPrice_Redeeming_v1 is

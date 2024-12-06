@@ -16,6 +16,10 @@ pragma solidity ^0.8.0;
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 interface IOraclePrice_v1 {

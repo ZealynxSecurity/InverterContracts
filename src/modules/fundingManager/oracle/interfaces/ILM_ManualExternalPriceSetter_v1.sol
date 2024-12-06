@@ -22,6 +22,10 @@ import {IOraclePrice_v1} from
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
@@ -30,11 +34,13 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
 
     /// @notice Emitted when an issuance price is set
     /// @param  price The new price that was set
-    event IssuancePriceSet(uint indexed price);
+    /// @param  timestamp The timestamp when the price was updated
+    event IssuancePriceSet(uint indexed price, uint indexed timestamp);
 
     /// @notice Emitted when a redemption price is set
     /// @param  price The new price that was set
-    event RedemptionPriceSet(uint indexed price);
+    /// @param  timestamp The timestamp when the price was updated
+    event RedemptionPriceSet(uint indexed price, uint indexed timestamp);
 
     //--------------------------------------------------------------------------
     // Errors

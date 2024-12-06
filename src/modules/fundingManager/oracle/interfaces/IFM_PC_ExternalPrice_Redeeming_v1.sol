@@ -33,6 +33,10 @@ import {IRedeemingBondingCurveBase_v1} from
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 interface IFM_PC_ExternalPrice_Redeeming_v1 is

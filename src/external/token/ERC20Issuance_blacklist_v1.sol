@@ -5,8 +5,8 @@ pragma solidity 0.8.23;
 
 // Internal
 import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-import {IERC20Issuance_Blacklist_v1} from
-    "@fm/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
+import {IERC20Issuance_Blacklist_v1} 
+    from "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
@@ -26,7 +26,8 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  *          Key features:
  *              - Individual address blacklisting
  *              - Batch blacklisting operations
- *              - Owner-controlled blacklist management
+ *              - Owner-controlled manager role assignment
+ *              - Blacklist manager controlled blacklist management
  *          All blacklist operations can only be performed by the contract owner.
  *
  * @custom:security-contact security@inverter.network
@@ -43,16 +44,16 @@ contract ERC20Issuance_Blacklist_v1 is
     //--------------------------------------------------------------------------
     // Storage
 
-    /// @dev Mapping of blacklisted addresses
+    /// @notice Mapping of blacklisted addresses
     mapping(address => bool) private _blacklist;
 
-    /// @dev Mapping of blacklist manager addresses
+    /// @notice Mapping of blacklist manager addresses
     mapping (address => bool) private _isBlacklistManager;
 
     //--------------------------------------------------------------------------
     // Constants
 
-    /// @dev Maximum number of addresses that can be blacklisted in a batch
+    /// @notice Maximum number of addresses that can be blacklisted in a batch
     uint public constant BATCH_LIMIT = 200;
 
     //--------------------------------------------------------------------------
@@ -63,12 +64,14 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @param decimals_ Token decimals
     /// @param initialSupply_ Initial token supply
     /// @param initialAdmin_ Initial admin address
+    /// @param initialBlacklistManager_ Initial blacklist manager (typically an EOA)
     constructor(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
         uint256 initialSupply_,
-        address initialAdmin_
+        address initialAdmin_,
+        address initialBlacklistManager_
     )
         ERC20Issuance_v1(
             name_,
@@ -78,7 +81,10 @@ contract ERC20Issuance_Blacklist_v1 is
             initialAdmin_
         )
     {
-        _setBlacklistManager(initialAdmin_, true);
+        if (initialBlacklistManager_ == address(0)) {
+            revert ERC20Issuance_Blacklist_ZeroAddress();
+        }
+        _setBlacklistManager(initialBlacklistManager_, true);
     }
 
     //--------------------------------------------------------------------------
@@ -89,6 +95,7 @@ contract ERC20Issuance_Blacklist_v1 is
         return _blacklist[account_];
     }
 
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function isBlacklistManager(address account_) public view returns (bool) {
         return _isBlacklistManager[account_];
     }
@@ -96,6 +103,8 @@ contract ERC20Issuance_Blacklist_v1 is
     //--------------------------------------------------------------------------
     // External Functions
 
+    /// @notice Modifier to check if the caller is a blacklist manager
+    /// @dev May revert with ERC20Issuance_Blacklist_NotBlacklistManager
     modifier onlyBlacklistManager() {
         if (!_isBlacklistManager[_msgSender()]) {
             revert ERC20Issuance_Blacklist_NotBlacklistManager();
@@ -161,6 +170,12 @@ contract ERC20Issuance_Blacklist_v1 is
     //--------------------------------------------------------------------------
     // Internal Functions
 
+    /// @notice Internal hook to enforce blacklist restrictions on token transfers
+    /// @dev    Overrides ERC20Capped._update to add blacklist checks
+    /// @param  from Address tokens are transferred from
+    /// @param  to Address tokens are transferred to
+    /// @param  amount Number of tokens to transfer
+    /// @inheritdoc ERC20Capped
     function _update(address from, address to, uint256 amount)
         internal
         override(ERC20Capped)
@@ -174,6 +189,10 @@ contract ERC20Issuance_Blacklist_v1 is
         super._update(from, to, amount);
     }
 
+    /// @notice Sets or revokes blacklist manager privileges for an account
+    /// @dev    Can only be called by the contract owner
+    /// @param  account_ Address to modify privileges for
+    /// @param  privileges_ True to grant privileges, false to revoke
     function _setBlacklistManager(address account_, bool privileges_)
         internal
         onlyOwner

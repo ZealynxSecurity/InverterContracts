@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-pragma solidity 0.8.23;
+pragma solidity ^0.8.0;
 
 /**
  * @title   Oracle Price Interface
@@ -28,13 +28,13 @@ interface IOraclePrice_v1 {
     //--------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Gets current price for token issuance
-    /// @return price_ Current price for buying tokens
-    /// @dev May revert with OraclePrice__ZeroPrice
+    /// @notice Gets current price for token issuance (buying tokens)
+    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for 1 ISS)
     function getPriceForIssuance() external view returns (uint256 price_);
 
-    /// @notice Gets current price for token redemption
-    /// @return price_ Current price for selling tokens
-    /// @dev May revert with OraclePrice__ZeroPrice
+    /// @notice Gets current price for token redemption (selling tokens)
+    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC received for 1 ISS)
     function getPriceForRedemption() external view returns (uint256 price_);
 }

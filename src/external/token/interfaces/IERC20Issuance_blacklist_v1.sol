@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 // Imports
 
 // Internal
-import { IERC20Issuance_v1 } from "@ex/token/IERC20Issuance_v1.sol";
+import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
 
 /**
  * @title   ERC20 Issuance Token with Blacklist Interface
@@ -54,28 +54,30 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     error ERC20Issuance_Blacklist_BlacklistedAddress(address account);
 
     /// @notice Thrown when batch operation exceeds the maximum allowed size
-    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint256 provided, uint256 limit);
+    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint provided, uint limit);
 
     //--------------------------------------------------------------------------
     // External Functions
-    
+
     /// @notice Checks if an address is blacklisted
     /// @param account_ The address to check
     /// @return isBlacklisted_ True if address is blacklisted
-    function isBlacklisted(
-        address account_
-    ) external view returns (bool isBlacklisted_);
+    function isBlacklisted(address account_)
+        external
+        view
+        returns (bool isBlacklisted_);
 
     /// @notice Checks if an address is a blacklist manager
     /// @param account_ The address to check
     /// @return isBlacklistManager_ True if address is a blacklist manager
-    function isBlacklistManager(
-        address account_
-    ) external view returns (bool isBlacklistManager_);
+    function isBlacklistManager(address account_)
+        external
+        view
+        returns (bool isBlacklistManager_);
 
     /// @notice Adds an address to blacklist
     /// @param account_ The address to blacklist
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress 
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
     function addToBlacklist(address account_) external;
 
     /// @notice Removes an address from blacklist
@@ -88,16 +90,14 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
     ///      The array size should not exceed the block gas limit. Consider using
     ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
-    function addToBlacklistBatchAddresses(
-        address[] memory accounts_
-    ) external;
+    function addToBlacklistBatchAddresses(address[] memory accounts_)
+        external;
 
     /// @notice Removes multiple addresses from blacklist
     /// @param accounts_ Array of addresses to remove
     /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
     ///      The array size should not exceed the block gas limit. Consider using
     ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
-    function removeFromBlacklistBatchAddresses(
-        address[] calldata accounts_
-    ) external;
+    function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
+        external;
 }

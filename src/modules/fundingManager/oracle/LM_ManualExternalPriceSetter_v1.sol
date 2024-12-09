@@ -11,9 +11,9 @@ import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 
 // External
-import {IERC20Metadata} from
-    "@oz/token/ERC20/extensions/IERC20Metadata.sol";
-import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.sol";
+import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
+import {ERC165Upgradeable} from
+    "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
  * @title   Manual External Price Oracle Implementation

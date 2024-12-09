@@ -5,8 +5,8 @@ pragma solidity 0.8.23;
 
 // Internal
 import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-import {IERC20Issuance_Blacklist_v1} 
-    from "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
+import {IERC20Issuance_Blacklist_v1} from
+    "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
@@ -48,7 +48,7 @@ contract ERC20Issuance_Blacklist_v1 is
     mapping(address => bool) private _blacklist;
 
     /// @notice Mapping of blacklist manager addresses
-    mapping (address => bool) private _isBlacklistManager;
+    mapping(address => bool) private _isBlacklistManager;
 
     //--------------------------------------------------------------------------
     // Constants
@@ -69,17 +69,11 @@ contract ERC20Issuance_Blacklist_v1 is
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        uint256 initialSupply_,
+        uint initialSupply_,
         address initialAdmin_,
         address initialBlacklistManager_
     )
-        ERC20Issuance_v1(
-            name_,
-            symbol_,
-            decimals_,
-            initialSupply_,
-            initialAdmin_
-        )
+        ERC20Issuance_v1(name_, symbol_, decimals_, initialSupply_, initialAdmin_)
     {
         if (initialBlacklistManager_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
@@ -113,10 +107,7 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklist(address account_)
-        public
-        onlyBlacklistManager
-    {
+    function addToBlacklist(address account_) public onlyBlacklistManager {
         if (account_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
         }
@@ -146,7 +137,9 @@ contract ERC20Issuance_Blacklist_v1 is
     {
         uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
-            revert ERC20Issuance_Blacklist_BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+            revert ERC20Issuance_Blacklist_BatchLimitExceeded(
+                totalAccount_, BATCH_LIMIT
+            );
         }
         for (uint i_; i_ < totalAccount_; ++i_) {
             addToBlacklist(accounts_[i_]);
@@ -160,7 +153,9 @@ contract ERC20Issuance_Blacklist_v1 is
     {
         uint totalAccount_ = accounts_.length;
         if (totalAccount_ > BATCH_LIMIT) {
-            revert ERC20Issuance_Blacklist_BatchLimitExceeded(totalAccount_, BATCH_LIMIT);
+            revert ERC20Issuance_Blacklist_BatchLimitExceeded(
+                totalAccount_, BATCH_LIMIT
+            );
         }
         for (uint i_; i_ < totalAccount_; ++i_) {
             removeFromBlacklist(accounts_[i_]);
@@ -176,7 +171,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @param  to Address tokens are transferred to
     /// @param  amount Number of tokens to transfer
     /// @inheritdoc ERC20Capped
-    function _update(address from, address to, uint256 amount)
+    function _update(address from, address to, uint amount)
         internal
         override(ERC20Capped)
     {

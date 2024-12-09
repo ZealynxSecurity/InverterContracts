@@ -444,7 +444,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Require that enough collateral token is held to be redeemable
         if (
-            (collateralRedeemAmount + projectCollateralFeeCollected)
+            (projectCollateralFeeCollected)
                 > collateralToken.balanceOf(address(this))
         ) {
             revert
@@ -587,6 +587,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // Internal Functions
 
+    /// @dev    Internal function which only emits the event for amount of project fee collected. The contract
+    ///         does not hold collateral as the payout is managed through a redemption queue
+    /// @param  _projectFeeAmount The amount of fee collected
+    function _projectFeeCollected(uint _projectFeeAmount)
+        internal
+        override(BondingCurveBase_v1)
+    {
+        emit ProjectCollateralFeeAdded(_projectFeeAmount);
+    }
+
     /// @notice Sets the maximum fee that can be charged for buy operations
     /// @param fee_ The maximum fee percentage to set
     function _setMaxBuyFee(uint fee_) internal {
@@ -661,12 +671,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @dev        Implementation does not transfer collateral tokens to recipient as the
+    ///             payout is managed through a redemption queue
     function _handleCollateralTokensAfterSell(address recipient_, uint amount_)
         internal
         virtual
         override
     {
-        // Transfer collateral tokens to recipient
-        IERC20(token()).safeTransfer(recipient_, amount_);
+        // This function is not used in this implementation
     }
 }

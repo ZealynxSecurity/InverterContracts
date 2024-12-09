@@ -95,7 +95,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
     /// @notice Role for payment queue
-    bytes32 public constant PAYMENT_QUEUE_ROLE = "PAYMENT_QUEUE_ROLE";
+    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
 
     //--------------------------------------------------------------------------
     // State Variables
@@ -295,7 +295,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
-        onlyModuleRole(PAYMENT_QUEUE_ROLE)
+        onlyModuleRole(QUEUE_MANAGER_ROLE)
     {
         // executeRedemptionQueue() doesn't seem to exist
         // __Module_orchestrator.paymentProcessor().executeRedemptionQueue();

@@ -35,6 +35,10 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 contract ERC20Issuance_Blacklist_v1 is
@@ -75,9 +79,6 @@ contract ERC20Issuance_Blacklist_v1 is
     )
         ERC20Issuance_v1(name_, symbol_, decimals_, initialSupply_, initialAdmin_)
     {
-        if (initialBlacklistManager_ == address(0)) {
-            revert ERC20Issuance_Blacklist_ZeroAddress();
-        }
         _setBlacklistManager(initialBlacklistManager_, true);
     }
 
@@ -117,6 +118,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklist(address account_)
         public
         onlyBlacklistManager
@@ -162,6 +164,14 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
+    /// @notice Sets a new blacklist manager
+    /// @dev Only callable by the owner
+    /// @param manager_ Address to set as blacklist manager
+    /// @param allowed_ Whether to grant or revoke blacklist manager role
+    function setBlacklistManager(address manager_, bool allowed_) external onlyOwner {
+        _setBlacklistManager(manager_, allowed_);
+    }
+
     //--------------------------------------------------------------------------
     // Internal Functions
 
@@ -184,14 +194,14 @@ contract ERC20Issuance_Blacklist_v1 is
         super._update(from, to, amount);
     }
 
-    /// @notice Sets or revokes blacklist manager privileges for an account
-    /// @dev    Can only be called by the contract owner
-    /// @param  account_ Address to modify privileges for
-    /// @param  privileges_ True to grant privileges, false to revoke
-    function _setBlacklistManager(address account_, bool privileges_)
-        internal
-        onlyOwner
-    {
-        _isBlacklistManager[account_] = privileges_;
+    /// @notice Internal function to set a blacklist manager
+    /// @param manager_ Address to set as blacklist manager
+    /// @param allowed_ Whether to grant or revoke blacklist manager role
+    function _setBlacklistManager(address manager_, bool allowed_) internal {
+        if (manager_ == address(0)) {
+            revert ERC20Issuance_Blacklist_ZeroAddress();
+        }
+        _isBlacklistManager[manager_] = allowed_;
+        emit BlacklistManagerUpdated(manager_, allowed_);
     }
 }

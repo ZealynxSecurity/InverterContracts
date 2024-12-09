@@ -27,6 +27,10 @@ import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
@@ -40,6 +44,11 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @notice Emitted when an address is removed from the blacklist
     /// @param account_ The address that was removed from blacklist
     event RemovedFromBlacklist(address indexed account_);
+
+    /// @notice Emitted when a blacklist manager role is granted or revoked
+    /// @param account_ The address that was granted or revoked the role
+    /// @param allowed_ Whether the role was granted (true) or revoked (false)
+    event BlacklistManagerUpdated(address indexed account_, bool allowed_);
 
     //--------------------------------------------------------------------------
     // Errors
@@ -100,4 +109,10 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
     function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
         external;
+
+    /// @notice Sets or revokes blacklist manager role for an address
+    /// @param manager_ The address to grant or revoke the role from
+    /// @param allowed_ Whether to grant (true) or revoke (false) the role
+    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
+    function setBlacklistManager(address manager_, bool allowed_) external;
 }

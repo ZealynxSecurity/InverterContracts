@@ -54,20 +54,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         PROCESSING
     }
 
-    // Struct to store order details
-    struct RedemptionOrder {
-        address seller;
-        uint sellAmount;
-        uint exchangeRate;
-        uint collateralAmount;
-        uint feePercentage;
-        uint feeAmount;
-        uint redemptionAmount;
-        address collateralToken;
-        uint redemptionTime;
-        RedemptionState state;
-    }
-
     //--------------------------------------------------------------------------
     // Events
 
@@ -79,6 +65,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Emitted when a new redemption order is created
     /// @param orderId Order identifier
     /// @param seller Address selling tokens
+    /// @param receiver Address who receives the redeemed tokens
     /// @param sellAmount Amount of tokens to sell
     /// @param exchangeRate Current exchange rate
     /// @param collateralAmount Amount of collateral

@@ -120,6 +120,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     // External Functions
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @dev The price_ parameter should be provided with the same number of decimals as the collateral token.
+    ///      For example, if the collateral token has 6 decimals and the price is 1.5, input should be 1500000.
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
@@ -132,6 +134,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @dev The price_ parameter should be provided with the same number of decimals as the issuance token.
+    ///      For example, if the issuance token has 18 decimals and the price is 1.5, input should be 1500000000000000000.
     function setRedemptionPrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)

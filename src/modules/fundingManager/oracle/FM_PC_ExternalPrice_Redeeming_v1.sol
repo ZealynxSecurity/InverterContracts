@@ -297,8 +297,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(IFM_PC_ExternalPrice_Redeeming_v1)
         onlyModuleRole(QUEUE_MANAGER_ROLE)
     {
-        // executeRedemptionQueue() doesn't seem to exist
-        // __Module_orchestrator.paymentProcessor().executeRedemptionQueue();
+        // NOTE: This function expects a Queue-based Payment Processor to be connected.
+        // The call will intentionally revert if a non-Queue PP is used, as this FM
+        // is designed to work only with Payment Processors that support queue-based redemptions.
+        __Module_orchestrator.paymentProcessor().executeRedemptionQueue();
     }
 
     //--------------------------------------------------------------------------
@@ -339,146 +341,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         onlyModuleRole(WHITELIST_ROLE)
     {
         _sellOrder(_msgSender(), depositAmount_, minAmountOut_);
-    }
-
-    function _createAndEmitOrder(
-        address receiver,
-        uint depositAmount,
-        uint collateralRedeemAmount,
-        uint issuanceFeeAmount
-    ) internal {
-        // Generate new order ID
-        _orderId = _nextOrderId++;
-
-        // Update open redemption amount
-        _openRedemptionAmount += collateralRedeemAmount;
-
-        // Calculate redemption amount
-        uint redemptionAmount = collateralRedeemAmount - issuanceFeeAmount;
-
-        // Create and add payment order
-        PaymentOrder memory order = PaymentOrder({
-            recipient: _msgSender(),
-            paymentToken: address(token()),
-            amount: collateralRedeemAmount,
-            start: block.timestamp,
-            cliff: 0,
-            end: block.timestamp
-        });
-        _addPaymentOrder(order);
-
-        // Process payments through the payment processor
-        __Module_orchestrator.paymentProcessor().processPayments(
-            IERC20PaymentClientBase_v1(address(this))
-        );
-
-        // Emit event with all order details
-        emit RedemptionOrderCreated(
-            _orderId,
-            _msgSender(),
-            receiver,
-            depositAmount,
-            _oracle.getPriceForRedemption(),
-            collateralRedeemAmount,
-            sellFee,
-            issuanceFeeAmount,
-            redemptionAmount,
-            address(token()),
-            block.timestamp,
-            RedemptionState.PROCESSING
-        );
-
-        // Emit event
-        emit TokensSold(
-            receiver, depositAmount, collateralRedeemAmount, _msgSender()
-        );
-    }
-
-    function _sellOrder(
-        address _receiver,
-        uint _depositAmount,
-        uint _minAmountOut
-    )
-        internal
-        override(RedeemingBondingCurveBase_v1)
-        returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
-    {
-        _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
-        // Get protocol fee percentages and treasury addresses
-        (
-            address collateralTreasury,
-            address issuanceTreasury,
-            uint collateralSellFeePercentage,
-            uint issuanceSellFeePercentage
-        ) = _getFunctionFeesAndTreasuryAddresses(
-            bytes4(keccak256(bytes("_sellOrder(address,uint,uint)")))
-        );
-
-        uint protocolFeeAmount;
-        uint projectFeeAmount;
-        uint netDeposit;
-
-        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
-        // fee enabled
-        (netDeposit, protocolFeeAmount, /* projectFee */ ) =
-        _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
-
-        issuanceFeeAmount = protocolFeeAmount;
-
-        // Calculate redeem amount based on upstream formula
-        uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
-
-        totalCollateralTokenMovedOut = collateralRedeemAmount;
-
-        // Burn issued token from user
-        _burn(_msgSender(), _depositAmount);
-
-        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
-        // the backing collateral
-        _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
-
-        // Cache Collateral Token
-        IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
-
-        // Require that enough collateral token is held to be redeemable
-        if (
-            (projectCollateralFeeCollected)
-                > collateralToken.balanceOf(address(this))
-        ) {
-            revert
-                Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption(
-            );
-        }
-
-        // Get net amount, protocol and project fee amounts
-        (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
-        _calculateNetAndSplitFees(
-            collateralRedeemAmount, collateralSellFeePercentage, sellFee
-        );
-        // Process the protocol fee
-        _processProtocolFeeViaTransfer(
-            collateralTreasury, collateralToken, protocolFeeAmount
-        );
-
-        // Add project fee if applicable
-        if (projectFeeAmount > 0) {
-            _projectFeeCollected(projectFeeAmount);
-        }
-
-        // Revert when the redeem amount is lower than minimum amount the user expects
-        if (collateralRedeemAmount < _minAmountOut) {
-            revert Module__BondingCurveBase__InsufficientOutputAmount();
-        }
-
-        // Use virtual function to handle collateral tokens
-        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
-
-        // Create and emit the order
-        _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
-        );
-
-        return (totalCollateralTokenMovedOut, issuanceFeeAmount);
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
@@ -586,6 +448,159 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     //--------------------------------------------------------------------------
     // Internal Functions
+
+    /// @notice Creates and emits a new redemption order
+    /// @dev    This function wraps the `_createAndEmitOrder` internal function with specified parameters to handle
+    ///         the transaction and direct the proceeds.
+    /// @param  receiver_ The address that will receive the redeemed tokens.
+    /// @param  depositAmount_ The amount of tokens to be sold.
+    /// @param  collateralRedeemAmount_ The amount of collateral to redeem.
+    /// @param  issuanceFeeAmount_ The amount of issuance fee to charge.
+    function _createAndEmitOrder(
+        address receiver_,
+        uint depositAmount_,
+        uint collateralRedeemAmount_,
+        uint issuanceFeeAmount_
+    ) internal {
+        // Generate new order ID
+        _orderId = _nextOrderId++;
+
+        // Update open redemption amount
+        _openRedemptionAmount += collateralRedeemAmount_;
+
+        // Calculate redemption amount
+        uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
+
+        // Create and add payment order
+        PaymentOrder memory order = PaymentOrder({
+            recipient: _msgSender(),
+            paymentToken: address(token()),
+            amount: collateralRedeemAmount_,
+            start: block.timestamp,
+            cliff: 0,
+            end: block.timestamp
+        });
+        _addPaymentOrder(order);
+
+        // Process payments through the payment processor
+        __Module_orchestrator.paymentProcessor().processPayments(
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        // Emit event with all order details
+        emit RedemptionOrderCreated(
+            _orderId,
+            _msgSender(),
+            receiver_,
+            depositAmount_,
+            _oracle.getPriceForRedemption(),
+            collateralRedeemAmount_,
+            sellFee,
+            issuanceFeeAmount_,
+            redemptionAmount_,
+            address(token()),
+            block.timestamp,
+            RedemptionState.PROCESSING
+        );
+
+        // Emit event
+        emit TokensSold(
+            receiver_, depositAmount_, collateralRedeemAmount_, _msgSender()
+        );
+    }
+
+    /// @notice Executes a sell order, with the proceeds being sent directly to the _receiver's address.
+    /// @dev    This function wraps the `_sellOrder` internal function with specified parameters to handle
+    ///         the transaction and direct the proceeds.
+    /// @param  _receiver The address that will receive the redeemed tokens.
+    /// @param  _depositAmount The amount of tokens to be sold.
+    /// @param  _minAmountOut The minimum acceptable amount of proceeds that the receiver should receive from the sale.
+    function _sellOrder(
+        address _receiver,
+        uint _depositAmount,
+        uint _minAmountOut
+    )
+        internal
+        override(RedeemingBondingCurveBase_v1)
+        returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
+    {
+        _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
+        // Get protocol fee percentages and treasury addresses
+        (
+            address collateralTreasury,
+            address issuanceTreasury,
+            uint collateralSellFeePercentage,
+            uint issuanceSellFeePercentage
+        ) = _getFunctionFeesAndTreasuryAddresses(
+            bytes4(keccak256(bytes("_sellOrder(address,uint,uint)")))
+        );
+
+        uint protocolFeeAmount;
+        uint projectFeeAmount;
+        uint netDeposit;
+
+        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
+        // fee enabled
+        (netDeposit, protocolFeeAmount, /* projectFee */ ) =
+        _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
+
+        issuanceFeeAmount = protocolFeeAmount;
+
+        // Calculate redeem amount based on upstream formula
+        uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
+
+        totalCollateralTokenMovedOut = collateralRedeemAmount;
+
+        // Burn issued token from user
+        _burn(_msgSender(), _depositAmount);
+
+        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
+        // the backing collateral
+        _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
+
+        // Cache Collateral Token
+        IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
+
+        // Require that enough collateral token is held to be redeemable
+        if (
+            (projectCollateralFeeCollected)
+                > collateralToken.balanceOf(address(this))
+        ) {
+            revert
+                Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption(
+            );
+        }
+
+        // Get net amount, protocol and project fee amounts
+        (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
+        _calculateNetAndSplitFees(
+            collateralRedeemAmount, collateralSellFeePercentage, sellFee
+        );
+        // Process the protocol fee
+        _processProtocolFeeViaTransfer(
+            collateralTreasury, collateralToken, protocolFeeAmount
+        );
+
+        // Add project fee if applicable
+        if (projectFeeAmount > 0) {
+            _projectFeeCollected(projectFeeAmount);
+        }
+
+        // Revert when the redeem amount is lower than minimum amount the user expects
+        if (collateralRedeemAmount < _minAmountOut) {
+            revert Module__BondingCurveBase__InsufficientOutputAmount();
+        }
+
+        // Use virtual function to handle collateral tokens
+        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
+
+        // Create and emit the order
+        _createAndEmitOrder(
+            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+        );
+
+        return (totalCollateralTokenMovedOut, issuanceFeeAmount);
+    }
 
     /// @dev    Internal function which only emits the event for amount of project fee collected. The contract
     ///         does not hold collateral as the payout is managed through a redemption queue

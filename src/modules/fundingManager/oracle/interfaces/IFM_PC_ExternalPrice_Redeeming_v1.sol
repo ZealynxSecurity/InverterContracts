@@ -112,7 +112,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Fee exceeds maximum allowed value
     /// @param fee The fee that was attempted to be set
     /// @param maxFee The maximum allowed fee
-    error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(uint256 fee, uint256 maxFee);
+    error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+        uint fee, uint maxFee
+    );
 
     /// @notice Thrown when the oracle contract does not implement the required interface
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();

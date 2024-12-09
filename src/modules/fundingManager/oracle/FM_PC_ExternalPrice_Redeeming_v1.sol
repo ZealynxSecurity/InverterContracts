@@ -183,7 +183,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
                 type(IOraclePrice_v1).interfaceId
             )
         ) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface(
+            );
         }
         // Set oracle
         _oracle = IOraclePrice_v1(oracleAddress_);
@@ -389,10 +390,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Emit event
         emit TokensSold(
-            receiver,
-            depositAmount,
-            collateralRedeemAmount,
-            _msgSender()
+            receiver, depositAmount, collateralRedeemAmount, _msgSender()
         );
     }
 
@@ -476,7 +474,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
 
         // Create and emit the order
-        _createAndEmitOrder(_receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount);
+        _createAndEmitOrder(
+            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+        );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
     }

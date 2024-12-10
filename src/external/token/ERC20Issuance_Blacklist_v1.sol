@@ -169,7 +169,10 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function setBlacklistManager(address manager_, bool allowed_) external onlyOwner {
+    function setBlacklistManager(address manager_, bool allowed_)
+        external
+        onlyOwner
+    {
         _setBlacklistManager(manager_, allowed_);
     }
 

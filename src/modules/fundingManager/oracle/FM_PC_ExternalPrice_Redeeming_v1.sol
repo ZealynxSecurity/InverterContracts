@@ -139,6 +139,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Flag indicating if direct operations are only allowed.
     bool private _isDirectOperationsOnly;
 
+    /// @notice Address of the project treasury which will receive the collateral tokens
+    address private _projectTreasury;
+
     /// @dev    Storage gap for future upgrades.
     uint[50] private __gap;
 
@@ -160,6 +163,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Decode config data
         (
             address oracleAddress_,
+            address projectTreasury_,
             address issuanceToken_,
             address acceptedToken_,
             uint buyFee_,
@@ -169,7 +173,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             bool isDirectOperationsOnly_
         ) = abi.decode(
             configData_,
-            (address, address, address, uint, uint, uint, uint, bool)
+            (address, address, address, address, uint, uint, uint, uint, bool)
         );
 
         // Set accepted token
@@ -203,6 +207,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
                 sellFee_, maxSellFee_
             );
         }
+        // Set project treasury
+        _setProjectTreasury(projectTreasury_);
 
         // Set fees
         _setBuyFee(buyFee_);
@@ -271,6 +277,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getOrderId() external view returns (uint orderId_) {
         return _orderId;
+    }
+
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function getProjctTreasury() external view returns (address) {
+        return _projectTreasury;
     }
 
     // -------------------------------------------------------------------------
@@ -413,6 +424,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         }
 
         super._setBuyFee(fee_);
+    }
+
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function setProjectTreasury(address projectTreasury_)
+        external
+        onlyOrchestratorAdmin
+    {
+        _setProjectTreasury(projectTreasury_);
     }
 
     /// @notice Gets current buy fee.
@@ -580,8 +599,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             collateralRedeemAmount, collateralSellFeePercentage, sellFee
         );
         // Process the protocol fee
+        // Protocol fee is not charged for redemption in this implementation
         _processProtocolFeeViaTransfer(
-            collateralTreasury, collateralToken, protocolFeeAmount
+            collateralTreasury, collateralToken, protocolFeeAmount 
         );
 
         // Add project fee if applicable
@@ -678,6 +698,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit IssuanceTokenSet(issuanceToken_, decimals_);
     }
 
+    /// @notice Sets the project treasury address
+    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
+    /// @param projectTreasury_ The address of the project treasury
+    function _setProjectTreasury(address projectTreasury_) internal {
+        if (_projectTreasury == address(0)) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
+            );
+        }
+        _projectTreasury = projectTreasury_;
+    }
+
     /// @inheritdoc BondingCurveBase_v1
     function _handleIssuanceTokensAfterBuy(address recipient_, uint amount_)
         internal
@@ -686,6 +717,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Transfer issuance tokens to recipient
         IERC20Issuance_v1(issuanceToken).mint(recipient_, amount_);
+    }
+
+    /// @inheritdoc BondingCurveBase_v1
+    /// @dev        Implementation transfer collateral tokens to the project treasury
+    function _handleCollateralTokensBeforeBuy(address _provider, uint _amount)
+        internal
+        virtual
+        override
+    {
+        IERC20(token()).safeTransferFrom(_provider, _projectTreasury, _amount);
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1

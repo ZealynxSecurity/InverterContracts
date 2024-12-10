@@ -76,7 +76,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice	Thrown when a redemption queue execution fails
     error Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
 
-    // -------------------------------------------------------------------------
+    /// @notice Thrown when the project treasury address is invalid
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury();
+
+    // --------------------------------------------------------------------------
     // Events
 
     /// @notice	Emitted when reserve tokens are deposited
@@ -127,7 +130,11 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return	orderId_ The current order ID
     function getOrderId() external view returns (uint orderId_);
 
-    // -------------------------------------------------------------------------
+    /// @notice Gets the project treasury address
+    /// @return address_ The address of the project treasury
+    function getProjectTreasury() external view returns (address);
+
+    // --------------------------------------------------------------------------
     // External Functions
 
     /// @notice	Allows depositing collateral to provide reserves for redemptions
@@ -136,4 +143,8 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice	Executes the redemption queue
     function executeRedemptionQueue() external;
+
+    /// @notice Sets the project treasury address
+    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
+    function setProjectTreasury(address projectTreasury_) external;
 }

@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-pragma solidity 0.8.23;
+pragma solidity ^0.8.0;
+
+// Imports
+
+// Internal
+import {IOraclePrice_v1} from
+    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 
 /**
  * @title   Manual External Price Oracle Interface
@@ -16,24 +22,25 @@ pragma solidity 0.8.23;
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
-interface ILM_ManualExternalPriceSetter_v1 {
+interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     //--------------------------------------------------------------------------
-    //==========================================================================
     // Events
 
-    /// @notice Emitted when a new price is set
-    /// @param price The new price that was set
-    event PriceSet(uint256 indexed price);
+    /// @notice Emitted when an issuance price is set
+    /// @param  price The new price that was set
+    /// @param  timestamp The timestamp when the price was updated
+    event IssuancePriceSet(uint indexed price, uint indexed timestamp);
 
-    /// @notice Emitted when a new issuance price is set
-    /// @param price The new issuance price
-    event IssuancePriceSet(uint price);
-
-    /// @notice Emitted when a new redemption price is set
-    /// @param price The new redemption price
-    event RedemptionPriceSet(uint price);
+    /// @notice Emitted when a redemption price is set
+    /// @param  price The new price that was set
+    /// @param  timestamp The timestamp when the price was updated
+    event RedemptionPriceSet(uint indexed price, uint indexed timestamp);
 
     //--------------------------------------------------------------------------
     // Errors

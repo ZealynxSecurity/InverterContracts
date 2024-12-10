@@ -7,7 +7,7 @@ pragma solidity 0.8.23;
 import {IFM_PC_ExternalPrice_Redeeming_v1} from
     "src/modules/fundingManager/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IERC20Issuance_Blacklist_v1} from
-    "src/modules/fundingManager/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
+    "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from
     "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 import {ERC20PaymentClientBase_v1} from
@@ -25,14 +25,16 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
+import {IERC20PaymentClientBase_v1} from
+    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.sol";
-
+import {ERC165Upgradeable} from
+    "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
@@ -56,6 +58,10 @@ import {ERC165Upgradeable} from "@oz-up/utils/introspection/ERC165Upgradeable.so
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 contract FM_PC_ExternalPrice_Redeeming_v1 is
@@ -63,6 +69,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ERC20PaymentClientBase_v1,
     RedeemingBondingCurveBase_v1
 {
+    /// @inheritdoc ERC165Upgradeable
     /// @param interfaceId_ The interface identifier to check support for
     /// @return True if the interface is supported
     function supportsInterface(bytes4 interfaceId_)
@@ -87,6 +94,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Role for whitelisted addresses
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
+    /// @notice Role for payment queue
+    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
+
     //--------------------------------------------------------------------------
     // State Variables
 
@@ -107,11 +117,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     uint8 private _collateralTokenDecimals;
 
     /// @dev Maximum fee that can be charged for sell operations, in basis points
-    /// @notice Maximum allowed fee percentage for selling tokens
+    /// @notice Maximum allowed project fee percentage for selling tokens
     uint private _maxSellFee;
 
     /// @dev Maximum fee that can be charged for buy operations, in basis points
-    /// @notice Maximum allowed fee percentage for buying tokens
+    /// @notice Maximum allowed project fee percentage for buying tokens
     uint private _maxBuyFee;
 
     /// @dev Order ID counter for tracking individual orders
@@ -122,7 +132,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Keeps track of the next available order ID to ensure uniqueness
     uint private _nextOrderId;
 
-    /// @dev Total amount of tokens currently in redemption process
+    /// @dev Total amount of collateral tokens currently in redemption process
     /// @notice Tracks the sum of all pending redemption orders
     uint private _openRedemptionAmount;
 
@@ -134,7 +144,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     //--------------------------------------------------------------------------
     // Modifiers
-
 
     //--------------------------------------------------------------------------
     // Initialization Function
@@ -159,7 +168,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             uint maxBuyFee_,
             bool isDirectOperationsOnly_
         ) = abi.decode(
-            configData_, (address, address, address, uint, uint, uint, uint, bool)
+            configData_,
+            (address, address, address, uint, uint, uint, uint, bool)
         );
 
         // Set accepted token
@@ -173,7 +183,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
                 type(IOraclePrice_v1).interfaceId
             )
         ) {
-            revert Module__InvalidOracleInterface();
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface(
+            );
         }
         // Set oracle
         _oracle = IOraclePrice_v1(oracleAddress_);
@@ -183,10 +194,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Set fees (checking max fees)
         if (buyFee_ > maxBuyFee_) {
-            revert Module__FeeExceedsMaximum(buyFee_, maxBuyFee_);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                buyFee_, maxBuyFee_
+            );
         }
         if (sellFee_ > maxSellFee_) {
-            revert Module__FeeExceedsMaximum(sellFee_, maxSellFee_);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                sellFee_, maxSellFee_
+            );
         }
 
         // Set fees
@@ -206,7 +221,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Modifier to check if direct operations are only allowed
     modifier onlyDirectOperations() {
         if (_isDirectOperationsOnly) {
-            revert Module__ThirdPartyOperationsDisabled();
+            revert
+                Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
         }
         _;
     }
@@ -220,7 +236,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _token;
     }
 
-    /// @notice Calculates and returns the static price for buying the issuance token.
+    /// @inheritdoc IBondingCurveBase_v1
     /// @return uint The static price for buying the issuance token.
     function getStaticPriceForBuying()
         public
@@ -231,7 +247,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForIssuance();
     }
 
-    /// @notice Calculates and returns the static price for selling the issuance token.
+    /// @inheritdoc IRedeemingBondingCurveBase_v1
     /// @return uint The static price for selling the issuance token.
     function getStaticPriceForSelling()
         public
@@ -260,16 +276,36 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // External Functions
 
-    // @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    /// @notice Allows depositing collateral to provide reserves for redemptions
-    /// @param amount_ The amount of collateral to deposit
-    function depositReserve(uint amount_) external override onlyOrchestratorAdmin {
-        if (amount_ == 0) revert Module__InvalidAmount();
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function depositReserve(uint amount_) external {
+        if (amount_ == 0) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
+        }
 
         // Transfer collateral from sender to FM
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
 
         emit ReserveDeposited(_msgSender(), amount_);
+    }
+
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function executeRedemptionQueue()
+        external
+        override(IFM_PC_ExternalPrice_Redeeming_v1)
+        onlyModuleRole(QUEUE_MANAGER_ROLE)
+    {
+        // NOTE: This function expects a Queue-based Payment Processor to be connected.
+        // The call will intentionally revert if a non-Queue PP is used, as this FM
+        // is designed to work only with Payment Processors that support queue-based redemptions.
+        (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
+            abi.encodeWithSignature(
+                "executeRedemptionQueue()"
+            )
+        );
+        
+        if (!success) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
+        }
     }
 
     //--------------------------------------------------------------------------
@@ -309,47 +345,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
     {
-        sellTo(_msgSender(), depositAmount_, minAmountOut_);
-
-        // Get current exchange rate from oracle
-        uint exchangeRate = _oracle.getPriceForRedemption();
-
-        // Calculate amounts using parent functionality
-        uint collateralAmount = calculateSaleReturn(depositAmount_);
-        uint feeAmount = (collateralAmount * sellFee) / BPS;
-        uint redemptionAmount = collateralAmount - feeAmount;
-
-        // Generate new order ID
-        _orderId = _nextOrderId++;
-
-        // Update open redemption amount
-        _openRedemptionAmount += redemptionAmount;
-
-        // Create and add payment order
-        PaymentOrder memory order = PaymentOrder({
-            recipient: _msgSender(),
-            paymentToken: address(token()),
-            amount: redemptionAmount,
-            start: block.timestamp,
-            cliff: 0,
-            end: block.timestamp
-        });
-        _addPaymentOrder(order);
-
-        // Emit event with all order details
-        emit RedemptionOrderCreated(
-            _orderId,
-            _msgSender(),
-            depositAmount_,
-            exchangeRate,
-            collateralAmount,
-            sellFee,
-            feeAmount,
-            redemptionAmount,
-            address(token()),
-            block.timestamp,
-            RedemptionState.PROCESSING
-        );
+        _sellOrder(_msgSender(), depositAmount_, minAmountOut_);
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
@@ -363,7 +359,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         onlyModuleRole(WHITELIST_ROLE)
         onlyDirectOperations
     {
-        super.sellTo(receiver_, depositAmount_, minAmountOut_);
+        _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
     /// @inheritdoc IFundingManager_v1
@@ -389,7 +385,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Check that fee doesn't exceed maximum allowed
         if (fee_ > _maxSellFee) {
-            revert Module__FeeExceedsMaximum(fee_, _maxSellFee);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, _maxSellFee
+            );
         }
 
         super._setSellFee(fee_);
@@ -411,7 +409,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // Check that fee doesn't exceed maximum allowed
         if (fee_ > _maxBuyFee) {
-            revert Module__FeeExceedsMaximum(fee_, _maxBuyFee);
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, _maxBuyFee
+            );
         }
 
         super._setBuyFee(fee_);
@@ -453,6 +453,169 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     //--------------------------------------------------------------------------
     // Internal Functions
+
+    /// @notice Creates and emits a new redemption order
+    /// @dev    This function wraps the `_createAndEmitOrder` internal function with specified parameters to handle
+    ///         the transaction and direct the proceeds.
+    /// @param  receiver_ The address that will receive the redeemed tokens.
+    /// @param  depositAmount_ The amount of tokens to be sold.
+    /// @param  collateralRedeemAmount_ The amount of collateral to redeem.
+    /// @param  issuanceFeeAmount_ The amount of issuance fee to charge.
+    function _createAndEmitOrder(
+        address receiver_,
+        uint depositAmount_,
+        uint collateralRedeemAmount_,
+        uint issuanceFeeAmount_
+    ) internal {
+        // Generate new order ID
+        _orderId = _nextOrderId++;
+
+        // Update open redemption amount
+        _openRedemptionAmount += collateralRedeemAmount_;
+
+        // Calculate redemption amount
+        uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
+
+        // Create and add payment order
+        PaymentOrder memory order = PaymentOrder({
+            recipient: _msgSender(),
+            paymentToken: address(token()),
+            amount: collateralRedeemAmount_,
+            start: block.timestamp,
+            cliff: 0,
+            end: block.timestamp
+        });
+        _addPaymentOrder(order);
+
+        // Process payments through the payment processor
+        __Module_orchestrator.paymentProcessor().processPayments(
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        // Emit event with all order details
+        emit RedemptionOrderCreated(
+            _orderId,
+            _msgSender(),
+            receiver_,
+            depositAmount_,
+            _oracle.getPriceForRedemption(),
+            collateralRedeemAmount_,
+            sellFee,
+            issuanceFeeAmount_,
+            redemptionAmount_,
+            address(token()),
+            block.timestamp,
+            RedemptionState.PROCESSING
+        );
+
+        // Emit event
+        emit TokensSold(
+            receiver_, depositAmount_, collateralRedeemAmount_, _msgSender()
+        );
+    }
+
+    /// @notice Executes a sell order, with the proceeds being sent directly to the _receiver's address.
+    /// @dev    This function wraps the `_sellOrder` internal function with specified parameters to handle
+    ///         the transaction and direct the proceeds.
+    /// @param  _receiver The address that will receive the redeemed tokens.
+    /// @param  _depositAmount The amount of tokens to be sold.
+    /// @param  _minAmountOut The minimum acceptable amount of proceeds that the receiver should receive from the sale.
+    function _sellOrder(
+        address _receiver,
+        uint _depositAmount,
+        uint _minAmountOut
+    )
+        internal
+        override(RedeemingBondingCurveBase_v1)
+        returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
+    {
+        _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
+        // Get protocol fee percentages and treasury addresses
+        (
+            address collateralTreasury,
+            address issuanceTreasury,
+            uint collateralSellFeePercentage,
+            uint issuanceSellFeePercentage
+        ) = _getFunctionFeesAndTreasuryAddresses(
+            bytes4(keccak256(bytes("_sellOrder(address,uint,uint)")))
+        );
+
+        uint protocolFeeAmount;
+        uint projectFeeAmount;
+        uint netDeposit;
+
+        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
+        // fee enabled
+        (netDeposit, protocolFeeAmount, /* projectFee */ ) =
+        _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
+
+        issuanceFeeAmount = protocolFeeAmount;
+
+        // Calculate redeem amount based on upstream formula
+        uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
+
+        totalCollateralTokenMovedOut = collateralRedeemAmount;
+
+        // Burn issued token from user
+        _burn(_msgSender(), _depositAmount);
+
+        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
+        // the backing collateral
+        _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
+
+        // Cache Collateral Token
+        IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
+
+        // Require that enough collateral token is held to be redeemable
+        if (
+            (projectCollateralFeeCollected)
+                > collateralToken.balanceOf(address(this))
+        ) {
+            revert
+                Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption(
+            );
+        }
+
+        // Get net amount, protocol and project fee amounts
+        (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
+        _calculateNetAndSplitFees(
+            collateralRedeemAmount, collateralSellFeePercentage, sellFee
+        );
+        // Process the protocol fee
+        _processProtocolFeeViaTransfer(
+            collateralTreasury, collateralToken, protocolFeeAmount
+        );
+
+        // Add project fee if applicable
+        if (projectFeeAmount > 0) {
+            _projectFeeCollected(projectFeeAmount);
+        }
+
+        // Revert when the redeem amount is lower than minimum amount the user expects
+        if (collateralRedeemAmount < _minAmountOut) {
+            revert Module__BondingCurveBase__InsufficientOutputAmount();
+        }
+
+        // Use virtual function to handle collateral tokens
+        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
+
+        // Create and emit the order
+        _createAndEmitOrder(
+            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+        );
+
+        return (totalCollateralTokenMovedOut, issuanceFeeAmount);
+    }
+
+    /// @dev    Internal function which only emits the event for amount of project fee collected. The contract
+    ///         does not hold collateral as the payout is managed through a redemption queue
+    /// @param  _projectFeeAmount The amount of fee collected
+    function _projectFeeCollected(uint _projectFeeAmount)
+        internal
+        override(BondingCurveBase_v1)
+    {
+        emit ProjectCollateralFeeAdded(_projectFeeAmount);
+    }
 
     /// @notice Sets the maximum fee that can be charged for buy operations
     /// @param fee_ The maximum fee percentage to set
@@ -528,19 +691,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @dev        Implementation does not transfer collateral tokens to recipient as the
+    ///             payout is managed through a redemption queue
     function _handleCollateralTokensAfterSell(address recipient_, uint amount_)
         internal
         virtual
         override
     {
-        // Transfer collateral tokens to recipient
-        IERC20(token()).safeTransfer(recipient_, amount_);
-    }
-
-    /// @notice Helper function to generate a role ID for this module
-    /// @param role The role to generate an ID for
-    /// @return bytes32 The generated role ID
-    function generateRoleId(bytes32 role) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(address(this), role));
+        // This function is not used in this implementation
     }
 }

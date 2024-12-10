@@ -2,9 +2,9 @@
 pragma solidity 0.8.23;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC20Issuance_Blacklist_v1} from "@fm/token/ERC20Issuance_blacklist_v1.sol";
+import {ERC20Issuance_Blacklist_v1} from "@ex/token/ERC20Issuance_blacklist_v1.sol";
 import {ERC20Issuance_Blacklist_v1_Exposed} from "test/modules/fundingManager/token/utils/mocks/ERC20Issuance_blacklist_v1_exposed.sol";
-import {IERC20Issuance_Blacklist_v1} from "@fm/token/interfaces/IERC20Issuance_blacklist_v1.sol";
+import {IERC20Issuance_Blacklist_v1} from "@ex/token/interfaces/IERC20Issuance_blacklist_v1.sol";
 
 /**
  * @title ERC20Issuance_Blacklist_v1_Test
@@ -41,7 +41,8 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             "BLT",
             18,
             1000 ether,
-            admin
+            admin,
+            blacklistManager
         );
 
         exposedToken = new ERC20Issuance_Blacklist_v1_Exposed(
@@ -49,7 +50,8 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
             "EBLT",
             18,
             1000 ether,
-            admin
+            admin,
+            blacklistManager
         );
 
         // Set up blacklist managers

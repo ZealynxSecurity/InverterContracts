@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: LGPL-3.0-only
-pragma solidity 0.8.23;
+pragma solidity ^0.8.0;
 
 /**
  * @title   Oracle Price Interface
@@ -16,6 +16,10 @@ pragma solidity 0.8.23;
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
+ * @custom:version   1.0.0
+ *
+ * @custom:standard-version  1.0.0
+ *
  * @author  Zealynx Security
  */
 interface IOraclePrice_v1 {
@@ -28,13 +32,15 @@ interface IOraclePrice_v1 {
     //--------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Gets current price for token issuance
-    /// @return price_ Current price for buying tokens
-    /// @dev May revert with OraclePrice__ZeroPrice
-    function getPriceForIssuance() external view returns (uint256 price_);
+    /// @notice Gets current price for token issuance (buying tokens)
+    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    ///         For a price of 2 USDC/ISS, the function denormalizes to issuance token decimals before returning
+    function getPriceForIssuance() external view returns (uint price_);
 
-    /// @notice Gets current price for token redemption
-    /// @return price_ Current price for selling tokens
-    /// @dev May revert with OraclePrice__ZeroPrice
-    function getPriceForRedemption() external view returns (uint256 price_);
+    /// @notice Gets current price for token redemption (selling tokens)
+    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    ///         For a price of 1.9 USDC/ISS, the function denormalizes to issuance token decimals before returning
+    function getPriceForRedemption() external view returns (uint price_);
 }

@@ -147,4 +147,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the project treasury address
     /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
     function setProjectTreasury(address projectTreasury_) external;
+
+    /// @notice Sets the oracle address
+    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
+    /// @param oracle_ The address of the oracle
+    function setOracleAddress(address oracle_) external;
 }

@@ -162,7 +162,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Decode config data
         (
-            address oracleAddress_,
             address projectTreasury_,
             address issuanceToken_,
             address acceptedToken_,
@@ -173,7 +172,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             bool isDirectOperationsOnly_
         ) = abi.decode(
             configData_,
-            (address, address, address, address, uint, uint, uint, uint, bool)
+            (address, address, address, uint, uint, uint, uint, bool)
         );
 
         // Set accepted token
@@ -181,17 +180,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Cache token decimals for collateral
         _collateralTokenDecimals = IERC20Metadata(address(_token)).decimals();
-
-        if (
-            !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(
-                type(IOraclePrice_v1).interfaceId
-            )
-        ) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface(
-            );
-        }
-        // Set oracle
-        _oracle = IOraclePrice_v1(oracleAddress_);
 
         // Initialize base functionality (should handle token settings)
         _setIssuanceToken(issuanceToken_);
@@ -432,6 +420,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         onlyOrchestratorAdmin
     {
         _setProjectTreasury(projectTreasury_);
+    }
+
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function setOracleAddress(address oracle_) external onlyOrchestratorAdmin {
+        _setOracleAddress(oracle_);
     }
 
     /// @notice Gets current buy fee.
@@ -696,6 +689,21 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         issuanceToken = IERC20Issuance_v1(issuanceToken_);
         _issuanceTokenDecimals = decimals_;
         emit IssuanceTokenSet(issuanceToken_, decimals_);
+    }
+
+    /// @notice Sets the oracle address
+    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
+    /// @param oracleAddress_ The address of the oracle
+    function _setOracleAddress(address oracleAddress_) internal {
+        if (
+            !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(
+                type(IOraclePrice_v1).interfaceId
+            )
+        ) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface(
+            );
+        }
+        _oracle = IOraclePrice_v1(oracleAddress_);
     }
 
     /// @notice Sets the project treasury address

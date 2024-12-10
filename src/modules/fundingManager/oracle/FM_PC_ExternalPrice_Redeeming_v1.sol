@@ -601,7 +601,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Process the protocol fee
         // Protocol fee is not charged for redemption in this implementation
         _processProtocolFeeViaTransfer(
-            collateralTreasury, collateralToken, protocolFeeAmount 
+            collateralTreasury, collateralToken, protocolFeeAmount
         );
 
         // Add project fee if applicable

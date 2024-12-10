@@ -17,6 +17,9 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import "./utils/mocks/OraclePriceMock.sol";
+import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {BondingCurveBase_v1} from "@fm/bondingCurve/abstracts/BondingCurveBase_v1.sol";
+import {RedeemingBondingCurveBase_v1} from "@fm/bondingCurve/abstracts/RedeemingBondingCurveBase_v1.sol";
 
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
@@ -175,6 +178,34 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
+    /* testIssuanceTokenConfiguration()
+        └── Given an initialized contract
+            ├── Then issuance token address should be set correctly
+            └── Then issuance token should be accessible
+    */
+    function testIssuanceTokenConfiguration() public {
+        // Verify issuance token address
+        assertEq(
+            fundingManager.getIssuanceToken(),
+            address(issuanceToken),
+            "Issuance token not set correctly"
+        );
+    }
+
+    /* testCollateralTokenConfiguration()
+        └── Given an initialized contract
+            ├── Then collateral token address should be set correctly
+            └── Then collateral token should be accessible
+    */
+    function testCollateralTokenConfiguration() public {
+        // Verify collateral token address
+        assertEq(
+            address(fundingManager.token()),
+            address(collateralToken),
+            "Collateral token not set correctly"
+        );
+    }
+
     /* testInitWithInvalidBuyFee()
         └── Given a new contract initialization
             └── When buy fee exceeds maximum
@@ -240,6 +271,120 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             _orchestrator,
             _METADATA,
             invalidConfigData
+        );
+    }
+
+    /* testOracleConfiguration()
+        └── Given a contract initialization
+            ├── When oracle implements correct interface
+            │   ├── Then initialization should succeed
+            │   └── Then oracle should be accessible and return correct prices
+            └── When oracle does not implement correct interface
+                └── Then initialization should revert
+    */
+    function testOracleConfiguration() public {
+        // Test with valid oracle
+        // First verify that our mock oracle has the correct interface
+        assertTrue(
+            ERC165(address(oracle)).supportsInterface(type(IOraclePrice_v1).interfaceId),
+            "Mock oracle should support IOraclePrice_v1 interface"
+        );
+
+        // Set test prices in the oracle
+        OraclePriceMock(address(oracle)).setPriceForIssuance(2e18);  // 2:1 ratio
+        OraclePriceMock(address(oracle)).setPriceForRedemption(1.9e18);  // 1.9:1 ratio
+
+        // Verify that we can get prices from the oracle
+        assertEq(
+            OraclePriceMock(address(oracle)).getPriceForIssuance(),
+            2e18,
+            "Oracle issuance price not set correctly"
+        );
+        assertEq(
+            OraclePriceMock(address(oracle)).getPriceForRedemption(),
+            1.9e18,
+            "Oracle redemption price not set correctly"
+        );
+
+        // Test with invalid oracle (using collateralToken as a mock non-oracle contract)
+        bytes memory invalidConfigData = abi.encode(
+            address(collateralToken),  // invalid oracle address
+            address(issuanceToken),    // issuance token
+            address(collateralToken),  // accepted token
+            DEFAULT_BUY_FEE,          // buy fee
+            DEFAULT_SELL_FEE,         // sell fee
+            MAX_SELL_FEE,             // max sell fee
+            MAX_BUY_FEE,              // max buy fee
+            DIRECT_OPERATIONS_ONLY     // direct operations only flag
+        );
+
+        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
+        address newFundingManager = address(new ERC1967Proxy(impl, ""));
+        
+        vm.expectRevert();  // Expect any revert since el contrato no implementa supportsInterface
+        FM_PC_ExternalPrice_Redeeming_v1(newFundingManager).init(
+            _orchestrator,
+            _METADATA,
+            invalidConfigData
+        );
+    }
+
+    /* testTokenDecimals()
+        └── Given an initialized contract
+            ├── Then issuance token should have 18 decimals
+            └── Then collateral token should have 6 decimals
+    */
+    function testTokenDecimals() public {
+        assertEq(
+            IERC20Metadata(address(issuanceToken)).decimals(),
+            18,
+            "Issuance token should have 18 decimals"
+        );
+        assertEq(
+            IERC20Metadata(address(collateralToken)).decimals(),
+            6,
+            "Collateral token should have 6 decimals"
+        );
+    }
+
+    /* testFeeConfiguration()
+        └── Given an initialized funding manager contract
+            ├── When checking the buy fee
+            │   └── Then it should be set to DEFAULT_BUY_FEE (1% = 100 basis points)
+            ├── When checking the sell fee
+            │   └── Then it should be set to DEFAULT_SELL_FEE (1% = 100 basis points)
+            ├── When checking the max buy fee
+            │   └── Then it should be set to MAX_BUY_FEE (5% = 500 basis points)
+            └── When checking the max sell fee
+                └── Then it should be set to MAX_SELL_FEE (5% = 500 basis points)
+    */
+    function testFeeConfiguration() public {
+        // Verify buy fee using the public variable from BondingCurveBase_v1
+        assertEq(
+            BondingCurveBase_v1(address(fundingManager)).buyFee(),
+            DEFAULT_BUY_FEE,
+            "Buy fee not set correctly"
+        );
+
+        // Verify sell fee using the public variable from RedeemingBondingCurveBase_v1
+        assertEq(
+            RedeemingBondingCurveBase_v1(address(fundingManager)).sellFee(),
+            DEFAULT_SELL_FEE,
+            "Sell fee not set correctly"
+        );
+
+        // Verify max buy fee
+        assertEq(
+            fundingManager.getMaxBuyFee(),
+            MAX_BUY_FEE,
+            "Max buy fee not set correctly"
+        );
+
+        // Verify max sell fee
+        assertEq(
+            fundingManager.getMaxSellFee(),
+            MAX_SELL_FEE,
+            "Max sell fee not set correctly"
         );
     }
 }

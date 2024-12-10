@@ -20,6 +20,7 @@ import "./utils/mocks/OraclePriceMock.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {BondingCurveBase_v1} from "@fm/bondingCurve/abstracts/BondingCurveBase_v1.sol";
 import {RedeemingBondingCurveBase_v1} from "@fm/bondingCurve/abstracts/RedeemingBondingCurveBase_v1.sol";
+import {InvalidOracleMock} from "./utils/mocks/InvalidOracleMock.sol";
 
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
@@ -321,12 +322,45 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
         address newFundingManager = address(new ERC1967Proxy(impl, ""));
         
-        vm.expectRevert();  // Expect any revert since el contrato no implementa supportsInterface
+        vm.expectRevert();  
         FM_PC_ExternalPrice_Redeeming_v1(newFundingManager).init(
             _orchestrator,
             _METADATA,
             invalidConfigData
         );
+    }
+
+    /* testInvalidOracleInterface()
+        └── Given a contract initialization with invalid oracle
+            ├── When oracle does not implement IOraclePrice_v1
+            │   └── Then initialization should revert with InvalidOracleInterface error
+    */
+    function testInvalidOracleInterface() public {
+        // Create a mock contract that doesn't implement IOraclePrice_v1
+        InvalidOracleMock invalidOracle = new InvalidOracleMock();
+
+        // Create new funding manager instance
+        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
+        FM_PC_ExternalPrice_Redeeming_v1 invalidOracleFM = FM_PC_ExternalPrice_Redeeming_v1(Clones.clone(impl));
+        
+        // Prepare config data with invalid oracle
+        bytes memory configData = abi.encode(
+            address(invalidOracle),    // invalid oracle address
+            address(issuanceToken),    // issuance token
+            address(collateralToken),  // accepted token
+            DEFAULT_BUY_FEE,          // buy fee
+            DEFAULT_SELL_FEE,         // sell fee
+            MAX_SELL_FEE,             // max sell fee
+            MAX_BUY_FEE,              // max buy fee
+            DIRECT_OPERATIONS_ONLY     // direct operations only flag
+        );
+
+        // Setup orchestrator
+        _setUpOrchestrator(invalidOracleFM);
+
+        // Initialization should revert
+        vm.expectRevert(IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface.selector);
+        invalidOracleFM.init(_orchestrator, _METADATA, configData);
     }
 
     /* testTokenDecimals()
@@ -386,5 +420,32 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             MAX_SELL_FEE,
             "Max sell fee not set correctly"
         );
+    }
+
+    /* testFeesCannotExceedMaximum()
+        └── Given a funding manager with default fees
+            ├── When trying to set a buy fee higher than maximum
+            │   └── Then transaction should revert with FeeExceedsMaximum error
+            └── When trying to set a sell fee higher than maximum
+                └── Then transaction should revert with FeeExceedsMaximum error
+    */
+    function testFeesCannotExceedMaximum() public {
+        // Try to set buy fee higher than maximum
+        uint invalidBuyFee = MAX_BUY_FEE + 1;
+        vm.expectRevert(abi.encodeWithSelector(
+            IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
+            invalidBuyFee,
+            MAX_BUY_FEE
+        ));
+        fundingManager.setBuyFee(invalidBuyFee);
+
+        // Try to set sell fee higher than maximum
+        uint invalidSellFee = MAX_SELL_FEE + 1;
+        vm.expectRevert(abi.encodeWithSelector(
+            IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
+            invalidSellFee,
+            MAX_SELL_FEE
+        ));
+        fundingManager.setSellFee(invalidSellFee);
     }
 }

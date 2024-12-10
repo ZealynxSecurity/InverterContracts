@@ -50,8 +50,8 @@ import {ERC165Upgradeable} from
  *          Key features:
  *              - External price integration
  *              - Payment client functionality
- *          Price feeds are managed through an external oracle contract that
- *          implements IOraclePrice_v1.
+ *          The contract uses external price feeds for both issuance and redemption
+ *          operations, ensuring market-aligned token pricing.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
@@ -70,8 +70,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     RedeemingBondingCurveBase_v1
 {
     /// @inheritdoc ERC165Upgradeable
-    /// @param interfaceId_ The interface identifier to check support for
-    /// @return True if the interface is supported
+    /// @param  interfaceId_ The interface identifier to check support for.
+    /// @return True if the interface is supported.
     function supportsInterface(bytes4 interfaceId_)
         public
         view
@@ -85,64 +85,64 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     using SafeERC20 for IERC20;
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Constants
 
-    /// @dev Value is used to convert deposit amount to 18 decimals
+    /// @dev    Value is used to convert deposit amount to 18 decimals.
     uint8 private constant EIGHTEEN_DECIMALS = 18;
 
-    /// @notice Role for whitelisted addresses
+    /// @notice Role for whitelisted addresses.
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
-    /// @notice Role for payment queue
+    /// @notice Role for payment queue.
     bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // State Variables
 
-    /// @dev Oracle price feed contract used for price discovery
-    /// @notice Contract that provides external price information for token valuation
+    /// @dev    Oracle price feed contract used for price discovery.
+    /// @notice Contract that provides external price information for token valuation.
     IOraclePrice_v1 private _oracle;
 
-    /// @dev Token that is accepted by this funding manager for deposits
-    /// @notice The ERC20 token contract used for collateral in this funding manager
+    /// @dev    Token that is accepted by this funding manager for deposits.
+    /// @notice The ERC20 token contract used for collateral in this funding manager.
     IERC20 private _token;
 
-    /// @dev Token decimals of the issuance token
-    /// @notice Number of decimal places used by the issuance token for proper decimal handling
+    /// @dev    Token decimals of the issuance token.
+    /// @notice Number of decimal places used by the issuance token for proper decimal handling.
     uint8 private _issuanceTokenDecimals;
 
-    /// @dev Token decimals of the Orchestrator token
-    /// @notice Number of decimal places used by the collateral token for proper decimal handling
+    /// @dev    Token decimals of the Orchestrator token.
+    /// @notice Number of decimal places used by the collateral token for proper decimal handling.
     uint8 private _collateralTokenDecimals;
 
-    /// @dev Maximum fee that can be charged for sell operations, in basis points
-    /// @notice Maximum allowed project fee percentage for selling tokens
+    /// @dev    Maximum fee that can be charged for sell operations, in basis points.
+    /// @notice Maximum allowed project fee percentage for selling tokens.
     uint private _maxSellFee;
 
-    /// @dev Maximum fee that can be charged for buy operations, in basis points
-    /// @notice Maximum allowed project fee percentage for buying tokens
+    /// @dev    Maximum fee that can be charged for buy operations, in basis points.
+    /// @notice Maximum allowed project fee percentage for buying tokens.
     uint private _maxBuyFee;
 
-    /// @dev Order ID counter for tracking individual orders
-    /// @notice Unique identifier for the current order being processed
+    /// @dev    Order ID counter for tracking individual orders.
+    /// @notice Unique identifier for the current order being processed.
     uint private _orderId;
 
-    /// @dev Counter for generating unique order IDs
-    /// @notice Keeps track of the next available order ID to ensure uniqueness
+    /// @dev    Counter for generating unique order IDs.
+    /// @notice Keeps track of the next available order ID to ensure uniqueness.
     uint private _nextOrderId;
 
-    /// @dev Total amount of collateral tokens currently in redemption process
-    /// @notice Tracks the sum of all pending redemption orders
+    /// @dev    Total amount of collateral tokens currently in redemption process.
+    /// @notice Tracks the sum of all pending redemption orders.
     uint private _openRedemptionAmount;
 
-    /// @dev Flag indicating if direct operations are only allowed
+    /// @dev    Flag indicating if direct operations are only allowed.
     bool private _isDirectOperationsOnly;
 
-    /// @dev Storage gap for future upgrades
+    /// @dev    Storage gap for future upgrades.
     uint[50] private __gap;
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Modifiers
 
     //--------------------------------------------------------------------------
@@ -215,7 +215,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Modifiers
 
     /// @notice Modifier to check if direct operations are only allowed
@@ -227,11 +227,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _;
     }
 
-    //----------------------------------------------------------
+    // --------------------------------------------------------------------------
     // View Functions
 
     /// @inheritdoc IFundingManager_v1
-    /// @return token_ The token address
+    /// @return token_ The token address.
     function token() public view override returns (IERC20) {
         return _token;
     }
@@ -273,7 +273,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _orderId;
     }
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -298,22 +298,20 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // The call will intentionally revert if a non-Queue PP is used, as this FM
         // is designed to work only with Payment Processors that support queue-based redemptions.
         (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
-            abi.encodeWithSignature(
-                "executeRedemptionQueue()"
-            )
+            abi.encodeWithSignature("executeRedemptionQueue()")
         );
-        
+
         if (!success) {
             revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
         }
     }
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Public Functions
 
     /// @inheritdoc BondingCurveBase_v1
-    /// @dev Only whitelisted addresses can buy
-    /// @param collateralAmount_ The amount of collateral to spend
+    /// @dev    Only whitelisted addresses can buy.
+    /// @param  collateralAmount_ The amount of collateral to spend.
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -323,10 +321,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc BondingCurveBase_v1
-    /// @dev Only whitelisted addresses can buy
-    /// @param receiver_ Address to receive tokens
-    /// @param depositAmount_ The amount of collateral to spend
-    /// @param minAmountOut_ The minimum amount of tokens to receive
+    /// @dev    Only whitelisted addresses can buy.
+    /// @param  receiver_ Address to receive tokens.
+    /// @param  depositAmount_ The amount of collateral to spend.
+    /// @param  minAmountOut_ The minimum amount of tokens to receive.
     function buyFor(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -337,9 +335,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
-    /// @dev Only whitelisted addresses can sell
-    /// @param depositAmount_ Amount of tokens to sell
-    /// @param minAmountOut_ Minimum collateral to receive
+    /// @dev    Only whitelisted addresses can sell.
+    /// @param  depositAmount_ Amount of tokens to sell.
+    /// @param  minAmountOut_ Minimum collateral to receive.
     function sell(uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -349,10 +347,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
-    /// @dev Only whitelisted addresses can sell
-    /// @param receiver_ Address to receive tokens
-    /// @param depositAmount_ Amount of tokens to sell
-    /// @param minAmountOut_ Minimum collateral to receive
+    /// @dev    Only whitelisted addresses can sell.
+    /// @param  receiver_ Address to receive tokens.
+    /// @param  depositAmount_ Amount of tokens to sell.
+    /// @param  minAmountOut_ Minimum collateral to receive.
     function sellTo(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -363,9 +361,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFundingManager_v1
-    /// @dev Only payment clients can transfer orchestrator tokens
-    /// @param to_ The recipient address
-    /// @param amount_ The amount to transfer
+    /// @dev    Only payment clients can transfer orchestrator tokens.
+    /// @param  to_ The recipient address.
+    /// @param  amount_ The amount to transfer.
     function transferOrchestratorToken(address to_, uint amount_)
         external
         onlyPaymentClient
@@ -375,9 +373,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @notice Sets fee for sell operations
-    /// @dev Only orchestrator admin can call
-    /// @param fee_ New fee amount
+    /// @notice Sets fee for sell operations.
+    /// @dev    Only orchestrator admin can call.
+    /// @param  fee_ New fee amount.
     function setSellFee(uint fee_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -393,15 +391,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setSellFee(fee_);
     }
 
-    /// @notice Gets current sell fee
-    /// @return sellFee_ The current sell fee
+    /// @notice Gets current sell fee.
+    /// @return sellFee_ The current sell fee.
     function getSellFee() public pure returns (uint sellFee_) {
         return sellFee_;
     }
 
-    /// @notice Sets fee for buy operations
-    /// @dev Only orchestrator admin can call
-    /// @param fee_ New fee amount
+    /// @notice Sets fee for buy operations.
+    /// @dev    Only orchestrator admin can call.
+    /// @param  fee_ New fee amount.
     function setBuyFee(uint fee_)
         external
         override(BondingCurveBase_v1)
@@ -417,27 +415,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setBuyFee(fee_);
     }
 
-    /// @notice Gets current buy fee
-    /// @return buyFee_ The current buy fee
+    /// @notice Gets current buy fee.
+    /// @return buyFee_ The current buy fee.
     function getBuyFee() public pure returns (uint buyFee_) {
         return buyFee_;
     }
 
-    /// @notice Gets the maximum fee that can be charged for buy operations
-    /// @return maxBuyFee_ The maximum fee percentage
+    /// @notice Gets the maximum fee that can be charged for buy operations.
+    /// @return maxBuyFee_ The maximum fee percentage.
     function getMaxBuyFee() public view returns (uint maxBuyFee_) {
         return _maxBuyFee;
     }
 
-    /// @notice Gets the maximum fee that can be charged for sell operations
-    /// @return maxSellFee_ The maximum fee percentage
+    /// @notice Gets the maximum fee that can be charged for sell operations.
+    /// @return maxSellFee_ The maximum fee percentage.
     function getMaxSellFee() public view returns (uint maxSellFee_) {
         return _maxSellFee;
     }
 
-    /// @notice Sets the direct operations only flag
-    /// @dev Only orchestrator admin can call
-    /// @param isDirectOperationsOnly_ The new value for the flag
+    /// @notice Sets the direct operations only flag.
+    /// @dev    Only orchestrator admin can call.
+    /// @param isDirectOperationsOnly_ The new value for the flag.
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         public
         onlyOrchestratorAdmin
@@ -445,16 +443,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _isDirectOperationsOnly = isDirectOperationsOnly_;
     }
 
-    /// @notice Gets the direct operations only flag
-    /// @return isDirectOperationsOnly_ The current value of the flag
+    /// @notice Gets the direct operations only flag.
+    /// @return isDirectOperationsOnly_ The current value of the flag.
     function isDirectOperationsOnly() public view returns (bool) {
         return _isDirectOperationsOnly;
     }
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Internal Functions
 
-    /// @notice Creates and emits a new redemption order
+    /// @notice Creates and emits a new redemption order.
     /// @dev    This function wraps the `_createAndEmitOrder` internal function with specified parameters to handle
     ///         the transaction and direct the proceeds.
     /// @param  receiver_ The address that will receive the redeemed tokens.
@@ -608,8 +606,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @dev    Internal function which only emits the event for amount of project fee collected. The contract
-    ///         does not hold collateral as the payout is managed through a redemption queue
-    /// @param  _projectFeeAmount The amount of fee collected
+    ///         does not hold collateral as the payout is managed through a redemption queue.
+    /// @param  _projectFeeAmount The amount of fee collected.
     function _projectFeeCollected(uint _projectFeeAmount)
         internal
         override(BondingCurveBase_v1)
@@ -617,20 +615,20 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit ProjectCollateralFeeAdded(_projectFeeAmount);
     }
 
-    /// @notice Sets the maximum fee that can be charged for buy operations
-    /// @param fee_ The maximum fee percentage to set
+    /// @notice Sets the maximum fee that can be charged for buy operations.
+    /// @param  fee_ The maximum fee percentage to set.
     function _setMaxBuyFee(uint fee_) internal {
         _maxBuyFee = fee_;
     }
 
-    /// @notice Sets the maximum fee that can be charged for sell operations
-    /// @param fee_ The maximum fee percentage to set
+    /// @notice Sets the maximum fee that can be charged for sell operations.
+    /// @param fee_ The maximum fee percentage to set.
     function _setMaxSellFee(uint fee_) internal {
         _maxSellFee = fee_;
     }
 
-    /// @param depositAmount_ The amount being deposited
-    /// @return mintAmount_ The calculated token amount
+    /// @param  depositAmount_ The amount being deposited.
+    /// @return mintAmount_ The calculated token amount.
     function _issueTokensFormulaWrapper(uint depositAmount_)
         internal
         view
@@ -648,8 +646,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_;
     }
 
-    /// @param depositAmount_ The amount being redeemed
-    /// @return redeemAmount_ The calculated collateral amount
+    /// @param  depositAmount_ The amount being redeemed.
+    /// @return redeemAmount_ The calculated collateral amount.
     function _redeemTokensFormulaWrapper(uint depositAmount_)
         internal
         view
@@ -691,8 +689,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
-    /// @dev        Implementation does not transfer collateral tokens to recipient as the
-    ///             payout is managed through a redemption queue
+    /// @dev    Implementation does not transfer collateral tokens to recipient as the
+    ///         payout is managed through a redemption queue.
     function _handleCollateralTokensAfterSell(address recipient_, uint amount_)
         internal
         virtual

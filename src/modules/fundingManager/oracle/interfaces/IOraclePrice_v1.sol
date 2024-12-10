@@ -23,24 +23,24 @@ pragma solidity ^0.8.0;
  * @author  Zealynx Security
  */
 interface IOraclePrice_v1 {
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Errors
 
-    /// @notice Thrown when price returned is zero
+    /// @notice	Thrown when price returned is zero
     error OraclePrice__ZeroPrice();
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Gets current price for token issuance (buying tokens)
-    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    /// @notice	Gets current price for token issuance (buying tokens)
+    /// @return	price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev	Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
     ///         For a price of 2 USDC/ISS, the function denormalizes to issuance token decimals before returning
     function getPriceForIssuance() external view returns (uint price_);
 
-    /// @notice Gets current price for token redemption (selling tokens)
-    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    /// @notice	Gets current price for token redemption (selling tokens)
+    /// @return	price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev	Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
     ///         For a price of 1.9 USDC/ISS, the function denormalizes to issuance token decimals before returning
     function getPriceForRedemption() external view returns (uint price_);
 }

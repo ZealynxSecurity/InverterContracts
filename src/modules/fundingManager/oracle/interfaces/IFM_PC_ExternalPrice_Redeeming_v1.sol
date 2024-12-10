@@ -44,7 +44,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     IERC20PaymentClientBase_v1,
     IRedeemingBondingCurveBase_v1
 {
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Type Declarations
 
     // Enum for redemption order states
@@ -54,49 +54,49 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         PROCESSING
     }
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Errors
 
-    /// @notice Thrown when an invalid amount is provided
+    /// @notice	Thrown when an invalid amount is provided
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
 
-    /// @notice Fee exceeds maximum allowed value
-    /// @param fee The fee that was attempted to be set
-    /// @param maxFee The maximum allowed fee
+    /// @notice	Fee exceeds maximum allowed value
+    /// @param	fee The fee that was attempted to be set
+    /// @param	maxFee The maximum allowed fee
     error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
         uint fee, uint maxFee
     );
 
-    /// @notice Thrown when the oracle contract does not implement the required interface
+    /// @notice	Thrown when the oracle contract does not implement the required interface
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
 
-    /// @notice Thrown when third-party operations are disabled
+    /// @notice	Thrown when third-party operations are disabled
     error Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
 
-    /// @notice Thrown when a redemption queue execution fails
+    /// @notice	Thrown when a redemption queue execution fails
     error Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Events
 
-    /// @notice Emitted when reserve tokens are deposited
-    /// @param depositor The address depositing tokens
-    /// @param amount The amount deposited
+    /// @notice	Emitted when reserve tokens are deposited
+    /// @param	depositor The address depositing tokens
+    /// @param	amount The amount deposited
     event ReserveDeposited(address indexed depositor, uint amount);
 
-    /// @notice Emitted when a new redemption order is created
-    /// @param orderId Order identifier
-    /// @param seller Address selling tokens
-    /// @param receiver Address who receives the redeemed tokens
-    /// @param sellAmount Amount of tokens to sell
-    /// @param exchangeRate Current exchange rate
-    /// @param collateralAmount Amount of collateral
-    /// @param feePercentage Fee percentage applied
-    /// @param feeAmount Fee amount calculated
-    /// @param redemptionAmount Final redemption amount
-    /// @param collateralToken Address of collateral token
-    /// @param redemptionTime Time of redemption
-    /// @param state Initial state of the order
+    /// @notice	Emitted when a new redemption order is created
+    /// @param	orderId Order identifier
+    /// @param	seller Address selling tokens
+    /// @param	receiver Address who receives the redeemed tokens
+    /// @param	sellAmount Amount of tokens to sell
+    /// @param	exchangeRate Current exchange rate
+    /// @param	collateralAmount Amount of collateral
+    /// @param	feePercentage Fee percentage applied
+    /// @param	feeAmount Fee amount calculated
+    /// @param	redemptionAmount Final redemption amount
+    /// @param	collateralToken Address of collateral token
+    /// @param	redemptionTime Time of redemption
+    /// @param	state Initial state of the order
     event RedemptionOrderCreated(
         uint indexed orderId,
         address indexed seller,
@@ -112,28 +112,28 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state
     );
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // View Functions
 
-    /// @notice Gets the current open collateral redemption amount
-    /// @return amount_ The total amount of open redemptions
+    /// @notice	Gets the current open collateral redemption amount
+    /// @return	amount_ The total amount of open redemptions
     function getOpenRedemptionAmount() external view returns (uint amount_);
 
-    /// @notice Gets the next available order ID
-    /// @return orderId_ The next order ID
+    /// @notice	Gets the next available order ID
+    /// @return	orderId_ The next order ID
     function getNextOrderId() external view returns (uint orderId_);
 
-    /// @notice Gets the current order ID
-    /// @return orderId_ The current order ID
+    /// @notice	Gets the current order ID
+    /// @return	orderId_ The current order ID
     function getOrderId() external view returns (uint orderId_);
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Allows depositing collateral to provide reserves for redemptions
-    /// @param amount_ The amount of collateral to deposit
+    /// @notice	Allows depositing collateral to provide reserves for redemptions
+    /// @param	amount_ The amount of collateral to deposit
     function depositReserve(uint amount_) external;
 
-    /// @notice Executes the redemption queue
+    /// @notice	Executes the redemption queue
     function executeRedemptionQueue() external;
 }

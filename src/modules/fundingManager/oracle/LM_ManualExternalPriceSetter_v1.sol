@@ -58,8 +58,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
     /// @notice Number of decimal places used for internal price representation
-    /// @dev    All prices are normalized to this precision for consistent calculations
-    ///         regardless of input/output token decimals
+    /// @dev    All prices are normalized to this precision for consistent
+    ///         calculations regardless of input/output token decimals.
     uint8 private constant INTERNAL_DECIMALS = 18;
 
     //--------------------------------------------------------------------------
@@ -72,14 +72,14 @@ contract LM_ManualExternalPriceSetter_v1 is
     uint private _redemptionPrice;
 
     /// @notice Decimals of the collateral token (e.g., USDC with 6 decimals)
-    /// @dev This is the token used to pay/buy with
+    /// @dev    This is the token used to pay/buy with
     uint8 private _collateralTokenDecimals;
 
     /// @notice Decimals of the issuance token (e.g., ISS with 18 decimals)
-    /// @dev This is the token being bought/sold
+    /// @dev    This is the token being bought/sold
     uint8 private _issuanceTokenDecimals;
 
-    /// @dev Storage gap for upgradeable contracts
+    /// @dev    Storage gap for upgradeable contracts
     uint[50] private __gap;
 
     //--------------------------------------------------------------------------
@@ -120,8 +120,9 @@ contract LM_ManualExternalPriceSetter_v1 is
     // External Functions
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    /// @dev The price_ parameter should be provided with the same number of decimals as the collateral token.
-    ///      For example, if the collateral token has 6 decimals and the price is 1.5, input should be 1500000.
+    /// @dev    The price_ parameter should be provided with the same number of
+    ///         decimals as the collateral token. For example, if the collateral
+    ///         token has 6 decimals and the price is 1.5, input should be 1500000.
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
@@ -134,8 +135,10 @@ contract LM_ManualExternalPriceSetter_v1 is
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    /// @dev The price_ parameter should be provided with the same number of decimals as the issuance token.
-    ///      For example, if the issuance token has 18 decimals and the price is 1.5, input should be 1500000000000000000.
+    /// @dev    The price_ parameter should be provided with the same number of
+    ///         decimals as the issuance token. For example, if the issuance token
+    ///         has 18 decimals and the price is 1.5, input should be
+    ///         1500000000000000000.
     function setRedemptionPrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
@@ -147,9 +150,11 @@ contract LM_ManualExternalPriceSetter_v1 is
         emit RedemptionPriceSet(price_, block.timestamp);
     }
 
-    /// @notice  Gets current price for token issuance (buying tokens)
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for 1 ISS)
+    /// @notice Gets current price for token issuance (buying tokens)
+    /// @return price_ Current price in 18 decimals (collateral tokens per 1
+    ///         issuance token)
+    /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for
+    ///         1 ISS)
     function getPriceForIssuance() external view returns (uint) {
         if (_issuancePrice == 0) {
             revert Module__LM_ExternalPriceSetter__InvalidPrice();
@@ -158,9 +163,11 @@ contract LM_ManualExternalPriceSetter_v1 is
         return _denormalizePrice(_issuancePrice, _issuanceTokenDecimals);
     }
 
-    /// @notice  Gets current price for token redemption (selling tokens)
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC received for 1 ISS)
+    /// @notice Gets current price for token redemption (selling tokens)
+    /// @return price_ Current price in 18 decimals (collateral tokens per 1
+    ///         issuance token)
+    /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC
+    ///         received for 1 ISS)
     function getPriceForRedemption() external view returns (uint) {
         if (_redemptionPrice == 0) {
             revert Module__LM_ExternalPriceSetter__InvalidPrice();
@@ -173,8 +180,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     // Internal Functions
 
     /// @notice Normalizes a price from token decimals to internal decimals
-    /// @param price_ The price to normalize
-    /// @param tokenDecimals_ The decimals of the token the price is denominated in
+    /// @param  price_ The price to normalize
+    /// @param  tokenDecimals_ The decimals of the token the price is denominated in
     /// @return The normalized price with INTERNAL_DECIMALS precision
     function _normalizePrice(uint price_, uint8 tokenDecimals_)
         internal
@@ -191,8 +198,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     }
 
     /// @notice Denormalizes a price from internal decimals to token decimals
-    /// @param price_ The price to denormalize
-    /// @param tokenDecimals_ The target token decimals
+    /// @param  price_ The price to denormalize
+    /// @param  tokenDecimals_ The target token decimals
     /// @return The denormalized price with tokenDecimals_ precision
     function _denormalizePrice(uint price_, uint8 tokenDecimals_)
         internal

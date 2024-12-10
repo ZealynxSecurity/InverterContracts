@@ -45,30 +45,30 @@ contract ERC20Issuance_Blacklist_v1 is
     IERC20Issuance_Blacklist_v1,
     ERC20Issuance_v1
 {
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Storage
 
-    /// @notice Mapping of blacklisted addresses
+    /// @notice	Mapping of blacklisted addresses
     mapping(address => bool) private _blacklist;
 
-    /// @notice Mapping of blacklist manager addresses
+    /// @notice	Mapping of blacklist manager addresses
     mapping(address => bool) private _isBlacklistManager;
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Constants
 
-    /// @notice Maximum number of addresses that can be blacklisted in a batch
+    /// @notice	Maximum number of addresses that can be blacklisted in a batch
     uint public constant BATCH_LIMIT = 200;
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Constructor
 
-    /// @param name_ Token name
-    /// @param symbol_ Token symbol
-    /// @param decimals_ Token decimals
-    /// @param initialSupply_ Initial token supply
-    /// @param initialAdmin_ Initial admin address
-    /// @param initialBlacklistManager_ Initial blacklist manager (typically an EOA)
+    /// @param	name_ Token name
+    /// @param	symbol_ Token symbol
+    /// @param	decimals_ Token decimals
+    /// @param	initialSupply_ Initial token supply
+    /// @param	initialAdmin_ Initial admin address
+    /// @param	initialBlacklistManager_ Initial blacklist manager (typically an EOA)
     constructor(
         string memory name_,
         string memory symbol_,
@@ -82,24 +82,28 @@ contract ERC20Issuance_Blacklist_v1 is
         _setBlacklistManager(initialBlacklistManager_, true);
     }
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1
+    /// @inheritdoc	IERC20Issuance_Blacklist_v1
+    /// @param	account_ The account to check
+    /// @return	True if the account is blacklisted
     function isBlacklisted(address account_) public view returns (bool) {
         return _blacklist[account_];
     }
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1
+    /// @inheritdoc	IERC20Issuance_Blacklist_v1
+    /// @param	account_ The account to check
+    /// @return	True if the account is a blacklist manager
     function isBlacklistManager(address account_) public view returns (bool) {
         return _isBlacklistManager[account_];
     }
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // External Functions
 
     /// @notice Modifier to check if the caller is a blacklist manager
-    /// @dev May revert with ERC20Issuance_Blacklist_NotBlacklistManager
+    /// @dev    May revert with ERC20Issuance_Blacklist_NotBlacklistManager
     modifier onlyBlacklistManager() {
         if (!_isBlacklistManager[_msgSender()]) {
             revert ERC20Issuance_Blacklist_NotBlacklistManager();
@@ -169,7 +173,7 @@ contract ERC20Issuance_Blacklist_v1 is
         _setBlacklistManager(manager_, allowed_);
     }
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Internal Functions
 
     /// @notice Internal hook to enforce blacklist restrictions on token transfers
@@ -192,8 +196,8 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @notice Internal function to set a blacklist manager
-    /// @param manager_ Address to set as blacklist manager
-    /// @param allowed_ Whether to grant or revoke blacklist manager role
+    /// @param  manager_ Address to set as blacklist manager
+    /// @param  allowed_ Whether to grant or revoke blacklist manager role
     function _setBlacklistManager(address manager_, bool allowed_) internal {
         if (manager_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();

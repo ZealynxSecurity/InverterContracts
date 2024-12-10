@@ -29,35 +29,36 @@ import {IOraclePrice_v1} from
  * @author  Zealynx Security
  */
 interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+
     // Events
 
-    /// @notice Emitted when an issuance price is set
-    /// @param  price The new price that was set
-    /// @param  timestamp The timestamp when the price was updated
+    /// @notice	Emitted when an issuance price is set
+    /// @param	price The price that was set
+    /// @param	timestamp The timestamp when the price was updated
     event IssuancePriceSet(uint indexed price, uint indexed timestamp);
 
-    /// @notice Emitted when a redemption price is set
-    /// @param  price The new price that was set
-    /// @param  timestamp The timestamp when the price was updated
+    /// @notice	Emitted when a redemption price is set
+    /// @param	price The price that was set
+    /// @param	timestamp The timestamp when the price was updated
     event RedemptionPriceSet(uint indexed price, uint indexed timestamp);
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+
     // Errors
 
     /// @notice Thrown when attempting to set a price to zero
     error Module__LM_ExternalPriceSetter__InvalidPrice();
 
-    //--------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
+
     // External Functions
 
-    /// @notice Sets the issuance price
-    /// @dev Price must be non-zero
-    /// @param price_ New issuance price (must be non-zero)
+    /// @notice	Sets the issuance price
+    /// @param	price_ The price to set
     function setIssuancePrice(uint price_) external;
 
-    /// @notice Sets the redemption price
-    /// @dev Price must be non-zero
-    /// @param price_ New redemption price (must be non-zero)
+    /// @notice	Sets the redemption price
+    /// @param	price_ The price to set
     function setRedemptionPrice(uint price_) external;
 }

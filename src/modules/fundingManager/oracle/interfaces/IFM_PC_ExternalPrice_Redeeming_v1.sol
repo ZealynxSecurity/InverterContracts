@@ -132,7 +132,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Gets the project treasury address
     /// @return address_ The address of the project treasury
-    function getProjctTreasury() external view returns (address);
+    function getProjectTreasury() external view returns (address);
 
     // --------------------------------------------------------------------------
     // External Functions

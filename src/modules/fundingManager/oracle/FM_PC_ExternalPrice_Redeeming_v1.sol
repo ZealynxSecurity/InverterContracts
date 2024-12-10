@@ -280,7 +280,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getProjctTreasury() external view returns (address) {
+    function getProjectTreasury() external view returns (address) {
         return _projectTreasury;
     }
 

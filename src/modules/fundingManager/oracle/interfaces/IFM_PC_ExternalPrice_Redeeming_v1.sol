@@ -55,6 +55,28 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     //--------------------------------------------------------------------------
+    // Errors
+
+    /// @notice Thrown when an invalid amount is provided
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
+
+    /// @notice Fee exceeds maximum allowed value
+    /// @param fee The fee that was attempted to be set
+    /// @param maxFee The maximum allowed fee
+    error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+        uint fee, uint maxFee
+    );
+
+    /// @notice Thrown when the oracle contract does not implement the required interface
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
+
+    /// @notice Thrown when third-party operations are disabled
+    error Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
+
+    /// @notice Thrown when a redemption queue execution fails
+    error Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
+
+    //--------------------------------------------------------------------------
     // Events
 
     /// @notice Emitted when reserve tokens are deposited
@@ -89,25 +111,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         uint redemptionTime,
         RedemptionState state
     );
-
-    //--------------------------------------------------------------------------
-    // Errors
-
-    /// @notice Thrown when an invalid amount is provided
-    error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
-
-    /// @notice Fee exceeds maximum allowed value
-    /// @param fee The fee that was attempted to be set
-    /// @param maxFee The maximum allowed fee
-    error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-        uint fee, uint maxFee
-    );
-
-    /// @notice Thrown when the oracle contract does not implement the required interface
-    error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
-
-    /// @notice Thrown when third-party operations are disabled
-    error Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
 
     //--------------------------------------------------------------------------
     // View Functions

@@ -164,10 +164,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @notice Sets a new blacklist manager
-    /// @dev Only callable by the owner
-    /// @param manager_ Address to set as blacklist manager
-    /// @param allowed_ Whether to grant or revoke blacklist manager role
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function setBlacklistManager(address manager_, bool allowed_) external onlyOwner {
         _setBlacklistManager(manager_, allowed_);
     }

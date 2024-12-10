@@ -236,7 +236,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _token;
     }
 
-    /// @notice Calculates and returns the static price for buying the issuance token.
+    /// @inheritdoc IBondingCurveBase_v1
     /// @return uint The static price for buying the issuance token.
     function getStaticPriceForBuying()
         public
@@ -247,7 +247,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForIssuance();
     }
 
-    /// @notice Calculates and returns the static price for selling the issuance token.
+    /// @inheritdoc IRedeemingBondingCurveBase_v1
     /// @return uint The static price for selling the issuance token.
     function getStaticPriceForSelling()
         public
@@ -276,9 +276,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     //--------------------------------------------------------------------------
     // External Functions
 
-    // @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    /// @notice Allows depositing collateral to provide reserves for redemptions
-    /// @param amount_ The amount of collateral to deposit
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function depositReserve(uint amount_) external {
         if (amount_ == 0) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
@@ -290,8 +288,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit ReserveDeposited(_msgSender(), amount_);
     }
 
-    // @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    /// @notice Executes the redemption queue
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
@@ -300,7 +297,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // NOTE: This function expects a Queue-based Payment Processor to be connected.
         // The call will intentionally revert if a non-Queue PP is used, as this FM
         // is designed to work only with Payment Processors that support queue-based redemptions.
-        __Module_orchestrator.paymentProcessor().executeRedemptionQueue();
+        (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
+            abi.encodeWithSignature(
+                "executeRedemptionQueue()"
+            )
+        );
+        
+        if (!success) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
+        }
     }
 
     //--------------------------------------------------------------------------

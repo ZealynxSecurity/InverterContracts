@@ -33,12 +33,14 @@ interface IOraclePrice_v1 {
     // External Functions
 
     /// @notice Gets current price for token issuance (buying tokens)
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for 1 ISS)
+    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    ///         For a price of 2 USDC/ISS, the function denormalizes to issuance token decimals before returning
     function getPriceForIssuance() external view returns (uint price_);
 
     /// @notice Gets current price for token redemption (selling tokens)
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1 issuance token)
-    /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC received for 1 ISS)
+    /// @return price_ Current price normalized to issuance token decimals (collateral tokens per 1 issuance token)
+    /// @dev    Example: If collateral is USDC (6 decimals) and issuance is ISS (18 decimals):
+    ///         For a price of 1.9 USDC/ISS, the function denormalizes to issuance token decimals before returning
     function getPriceForRedemption() external view returns (uint price_);
 }

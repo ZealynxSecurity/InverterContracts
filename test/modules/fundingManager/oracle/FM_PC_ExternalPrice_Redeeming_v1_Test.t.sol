@@ -471,10 +471,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setBuyFee(newBuyFee);
         
         // Then - Fee should be updated correctly
+        // Verify through direct state variable access
         assertEq(
             BondingCurveBase_v1(address(fundingManager)).buyFee(),
             newBuyFee,
-            "Buy fee not updated correctly"
+            "Buy fee state variable not updated correctly"
+        );
+        
+        // Verify through getter function
+        assertEq(
+            fundingManager.getBuyFee(),
+            newBuyFee,
+            "Buy fee getter not returning correct value"
         );
     }
 
@@ -500,10 +508,154 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setSellFee(newSellFee);
         
         // Then - Fee should be updated correctly
+        // Verify through direct state variable access
         assertEq(
             RedeemingBondingCurveBase_v1(address(fundingManager)).sellFee(),
             newSellFee,
-            "Sell fee not updated correctly"
+            "Sell fee state variable not updated correctly"
         );
+        
+        // Verify through getter function
+        assertEq(
+            fundingManager.getSellFee(),
+            newSellFee,
+            "Sell fee getter not returning correct value"
+        );
+    }
+
+    /* testFuzz_FeeUpdatePermissions()
+        └── Given an initialized funding manager contract with default fees
+            ├── When a whitelisted user tries to update fees
+            │   ├── Then setBuyFee should revert
+            │   └── Then setSellFee should revert
+            ├── When a regular user tries to update fees
+            │   ├── Then setBuyFee should revert
+            │   └── Then setSellFee should revert
+            └── When admin updates fees
+                ├── Then setBuyFee should succeed
+                │   └── And new buy fee should be set correctly
+                └── Then setSellFee should succeed
+                    └── And new sell fee should be set correctly
+    */
+    function testFuzz_FeeUpdatePermissions(uint256 newBuyFee, uint256 newSellFee) public {
+        // Bound fees to valid ranges
+        newBuyFee = bound(newBuyFee, 0, MAX_BUY_FEE);
+        newSellFee = bound(newSellFee, 0, MAX_SELL_FEE);
+        
+        // Test whitelisted user (should fail)
+        vm.startPrank(whitelisted);
+        vm.expectRevert();
+        fundingManager.setBuyFee(newBuyFee);
+        vm.expectRevert();
+        fundingManager.setSellFee(newSellFee);
+        vm.stopPrank();
+        
+        // Test regular user (should fail)
+        vm.startPrank(user);
+        vm.expectRevert();
+        fundingManager.setBuyFee(newBuyFee);
+        vm.expectRevert();
+        fundingManager.setSellFee(newSellFee);
+        vm.stopPrank();
+        
+        // Test admin (should succeed)
+        vm.startPrank(admin);
+        
+        // Set and verify buy fee
+        fundingManager.setBuyFee(newBuyFee);
+        assertEq(
+            fundingManager.getBuyFee(),
+            newBuyFee,
+            "Admin should be able to update buy fee"
+        );
+        
+        // Set and verify sell fee
+        fundingManager.setSellFee(newSellFee);
+        assertEq(
+            fundingManager.getSellFee(),
+            newSellFee,
+            "Admin should be able to update sell fee"
+        );
+        
+        vm.stopPrank();
+    }
+
+    /* testFuzz_SequentialFeeUpdates()
+        └── Given an initialized funding manager contract
+            ├── When admin updates buy fee multiple times with fuzzed values
+            │   ├── Then first update should set fee to fee1
+            │   ├── Then second update should set fee to fee2
+            │   └── Then third update should set fee to fee3
+            └── When admin updates sell fee multiple times with fuzzed values
+                ├── Then first update should set fee to fee1
+                ├── Then second update should set fee to fee2
+                └── Then third update should set fee to fee3
+    */
+    function testFuzz_SequentialFeeUpdates(
+        uint256 fee1,
+        uint256 fee2,
+        uint256 fee3
+    ) public {
+        // Bound all fees to valid ranges
+        fee1 = bound(fee1, 0, MAX_BUY_FEE);
+        fee2 = bound(fee2, 0, MAX_BUY_FEE);
+        fee3 = bound(fee3, 0, MAX_BUY_FEE);
+        
+        vm.startPrank(admin);
+        
+        // First update
+        fundingManager.setBuyFee(fee1);
+        assertEq(
+            fundingManager.getBuyFee(),
+            fee1,
+            "Buy fee not updated correctly in first update"
+        );
+        
+        // Second update
+        fundingManager.setBuyFee(fee2);
+        assertEq(
+            fundingManager.getBuyFee(),
+            fee2,
+            "Buy fee not updated correctly in second update"
+        );
+        
+        // Third update
+        fundingManager.setBuyFee(fee3);
+        assertEq(
+            fundingManager.getBuyFee(),
+            fee3,
+            "Buy fee not updated correctly in third update"
+        );
+        
+        // Repeat for sell fees
+        fee1 = bound(fee1, 0, MAX_SELL_FEE);
+        fee2 = bound(fee2, 0, MAX_SELL_FEE);
+        fee3 = bound(fee3, 0, MAX_SELL_FEE);
+        
+        // First update
+        fundingManager.setSellFee(fee1);
+        assertEq(
+            fundingManager.getSellFee(),
+            fee1,
+            "Sell fee not updated correctly in first update"
+        );
+        
+        // Second update
+        fundingManager.setSellFee(fee2);
+        assertEq(
+            fundingManager.getSellFee(),
+            fee2,
+            "Sell fee not updated correctly in second update"
+        );
+        
+        // Third update
+        fundingManager.setSellFee(fee3);
+        assertEq(
+            fundingManager.getSellFee(),
+            fee3,
+            "Sell fee not updated correctly in third update"
+        );
+        
+        vm.stopPrank();
     }
 }

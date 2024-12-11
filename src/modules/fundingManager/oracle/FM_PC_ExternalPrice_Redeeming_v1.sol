@@ -394,9 +394,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Gets current sell fee
-    /// @return sellFee_ The current sell fee
-    function getSellFee() public pure returns (uint sellFee_) {
-        return sellFee_;
+    /// @return sellFee The current sell fee
+    function getSellFee() public view returns (uint) {
+        return sellFee;
     }
 
     /// @notice Sets fee for buy operations
@@ -418,9 +418,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Gets current buy fee
-    /// @return buyFee_ The current buy fee
-    function getBuyFee() public pure returns (uint buyFee_) {
-        return buyFee_;
+    /// @return buyFee The current buy fee
+    function getBuyFee() public view returns (uint) {
+        return buyFee;
     }
 
     /// @notice Gets the maximum fee that can be charged for buy operations

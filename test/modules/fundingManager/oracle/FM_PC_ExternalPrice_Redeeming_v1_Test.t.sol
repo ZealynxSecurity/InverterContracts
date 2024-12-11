@@ -658,4 +658,86 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         
         vm.stopPrank();
     }
+
+    /* testFuzz_BuyTokens_ValidAmount()
+        └── Given an initialized funding manager contract with sufficient collateral
+            ├── When a whitelisted user buys tokens with fuzzed valid amount
+            │   ├── Then the buy fee should be calculated correctly
+            │   ├── Then the collateral tokens should be transferred from user
+            │   └── Then the issued tokens should be minted to user
+            └── When checking final balances
+                ├── Then user should have correct issued token balance
+                ├── Then user should have correct collateral token balance
+                └── Then contract should have correct collateral token balance
+    */
+    function testFuzz_BuyTokens_ValidAmount(uint256 buyAmount) public {
+        // Enable buying functionalities
+        vm.startPrank(admin);
+        fundingManager.openBuy();
+        // bytes32 roleId = authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
+        // authorizer.grantRole(roleId, whitelisted);
+        vm.stopPrank();
+
+        // Given - Bound the buy amount to reasonable values
+        // Minimum 0.1 token, Maximum 1,000,000 tokens
+        uint256 minAmount = (1 * 10**collateralToken.decimals()) / 10; // 0.1 tokens
+        uint256 maxAmount = 1_000_000 * 10**collateralToken.decimals();
+        buyAmount = bound(buyAmount, minAmount, maxAmount);
+
+        // Calculate expected amounts
+        uint256 currentBuyFee = fundingManager.getBuyFee();
+        uint256 expectedBuyFee = (buyAmount * currentBuyFee) / BPS;
+        uint256 expectedIssuedTokens = buyAmount - expectedBuyFee;
+
+        // Ensure whitelisted user has enough balance
+        vm.startPrank(admin);
+        collateralToken.mint(whitelisted, buyAmount);
+        issuanceToken.mint(whitelisted, expectedIssuedTokens);
+        collateralToken.mint(address(fundingManager), buyAmount);
+        issuanceToken.mint(address(fundingManager), buyAmount);
+        vm.stopPrank();
+
+        collateralToken.mint(whitelisted, buyAmount);
+        issuanceToken.mint(whitelisted, expectedIssuedTokens);
+        collateralToken.mint(address(fundingManager), buyAmount);
+        issuanceToken.mint(address(fundingManager), buyAmount);
+
+        // Record initial balances
+        uint256 initialUserCollateral = collateralToken.balanceOf(whitelisted);
+        uint256 initialContractCollateral = collateralToken.balanceOf(address(fundingManager));
+        uint256 initialUserIssuedTokens = issuanceToken.balanceOf(whitelisted);
+
+        // Execute buy operation
+        vm.startPrank(whitelisted);
+        console.log("Buy Amount:", buyAmount);
+        console.log("Whitelisted Balance Before:", collateralToken.balanceOf(whitelisted));
+        console.log("Allowance Before:", collateralToken.allowance(whitelisted, address(fundingManager)));
+        console.log("FundingManager Address:", address(fundingManager));
+        
+        collateralToken.approve(address(fundingManager), buyAmount);
+        issuanceToken.approve(address(fundingManager), buyAmount);
+        
+        collateralToken.approve(address(fundingManager), buyAmount);
+        console.log("Allowance After Approve:", collateralToken.allowance(whitelisted, address(fundingManager)));
+        
+        fundingManager.buy(buyAmount, expectedIssuedTokens);
+        vm.stopPrank();
+
+        // Then - Verify balances
+        assertEq(
+            collateralToken.balanceOf(whitelisted),
+            initialUserCollateral - buyAmount,
+            "User collateral balance incorrect"
+        );
+        assertEq(
+            collateralToken.balanceOf(address(fundingManager)),
+            initialContractCollateral + buyAmount,
+            "Contract collateral balance incorrect"
+        );
+        assertEq(
+            issuanceToken.balanceOf(whitelisted),
+            initialUserIssuedTokens + expectedIssuedTokens,
+            "User issued token balance incorrect"
+        );
+    }
 }

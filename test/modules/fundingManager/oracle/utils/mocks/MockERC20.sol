@@ -1,48 +1,46 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
+import {ERC20} from "@oz/token/ERC20/ERC20.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
-contract MockERC20 is IERC20Metadata {
+contract MockERC20 is ERC20 {
     uint8 private immutable _decimals;
 
-    constructor(uint8 decimals_) {
+    constructor(uint8 decimals_) ERC20("Mock Token", "MOCK") {
         _decimals = decimals_;
     }
 
-    function decimals() external view returns (uint8) {
+    function decimals() public view virtual override returns (uint8) {
         return _decimals;
     }
 
-    function name() external pure returns (string memory) {
-        return "Mock Token";
+    function mint(address account, uint256 amount) external {
+        _mint(account, amount);
     }
 
-    function symbol() external pure returns (string memory) {
-        return "MOCK";
+    function burn(address account, uint256 amount) external {
+        _burn(account, amount);
     }
 
-    function totalSupply() external pure returns (uint256) {
-        return 0;
+    function setBalance(address account, uint256 amount) external {
+        uint256 currentBalance = balanceOf(account);
+        if (currentBalance < amount) {
+            _mint(account, amount - currentBalance);
+        } else if (currentBalance > amount) {
+            _burn(account, currentBalance - amount);
+        }
     }
 
-    function balanceOf(address) external pure returns (uint256) {
-        return 0;
+    function transfer(address to, uint256 amount) public virtual override returns (bool) {
+        return super.transfer(to, amount);
     }
 
-    function transfer(address, uint256) external pure returns (bool) {
-        return true;
+    function approve(address spender, uint256 amount) public virtual override returns (bool) {
+        return super.approve(spender, amount);
     }
 
-    function allowance(address, address) external pure returns (uint256) {
-        return 0;
-    }
-
-    function approve(address, uint256) external pure returns (bool) {
-        return true;
-    }
-
-    function transferFrom(address, address, uint256) external pure returns (bool) {
-        return true;
+    function transferFrom(address from, address to, uint256 amount) public virtual override returns (bool) {
+        return super.transferFrom(from, to, amount);
     }
 }

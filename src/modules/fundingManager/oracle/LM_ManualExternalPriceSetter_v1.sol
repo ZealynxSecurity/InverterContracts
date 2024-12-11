@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-// Imports
-
 // Internal
 import {ILM_ManualExternalPriceSetter_v1} from
     "src/modules/fundingManager/oracle/interfaces/ILM_ManualExternalPriceSetter_v1.sol";

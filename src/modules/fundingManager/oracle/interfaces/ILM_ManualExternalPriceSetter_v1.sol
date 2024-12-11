@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity ^0.8.0;
 
-// Imports
-
 // Internal
 import {IOraclePrice_v1} from
     "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";

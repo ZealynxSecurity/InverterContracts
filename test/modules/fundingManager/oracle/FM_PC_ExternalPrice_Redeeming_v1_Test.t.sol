@@ -448,4 +448,62 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         ));
         fundingManager.setSellFee(invalidSellFee);
     }
+
+    /* testFuzz_UpdateBuyFee()
+        └── Given an initialized funding manager contract
+            ├── When a non-admin tries to update the buy fee
+            │   └── Then the transaction should revert with unauthorized error
+            └── When admin updates the buy fee to a valid value
+                ├── Then the transaction should succeed
+                └── Then the new buy fee should be set correctly
+    */
+    function testFuzz_UpdateBuyFee(uint256 newBuyFee) public {
+        // Given
+        newBuyFee = bound(newBuyFee, 0, MAX_BUY_FEE);
+        
+        // When/Then - Non-admin cannot update fee
+        vm.prank(user);
+        vm.expectRevert(); // Should revert with unauthorized error
+        fundingManager.setBuyFee(newBuyFee);
+        
+        // When - Admin updates fee
+        vm.prank(admin);
+        fundingManager.setBuyFee(newBuyFee);
+        
+        // Then - Fee should be updated correctly
+        assertEq(
+            BondingCurveBase_v1(address(fundingManager)).buyFee(),
+            newBuyFee,
+            "Buy fee not updated correctly"
+        );
+    }
+
+    /* testFuzz_UpdateSellFee()
+        └── Given an initialized funding manager contract
+            ├── When a non-admin tries to update the sell fee
+            │   └── Then the transaction should revert with unauthorized error
+            └── When admin updates the sell fee to a valid value
+                ├── Then the transaction should succeed
+                └── Then the new sell fee should be set correctly
+    */
+    function testFuzz_UpdateSellFee(uint256 newSellFee) public {
+        // Given
+        newSellFee = bound(newSellFee, 0, MAX_SELL_FEE);
+        
+        // When/Then - Non-admin cannot update fee
+        vm.prank(user);
+        vm.expectRevert(); // Should revert with unauthorized error
+        fundingManager.setSellFee(newSellFee);
+        
+        // When - Admin updates fee
+        vm.prank(admin);
+        fundingManager.setSellFee(newSellFee);
+        
+        // Then - Fee should be updated correctly
+        assertEq(
+            RedeemingBondingCurveBase_v1(address(fundingManager)).sellFee(),
+            newSellFee,
+            "Sell fee not updated correctly"
+        );
+    }
 }

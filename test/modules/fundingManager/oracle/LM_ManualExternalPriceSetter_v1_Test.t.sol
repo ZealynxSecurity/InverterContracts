@@ -30,8 +30,17 @@ import {Clones} from "@oz/proxy/Clones.sol";
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 
+/**
+ * @title LM_ManualExternalPriceSetter_v1_Test
+ * @notice Test contract for LM_ManualExternalPriceSetter_v1
+ */
 contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
-    LM_ManualExternalPriceSetter_v1_Exposed priceSetter;
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Storage
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    LM_ManualExternalPriceSetter_v1 priceSetter;
+    LM_ManualExternalPriceSetter_v1_Exposed exposedPriceSetter;
     AuthorizerV1Mock authorizer;
 
     address admin;
@@ -51,6 +60,10 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     string constant URL = "https://github.com/organization/module";
     string constant TITLE = "Module";
 
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Setup
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
     function setUp() public {
         admin = makeAddr("admin");
         priceSetter_ = makeAddr("priceSetter");
@@ -67,27 +80,37 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         _authorizer = authorizer;
 
         // Setup price setter
-        address impl = address(new LM_ManualExternalPriceSetter_v1_Exposed());
-        priceSetter =
-            LM_ManualExternalPriceSetter_v1_Exposed(Clones.clone(impl));
+        address impl = address(new LM_ManualExternalPriceSetter_v1());
+        priceSetter = LM_ManualExternalPriceSetter_v1(Clones.clone(impl));
+
+        // Setup exposed price setter for internal function testing
+        address implExposed = address(new LM_ManualExternalPriceSetter_v1_Exposed());
+        exposedPriceSetter = LM_ManualExternalPriceSetter_v1_Exposed(Clones.clone(implExposed));
 
         bytes memory configData =
             abi.encode(address(inputToken), address(outputToken));
 
         _setUpOrchestrator(priceSetter);
+        _setUpOrchestrator(exposedPriceSetter);
 
         priceSetter.init(_orchestrator, _METADATA, configData);
+        exposedPriceSetter.init(_orchestrator, _METADATA, configData);
 
         // Grant price setter role
         bytes32 roleId =
             _authorizer.generateRoleId(address(priceSetter), PRICE_SETTER_ROLE);
         _authorizer.grantRole(roleId, priceSetter_);
 
+        bytes32 roleIdExposed =
+            _authorizer.generateRoleId(address(exposedPriceSetter), PRICE_SETTER_ROLE);
+        _authorizer.grantRole(roleIdExposed, priceSetter_);
+
         vm.stopPrank();
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Initialization
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Initialization Tests
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testInit()
         Tests initialization of the oracle contract
@@ -132,8 +155,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         );
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Token Configuration
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Token Configuration Tests
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testTokenProperties_GivenTokensWithDifferentDecimals()
         ├── Given the input token (USDC mock)
@@ -195,8 +219,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         );
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Price Setting and Validation
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Price Management Tests
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testInitialSetup_GivenNoSetPrices()
         └── Given no prices have been set
@@ -350,6 +375,10 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Price Normalization Tests
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
     /* testPriceNormalization_GivenDifferentDecimals()
         Tests the price normalization function with different decimal configurations
         
@@ -373,7 +402,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         decimals = uint8(bound(decimals, 1, 24));
 
         uint normalizedPrice =
-            priceSetter.exposed_normalizePrice(price, decimals);
+            exposedPriceSetter.exposed_normalizePrice(price, decimals);
         uint scaleFactor =
             decimals < 18 ? 10 ** (18 - decimals) : 10 ** (decimals - 18);
 
@@ -397,7 +426,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
         // Edge case: minimum price (1)
         if (price == 1) {
-            uint minPrice = priceSetter.exposed_normalizePrice(1, decimals);
+            uint minPrice = exposedPriceSetter.exposed_normalizePrice(1, decimals);
             assertEq(
                 minPrice,
                 decimals < 18 ? scaleFactor : decimals > 18 ? 0 : 1,
@@ -428,7 +457,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         decimals = uint8(bound(decimals, 1, 24));
 
         uint denormalizedPrice =
-            priceSetter.exposed_denormalizePrice(price, decimals);
+            exposedPriceSetter.exposed_denormalizePrice(price, decimals);
         uint scaleFactor =
             decimals < 18 ? 10 ** (18 - decimals) : 10 ** (decimals - 18);
 
@@ -454,7 +483,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
         // Edge case: minimum price (1)
         if (price == 1) {
-            uint minPrice = priceSetter.exposed_denormalizePrice(1, decimals);
+            uint minPrice = exposedPriceSetter.exposed_denormalizePrice(1, decimals);
             assertEq(
                 minPrice,
                 decimals < 18 ? 0 : decimals > 18 ? scaleFactor : 1,
@@ -485,9 +514,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         decimals = uint8(bound(decimals, 1, 18));
 
         // First cycle: normalization → denormalization
-        uint normalized = priceSetter.exposed_normalizePrice(price, decimals);
+        uint normalized = exposedPriceSetter.exposed_normalizePrice(price, decimals);
         uint denormalized =
-            priceSetter.exposed_denormalizePrice(normalized, decimals);
+            exposedPriceSetter.exposed_denormalizePrice(normalized, decimals);
 
         // Price should be exactly equal after the first cycle
         assertEq(denormalized, price, "Price changed after normalization cycle");
@@ -495,9 +524,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         // For the second cycle, use the normalized price as base
         // since this is the format in which it's stored internally
         uint normalized2 =
-            priceSetter.exposed_normalizePrice(denormalized, decimals);
+            exposedPriceSetter.exposed_normalizePrice(denormalized, decimals);
         uint denormalized2 =
-            priceSetter.exposed_denormalizePrice(normalized2, decimals);
+            exposedPriceSetter.exposed_denormalizePrice(normalized2, decimals);
 
         // Verify that the final denormalized price equals the original
         assertEq(
@@ -508,9 +537,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
         // Test with minimum viable price (1)
         uint minPrice = 1;
-        normalized = priceSetter.exposed_normalizePrice(minPrice, decimals);
+        normalized = exposedPriceSetter.exposed_normalizePrice(minPrice, decimals);
         denormalized =
-            priceSetter.exposed_denormalizePrice(normalized, decimals);
+            exposedPriceSetter.exposed_denormalizePrice(normalized, decimals);
 
         // Minimum viable price should be preserved exactly
         assertEq(denormalized, minPrice, "Minimum viable price not preserved");

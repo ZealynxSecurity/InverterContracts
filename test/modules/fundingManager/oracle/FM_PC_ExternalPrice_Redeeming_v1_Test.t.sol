@@ -23,7 +23,15 @@ import {RedeemingBondingCurveBase_v1} from "@fm/bondingCurve/abstracts/Redeeming
 import {InvalidOracleMock} from "./utils/mocks/InvalidOracleMock.sol";
 import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
+/**
+ * @title FM_PC_ExternalPrice_Redeeming_v1_Test
+ * @notice Test contract for FM_PC_ExternalPrice_Redeeming_v1
+ */
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Storage
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
     AuthorizerV1Mock authorizer;
 
@@ -60,6 +68,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     uint constant PATCH_VERSION = 0;
     string constant URL = "https://github.com/organization/module";
     string constant TITLE = "Module";
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Setup
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     function setUp() public {
         // Setup addresses
@@ -113,9 +125,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Initialization
-    
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Initialization
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
     /* testInit()
         └── Given a newly deployed contract
             ├── When initializing with valid parameters
@@ -155,8 +168,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.init(_orchestrator, _METADATA, configData);
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Configuration
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Configuration
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testInitialFeeConfiguration()
         └── Given an initialized contract
@@ -284,8 +298,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    //--------------------------------------------------------------------------
-    // Test: Oracle
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Oracle
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testOracleConfiguration()
         └── Given a contract initialization
@@ -433,6 +448,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Max sell fee not set correctly"
         );
     }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Fee Management
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     /* testFeesCannotExceedMaximum()
         └── Given a funding manager with default fees
@@ -671,6 +690,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Buy Operations
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
     /* testBuy_GivenWhitelistedUser()
         └── Given an initialized funding manager contract with sufficient collateral
             ├── When a whitelisted user buys tokens with fuzzed valid amount
@@ -817,9 +840,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
-    //--------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Helper Functions
-    //--------------------------------------------------------------------------
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
     // Helper function that mints enough collateral tokens to a buyer and approves the funding manager to spend them
     function _prepareBuyConditions(address buyer, uint amount) internal {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-import "../../../../../../src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
+import "@fm/oracle/interfaces/IOraclePrice_v1.sol";
 import "@oz/utils/introspection/ERC165.sol";
 
 contract OraclePriceMock is IOraclePrice_v1, ERC165 {

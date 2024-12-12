@@ -680,36 +680,20 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 └── Then contract should have correct collateral token balance
     */
     function testFuzz_BuyTokens_ValidAmount(uint256 buyAmount) public {
-        // Enable buying functionalities
-        vm.startPrank(admin);
-        fundingManager.openBuy();
-        vm.stopPrank();
-
         // Given - Bound the buy amount to reasonable values
         uint256 minAmount = 1 * 10**_token.decimals();
         uint256 maxAmount = 1_000_000 * 10**_token.decimals();
         buyAmount = bound(buyAmount, minAmount, maxAmount);
 
-        // Calculate expected amounts
-        uint256 currentBuyFee = fundingManager.getBuyFee();
-        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
-        
-        // First calculate net deposit after fees
-        uint256 expectedBuyFee = (buyAmount * currentBuyFee) / BPS;
-        uint256 netDeposit = buyAmount - expectedBuyFee;
-        
-        // Then calculate issued tokens based on oracle price
-        // Since both tokens have 18 decimals:
-        // 1. First normalize the deposit amount (no change needed as both have 18 decimals)
-        // 2. Then multiply by oracle price
-        uint256 normalizedDeposit = netDeposit;  // No conversion needed as both have 18 decimals
-        uint256 expectedIssuedTokens = normalizedDeposit * oraclePrice;
+        // Calculate expected issuance tokens using helper
+        uint256 expectedIssuedTokens = _calculateExpectedIssuance(buyAmount);
 
-        // Setup token balances and approvals
-        vm.startPrank(admin);
-        _token.mint(whitelisted, buyAmount);
-        issuanceToken.setMinter(address(fundingManager), true);  // Grant minting rights to funding manager
-        vm.stopPrank();
+        // Setup buying conditions using helper
+        _prepareBuyConditions(whitelisted, buyAmount);
+
+        // Grant minting rights to funding manager
+        vm.prank(admin);
+        issuanceToken.setMinter(address(fundingManager), true);
 
         // Record initial balances
         uint256 initialUserCollateral = _token.balanceOf(whitelisted);
@@ -718,9 +702,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Execute buy operation
         vm.startPrank(whitelisted);
-        _token.approve(address(fundingManager), buyAmount);
         issuanceToken.approve(address(fundingManager), buyAmount);
-        
         fundingManager.buy(buyAmount, expectedIssuedTokens);
         vm.stopPrank();
 
@@ -740,5 +722,138 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             initialUserIssuedTokens + expectedIssuedTokens,
             "User issued token balance incorrect"
         );
+    }
+
+    /* testFuzz_BuyTokens_InvalidAmount(uint256 buyAmount, uint256 slippageMultiplier)
+        └── Given a whitelisted user and initialized funding manager
+            ├── When attempting to buy with zero amount
+            │   └── Then it should revert with InvalidDepositAmount
+            │
+            ├── When attempting to buy with zero expected tokens
+            │   └── Then it should revert with InvalidMinAmountOut
+            │
+            ├── When buying is closed
+            │   ├── Given admin closes buying
+            │   └── Then buying attempt should revert with BuyingFunctionaltiesClosed
+            │
+            └── When attempting to buy with excessive slippage
+                ├── Given buying is reopened
+                ├── Given expected issuance is calculated
+                └── Then buying with doubled expected amount should revert with InsufficientOutputAmount
+    */
+    function testFuzz_BuyTokens_InvalidAmount(uint256 buyAmount, uint256 slippageMultiplier) public {
+        // Bound the buy amount to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        buyAmount = bound(buyAmount, minAmount, maxAmount);
+        
+        // Bound slippage multiplier (between 2x and 10x)
+        slippageMultiplier = bound(slippageMultiplier, 2, 10);
+
+        // Setup
+        _prepareBuyConditions(whitelisted, buyAmount);
+
+        // Test zero amount
+        vm.startPrank(whitelisted);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InvalidDepositAmount()"));
+        fundingManager.buy(0, 0);
+
+        // Test zero expected tokens
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InvalidMinAmountOut()"));
+        fundingManager.buy(1 ether, 0);
+        vm.stopPrank();
+
+        // Test closed buy
+        vm.prank(admin);
+        fundingManager.closeBuy();
+        
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__BuyingFunctionaltiesClosed()"));
+        vm.prank(whitelisted);
+        fundingManager.buy(buyAmount, buyAmount);
+
+        // Test slippage
+        vm.prank(admin);
+        fundingManager.openBuy();
+        
+        uint256 expectedTokens = _calculateExpectedIssuance(buyAmount);
+        
+        vm.startPrank(whitelisted);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InsufficientOutputAmount()"));
+        // Try to buy with higher expected tokens than possible (multiplied by fuzzed value)
+        fundingManager.buy(buyAmount, expectedTokens * slippageMultiplier);
+        vm.stopPrank();
+    }
+
+    //--------------------------------------------------------------------------
+    // Helper Functions
+    //--------------------------------------------------------------------------
+
+    // Helper function that mints enough collateral tokens to a buyer and approves the funding manager to spend them
+    function _prepareBuyConditions(address buyer, uint amount) internal {
+        // Mint collateral tokens to buyer
+        _token.mint(buyer, amount);
+        
+        // Approve funding manager to spend tokens
+        vm.prank(buyer);
+        _token.approve(address(fundingManager), amount);
+        
+        // Ensure buying is enabled
+        if (!fundingManager.buyIsOpen()) {
+            vm.prank(admin);
+            fundingManager.openBuy();
+        }
+    }
+
+    // Helper function that:
+    //      - First prepares buy conditions (mint & approve collateral tokens)
+    //      - Executes a buy to get issuance tokens
+    //      - Approves funding manager to spend issuance tokens
+    //      - Opens sell functionality if not already open
+    function _prepareSellConditions(address seller, uint amount) internal returns (uint issuanceAmount) {
+        // First prepare buy conditions and execute buy
+        _prepareBuyConditions(seller, amount);
+        
+        // Calculate expected issuance tokens
+        uint256 buyFee = fundingManager.getBuyFee();
+        uint256 netDeposit = amount - ((amount * buyFee) / BPS);
+        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
+        issuanceAmount = netDeposit * oraclePrice;
+        
+        // Execute buy to get issuance tokens
+        vm.startPrank(seller);
+        issuanceToken.approve(address(fundingManager), issuanceAmount);
+        fundingManager.buy(amount, issuanceAmount);
+        
+        // Approve funding manager to spend issuance tokens
+        issuanceToken.approve(address(fundingManager), issuanceAmount);
+        vm.stopPrank();
+        
+        // Ensure selling is enabled
+        if (!fundingManager.sellIsOpen()) {
+            vm.prank(admin);
+            fundingManager.openSell();
+        }
+    }
+
+    // Helper function to calculate expected issuance tokens for a given collateral amount
+    // This includes:
+    //      - Applying buy fee to get net deposit
+    //      - Multiplying by oracle price to get issuance amount
+    function _calculateExpectedIssuance(uint256 collateralAmount) internal view returns (uint256 expectedIssuedTokens) {
+        uint256 buyFee = fundingManager.getBuyFee();
+        uint256 netDeposit = collateralAmount - ((collateralAmount * buyFee) / BPS);
+        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
+        expectedIssuedTokens = netDeposit * oraclePrice;
+    }
+
+    // Helper function to calculate expected collateral tokens for a given issuance amount
+    // This includes:
+    //      - Dividing by oracle price to get gross collateral
+    //      - Applying sell fee to get net collateral
+    function _calculateExpectedCollateral(uint256 issuanceAmount) internal view returns (uint256 expectedCollateral) {
+        uint256 sellFee = fundingManager.getSellFee();
+        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForRedemption();
+        uint256 grossCollateral = issuanceAmount / oraclePrice;
+        expectedCollateral = grossCollateral - ((grossCollateral * sellFee) / BPS);
     }
 }

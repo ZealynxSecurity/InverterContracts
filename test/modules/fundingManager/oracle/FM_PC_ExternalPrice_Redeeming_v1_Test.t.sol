@@ -21,6 +21,7 @@ import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {BondingCurveBase_v1} from "@fm/bondingCurve/abstracts/BondingCurveBase_v1.sol";
 import {RedeemingBondingCurveBase_v1} from "@fm/bondingCurve/abstracts/RedeemingBondingCurveBase_v1.sol";
 import {InvalidOracleMock} from "./utils/mocks/InvalidOracleMock.sol";
+import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
@@ -32,13 +33,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     address whitelisted;
 
     // Mock tokens
-    MockERC20 collateralToken;  // The token accepted for payment (like USDC)
-    MockERC20 issuanceToken;    // The token to be issued
+    ERC20Issuance_v1 issuanceToken;    // The token to be issued
 
     // Mock oracle
     IOraclePrice_v1 oracle;
 
     // Constants
+    string internal constant NAME = "Issuance Token";
+    string internal constant SYMBOL = "IST";
+    uint8 internal constant DECIMALS = 18;
+    uint internal constant MAX_SUPPLY = type(uint).max;
     bytes32 constant WHITELIST_ROLE = "WHITELIST_ROLE";
     uint8 constant INTERNAL_DECIMALS = 18;
     uint constant BPS = 10000; // Basis points (100%)
@@ -63,11 +67,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         user = makeAddr("user");
         whitelisted = makeAddr("whitelisted");
 
+        admin = address(this);
         vm.startPrank(admin);
 
-        // Create mock tokens with different decimals
-        collateralToken = new MockERC20(6);  // Like USDC
-        issuanceToken = new MockERC20(18);   // Like most ERC20s
+        // Create issuance token
+        issuanceToken = new ERC20Issuance_v1(
+            NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this)
+        );
 
         // Setup orchestrator and authorizer
         authorizer = new AuthorizerV1Mock();
@@ -84,7 +90,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes memory configData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
             DEFAULT_SELL_FEE,         // sell fee
             MAX_SELL_FEE,             // max sell fee
@@ -101,7 +107,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes32 roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
         _authorizer.grantRole(roleId, whitelisted);
 
+        // Grant minting rights to the funding manager
+        issuanceToken.setMinter(address(fundingManager), true);
         vm.stopPrank();
+
     }
 
     //--------------------------------------------------------------------------
@@ -134,7 +143,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes memory configData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
             DEFAULT_SELL_FEE,         // sell fee
             MAX_SELL_FEE,             // max sell fee
@@ -202,7 +211,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Verify collateral token address
         assertEq(
             address(fundingManager.token()),
-            address(collateralToken),
+            address(_token),
             "Collateral token not set correctly"
         );
     }
@@ -216,7 +225,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes memory invalidConfigData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             MAX_BUY_FEE + 1,          // buy fee exceeds max
             DEFAULT_SELL_FEE,         // sell fee
             MAX_SELL_FEE,             // max sell fee
@@ -250,7 +259,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes memory invalidConfigData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
             MAX_SELL_FEE + 1,         // sell fee exceeds max
             MAX_SELL_FEE,             // max sell fee
@@ -307,11 +316,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Oracle redemption price not set correctly"
         );
 
-        // Test with invalid oracle (using collateralToken as a mock non-oracle contract)
+        // Test with invalid oracle (using _token as a mock non-oracle contract)
         bytes memory invalidConfigData = abi.encode(
-            address(collateralToken),  // invalid oracle address
+            address(_token),  // invalid oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
             DEFAULT_SELL_FEE,         // sell fee
             MAX_SELL_FEE,             // max sell fee
@@ -347,7 +356,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         bytes memory configData = abi.encode(
             address(invalidOracle),    // invalid oracle address
             address(issuanceToken),    // issuance token
-            address(collateralToken),  // accepted token
+            address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
             DEFAULT_SELL_FEE,         // sell fee
             MAX_SELL_FEE,             // max sell fee
@@ -366,7 +375,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     /* testTokenDecimals()
         └── Given an initialized contract
             ├── Then issuance token should have 18 decimals
-            └── Then collateral token should have 6 decimals
+            └── Then collateral token should have 18 decimals
     */
     function testTokenDecimals() public {
         assertEq(
@@ -375,9 +384,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Issuance token should have 18 decimals"
         );
         assertEq(
-            IERC20Metadata(address(collateralToken)).decimals(),
-            6,
-            "Collateral token should have 6 decimals"
+            IERC20Metadata(address(_token)).decimals(),
+            18,
+            "Collateral token should have 18 decimals"
         );
     }
 
@@ -674,63 +683,55 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Enable buying functionalities
         vm.startPrank(admin);
         fundingManager.openBuy();
-        // bytes32 roleId = authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
-        // authorizer.grantRole(roleId, whitelisted);
         vm.stopPrank();
 
         // Given - Bound the buy amount to reasonable values
-        // Minimum 0.1 token, Maximum 1,000,000 tokens
-        uint256 minAmount = (1 * 10**collateralToken.decimals()) / 10; // 0.1 tokens
-        uint256 maxAmount = 1_000_000 * 10**collateralToken.decimals();
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
         buyAmount = bound(buyAmount, minAmount, maxAmount);
 
         // Calculate expected amounts
         uint256 currentBuyFee = fundingManager.getBuyFee();
+        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
+        
+        // First calculate net deposit after fees
         uint256 expectedBuyFee = (buyAmount * currentBuyFee) / BPS;
-        uint256 expectedIssuedTokens = buyAmount - expectedBuyFee;
+        uint256 netDeposit = buyAmount - expectedBuyFee;
+        
+        // Then calculate issued tokens based on oracle price
+        // Since both tokens have 18 decimals:
+        // 1. First normalize the deposit amount (no change needed as both have 18 decimals)
+        // 2. Then multiply by oracle price
+        uint256 normalizedDeposit = netDeposit;  // No conversion needed as both have 18 decimals
+        uint256 expectedIssuedTokens = normalizedDeposit * oraclePrice;
 
-        // Ensure whitelisted user has enough balance
+        // Setup token balances and approvals
         vm.startPrank(admin);
-        collateralToken.mint(whitelisted, buyAmount);
-        issuanceToken.mint(whitelisted, expectedIssuedTokens);
-        collateralToken.mint(address(fundingManager), buyAmount);
-        issuanceToken.mint(address(fundingManager), buyAmount);
+        _token.mint(whitelisted, buyAmount);
+        issuanceToken.setMinter(address(fundingManager), true);  // Grant minting rights to funding manager
         vm.stopPrank();
 
-        collateralToken.mint(whitelisted, buyAmount);
-        issuanceToken.mint(whitelisted, expectedIssuedTokens);
-        collateralToken.mint(address(fundingManager), buyAmount);
-        issuanceToken.mint(address(fundingManager), buyAmount);
-
         // Record initial balances
-        uint256 initialUserCollateral = collateralToken.balanceOf(whitelisted);
-        uint256 initialContractCollateral = collateralToken.balanceOf(address(fundingManager));
+        uint256 initialUserCollateral = _token.balanceOf(whitelisted);
+        uint256 initialContractCollateral = _token.balanceOf(address(fundingManager));
         uint256 initialUserIssuedTokens = issuanceToken.balanceOf(whitelisted);
 
         // Execute buy operation
         vm.startPrank(whitelisted);
-        console.log("Buy Amount:", buyAmount);
-        console.log("Whitelisted Balance Before:", collateralToken.balanceOf(whitelisted));
-        console.log("Allowance Before:", collateralToken.allowance(whitelisted, address(fundingManager)));
-        console.log("FundingManager Address:", address(fundingManager));
-        
-        collateralToken.approve(address(fundingManager), buyAmount);
+        _token.approve(address(fundingManager), buyAmount);
         issuanceToken.approve(address(fundingManager), buyAmount);
-        
-        collateralToken.approve(address(fundingManager), buyAmount);
-        console.log("Allowance After Approve:", collateralToken.allowance(whitelisted, address(fundingManager)));
         
         fundingManager.buy(buyAmount, expectedIssuedTokens);
         vm.stopPrank();
 
-        // Then - Verify balances
+        // Verify balances
         assertEq(
-            collateralToken.balanceOf(whitelisted),
+            _token.balanceOf(whitelisted),
             initialUserCollateral - buyAmount,
             "User collateral balance incorrect"
         );
         assertEq(
-            collateralToken.balanceOf(address(fundingManager)),
+            _token.balanceOf(address(fundingManager)),
             initialContractCollateral + buyAmount,
             "Contract collateral balance incorrect"
         );

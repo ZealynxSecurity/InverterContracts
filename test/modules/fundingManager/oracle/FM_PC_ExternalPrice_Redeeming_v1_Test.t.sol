@@ -155,7 +155,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.init(_orchestrator, _METADATA, configData);
     }
 
-        //--------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
     // Test: Configuration
 
     /* testInitialFeeConfiguration()
@@ -165,7 +165,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             ├── Then max buy fee should be set to MAX_BUY_FEE
             └── Then max sell fee should be set to MAX_SELL_FEE
     */
-    function testInitialFeeConfiguration() public {
+    function testGetFees_GivenDefaultValues() public {
         assertEq(
             fundingManager.buyFee(),
             DEFAULT_BUY_FEE,
@@ -193,7 +193,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             ├── Then issuance token address should be set correctly
             └── Then issuance token should be accessible
     */
-    function testIssuanceTokenConfiguration() public {
+    function testGetIssuanceToken_GivenValidToken() public {
         // Verify issuance token address
         assertEq(
             fundingManager.getIssuanceToken(),
@@ -284,6 +284,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
+    //--------------------------------------------------------------------------
+    // Test: Oracle
+
     /* testOracleConfiguration()
         └── Given a contract initialization
             ├── When oracle implements correct interface
@@ -351,7 +354,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Create new funding manager instance
         address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
         FM_PC_ExternalPrice_Redeeming_v1 invalidOracleFM = FM_PC_ExternalPrice_Redeeming_v1(Clones.clone(impl));
-        
+
         // Prepare config data with invalid oracle
         bytes memory configData = abi.encode(
             address(invalidOracle),    // invalid oracle address
@@ -447,7 +450,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             MAX_BUY_FEE
         ));
         fundingManager.setBuyFee(invalidBuyFee);
-
+        
         // Try to set sell fee higher than maximum
         uint invalidSellFee = MAX_SELL_FEE + 1;
         vm.expectRevert(abi.encodeWithSelector(
@@ -458,7 +461,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setSellFee(invalidSellFee);
     }
 
-    /* testFuzz_UpdateBuyFee()
+    /* testSetBuyFee_GivenValidFee()
         └── Given an initialized funding manager contract
             ├── When a non-admin tries to update the buy fee
             │   └── Then the transaction should revert with unauthorized error
@@ -466,7 +469,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 ├── Then the transaction should succeed
                 └── Then the new buy fee should be set correctly
     */
-    function testFuzz_UpdateBuyFee(uint256 newBuyFee) public {
+    function testSetBuyFee_GivenValidFee(uint256 newBuyFee) public {
         // Given
         newBuyFee = bound(newBuyFee, 0, MAX_BUY_FEE);
         
@@ -495,7 +498,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testFuzz_UpdateSellFee()
+    /* testSetSellFee_GivenValidFee()
         └── Given an initialized funding manager contract
             ├── When a non-admin tries to update the sell fee
             │   └── Then the transaction should revert with unauthorized error
@@ -503,7 +506,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 ├── Then the transaction should succeed
                 └── Then the new sell fee should be set correctly
     */
-    function testFuzz_UpdateSellFee(uint256 newSellFee) public {
+    function testSetSellFee_GivenValidFee(uint256 newSellFee) public {
         // Given
         newSellFee = bound(newSellFee, 0, MAX_SELL_FEE);
         
@@ -668,7 +671,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
-    /* testFuzz_BuyTokens_ValidAmount()
+    /* testBuy_GivenWhitelistedUser()
         └── Given an initialized funding manager contract with sufficient collateral
             ├── When a whitelisted user buys tokens with fuzzed valid amount
             │   ├── Then the buy fee should be calculated correctly
@@ -679,7 +682,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 ├── Then user should have correct collateral token balance
                 └── Then contract should have correct collateral token balance
     */
-    function testFuzz_BuyTokens_ValidAmount(uint256 buyAmount) public {
+    function testBuy_GivenWhitelistedUser(uint256 buyAmount) public {
         // Given - Bound the buy amount to reasonable values
         uint256 minAmount = 1 * 10**_token.decimals();
         uint256 maxAmount = 1_000_000 * 10**_token.decimals();
@@ -691,7 +694,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Setup buying conditions using helper
         _prepareBuyConditions(whitelisted, buyAmount);
 
-        // Grant minting rights to funding manager
+        // Grant minting rights to the funding manager
         vm.prank(admin);
         issuanceToken.setMinter(address(fundingManager), true);
 
@@ -724,7 +727,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testFuzz_BuyTokens_InvalidAmount(uint256 buyAmount, uint256 slippageMultiplier)
+    /* testBuy_RevertGivenInvalidAmount()
         └── Given a whitelisted user and initialized funding manager
             ├── When attempting to buy with zero amount
             │   └── Then it should revert with InvalidDepositAmount
@@ -741,7 +744,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 ├── Given expected issuance is calculated
                 └── Then buying with doubled expected amount should revert with InsufficientOutputAmount
     */
-    function testFuzz_BuyTokens_InvalidAmount(uint256 buyAmount, uint256 slippageMultiplier) public {
+    function testBuy_RevertGivenInvalidAmount(uint256 buyAmount, uint256 slippageMultiplier) public {
         // Bound the buy amount to reasonable values
         uint256 minAmount = 1 * 10**_token.decimals();
         uint256 maxAmount = 1_000_000 * 10**_token.decimals();
@@ -770,6 +773,36 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__BuyingFunctionaltiesClosed()"));
         vm.prank(whitelisted);
         fundingManager.buy(buyAmount, buyAmount);
+
+        // Test slippage
+        vm.prank(admin);
+        fundingManager.openBuy();
+        
+        uint256 expectedTokens = _calculateExpectedIssuance(buyAmount);
+        
+        vm.startPrank(whitelisted);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InsufficientOutputAmount()"));
+        // Try to buy with higher expected tokens than possible (multiplied by fuzzed value)
+        fundingManager.buy(buyAmount, expectedTokens * slippageMultiplier);
+        vm.stopPrank();
+    }
+
+    /* testFuzz_BuyTokens_ExcessiveSlippage()
+        └── Given a whitelisted user and initialized funding manager
+            └── When attempting to buy with excessive slippage
+                └── Then it should revert with InsufficientOutputAmount
+    */
+    function testBuy_RevertGivenExcessiveSlippage(uint256 buyAmount, uint256 slippageMultiplier) public {
+        // Bound the buy amount to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        buyAmount = bound(buyAmount, minAmount, maxAmount);
+        
+        // Bound slippage multiplier (between 2x and 10x)
+        slippageMultiplier = bound(slippageMultiplier, 2, 10);
+
+        // Setup
+        _prepareBuyConditions(whitelisted, buyAmount);
 
         // Test slippage
         vm.prank(admin);

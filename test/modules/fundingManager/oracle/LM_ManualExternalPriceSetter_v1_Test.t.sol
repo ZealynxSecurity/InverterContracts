@@ -119,12 +119,12 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         );
     }
 
-    /* testSupportsInterface()
+    /* testSupportsInterface_GivenValidInterface()
         └── Given the contract interface
             └── When checking interface support
                 └── Then it should support ILM_ManualExternalPriceSetter_v1
     */
-    function testSupportsInterface() public {
+    function testSupportsInterface_GivenValidInterface() public {
         assertTrue(
             priceSetter.supportsInterface(
                 type(ILM_ManualExternalPriceSetter_v1).interfaceId
@@ -135,7 +135,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     //--------------------------------------------------------------------------
     // Test: Token Configuration
 
-    /* test_TokenProperties()
+    /* testTokenProperties_GivenTokensWithDifferentDecimals()
         ├── Given the input token (USDC mock)
         │   ├── When checking its decimals
         │   │   └── Then it should have 6 decimals
@@ -155,7 +155,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
             └── When checking its initial supply
                 └── Then it should be 0
     */
-    function test_TokenProperties() public {
+    function testTokenProperties_GivenTokensWithDifferentDecimals() public {
         // Test input token (USDC mock)
         assertEq(inputToken.decimals(), 6, "Input token should have 6 decimals");
         assertEq(
@@ -198,14 +198,14 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     //--------------------------------------------------------------------------
     // Test: Price Setting and Validation
 
-    /* test_InitialSetup()
+    /* testInitialSetup_GivenNoSetPrices()
         └── Given no prices have been set
             ├── When querying issuance price
             │   └── Then it should revert with InvalidPrice
             └── When querying redemption price
                 └── Then it should revert with InvalidPrice
     */
-    function test_InitialSetup() public {
+    function testInitialSetup_GivenNoSetPrices() public {
         // Verify initial prices revert
         vm.expectRevert(
             abi.encodeWithSignature(
@@ -222,7 +222,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         priceSetter.getPriceForRedemption();
     }
 
-    /* test_SetIssuancePrice_Fuzz()
+    /* testSetIssuancePrice_GivenUnauthorizedUser()
         ├── Given a non-authorized user and random price
         │   └── When setting issuance price
         │       └── Then it should revert with NotPriceSetter
@@ -232,9 +232,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         │   └── When setting a valid random price
         │       └── Then the price should be set and normalized correctly
     */
-    function test_SetIssuancePrice_Fuzz(uint price, address unauthorizedUser)
-        public
-    {
+    function testSetIssuancePrice_GivenUnauthorizedUser(uint256 price, address unauthorizedUser) public {
         // Assume valid unauthorized user
         vm.assume(unauthorizedUser != address(0));
         vm.assume(unauthorizedUser != address(this));
@@ -277,7 +275,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
-    /* test_SetRedemptionPrice_Fuzz()
+    /* testSetRedemptionPrice_GivenUnauthorizedUser()
         ├── Given an unauthorized user
         │   └── When trying to set redemption price
         │       └── Then it should revert with NotPriceSetter error
@@ -294,9 +292,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
                     ├── Redemption: 18 decimals
                     └── Issuance: 6 decimals
     */
-    function test_SetRedemptionPrice_Fuzz(uint price, address unauthorizedUser)
-        public
-    {
+    function testSetRedemptionPrice_GivenUnauthorizedUser(uint256 price, address unauthorizedUser) public {
         // Assume valid unauthorized user
         vm.assume(unauthorizedUser != address(0));
         vm.assume(unauthorizedUser != address(this));
@@ -354,7 +350,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
-    /* test_PriceNormalization_Fuzz
+    /* testPriceNormalization_GivenDifferentDecimals()
         Tests the price normalization function with different decimal configurations
         
         Tree structure:
@@ -372,7 +368,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
             ├── When decimals > 18: should round to 0
             └── When decimals = 18: should remain 1
     */
-    function test_PriceNormalization_Fuzz(uint price, uint8 decimals) public {
+    function testPriceNormalization_GivenDifferentDecimals(uint256 price, uint8 decimals) public {
         vm.assume(price < type(uint).max / 1e18);
         decimals = uint8(bound(decimals, 1, 24));
 
@@ -410,7 +406,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         }
     }
 
-    /* test_PriceDenormalization_Fuzz
+    /* testPriceDenormalization_GivenDifferentDecimals()
         Tests price denormalization from internal (18) decimals to token decimals
         
         Tree structure:
@@ -427,9 +423,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
             ├── When decimals = 18: should remain 1
             └── When decimals > 18: should scale up to 10^(decimals-18)
     */
-    function test_PriceDenormalization_Fuzz(uint price, uint8 decimals)
-        public
-    {
+    function testPriceDenormalization_GivenDifferentDecimals(uint256 price, uint8 decimals) public {
         vm.assume(price < type(uint).max / 1e18);
         decimals = uint8(bound(decimals, 1, 24));
 
@@ -469,7 +463,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         }
     }
 
-    /* test_PriceNormalizationCycle_Fuzz
+    /* testPriceNormalizationCycle_GivenDifferentDecimals()
         Tests that normalizing and then denormalizing a price maintains the original value
         when possible, accounting for precision loss in certain cases.
         
@@ -485,9 +479,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
             └── When running full cycle
                 └── Then should preserve value if possible
     */
-    function test_PriceNormalizationCycle_Fuzz(uint price, uint8 decimals)
-        public
-    {
+    function testPriceNormalizationCycle_GivenDifferentDecimals(uint256 price, uint8 decimals) public {
         vm.assume(price < type(uint).max / 1e18);
 
         decimals = uint8(bound(decimals, 1, 18));

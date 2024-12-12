@@ -69,6 +69,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     string constant URL = "https://github.com/organization/module";
     string constant TITLE = "Module";
 
+    bytes32 internal roleId;
+
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Setup
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -116,7 +118,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.init(_orchestrator, _METADATA, configData);
 
         // Grant whitelist role
-        bytes32 roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
+        roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
         _authorizer.grantRole(roleId, whitelisted);
 
         // Grant minting rights to the funding manager
@@ -465,7 +467,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint invalidBuyFee = MAX_BUY_FEE + 1;
         vm.expectRevert(abi.encodeWithSelector(
             IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
-            invalidBuyFee,
+            MAX_BUY_FEE + 1,
             MAX_BUY_FEE
         ));
         fundingManager.setBuyFee(invalidBuyFee);
@@ -474,7 +476,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint invalidSellFee = MAX_SELL_FEE + 1;
         vm.expectRevert(abi.encodeWithSelector(
             IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
-            invalidSellFee,
+            MAX_SELL_FEE + 1,
             MAX_SELL_FEE
         ));
         fundingManager.setSellFee(invalidSellFee);
@@ -838,6 +840,171 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Try to buy with higher expected tokens than possible (multiplied by fuzzed value)
         fundingManager.buy(buyAmount, expectedTokens * slippageMultiplier);
         vm.stopPrank();
+    }
+
+    /* testBuy_RevertGivenNonWhitelistedUser()
+        └── Given an initialized funding manager contract
+            └── When any non-whitelisted address attempts to buy tokens
+                ├── Given the address has enough payment tokens
+                ├── Given buying is open
+                ├── Given the address is not whitelisted
+                ├── Given the address is not zero address
+                ├── Given the address is not an admin or whitelisted user
+                └── Then it should revert with CallerNotAuthorized error
+    */
+    function testBuy_RevertGivenNonWhitelistedUser(address nonWhitelisted, uint256 buyAmount) public {
+        vm.assume(nonWhitelisted != address(0));
+        vm.assume(nonWhitelisted != whitelisted);
+        vm.assume(nonWhitelisted != admin);
+        vm.assume(nonWhitelisted != address(this));
+        
+        // Prepare buy conditions with a fixed amount
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        buyAmount = bound(buyAmount, minAmount, maxAmount);
+
+        vm.prank(admin);
+        _prepareBuyConditions(nonWhitelisted, buyAmount);
+
+        vm.prank(admin);
+        fundingManager.openBuy();
+
+        // Calculate expected tokens
+        uint256 expectedTokens = _calculateExpectedIssuance(buyAmount);
+        
+        // Attempt to buy tokens with any non-whitelisted address
+        vm.startPrank(nonWhitelisted);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IModule_v1.Module__CallerNotAuthorized.selector,
+                roleId,
+                nonWhitelisted
+            )
+        );
+        fundingManager.buy(buyAmount, expectedTokens);
+        vm.stopPrank();
+    }
+
+    /* testBuy_RevertGivenBuyingClosed()
+        └── Given an initialized funding manager contract
+            └── When any whitelisted user attempts to buy tokens
+                ├── Given the user has enough payment tokens
+                ├── Given the user is whitelisted
+                ├── Given buying is closed
+                ├── Given the amount is within valid bounds
+                └── Then it should revert with BuyingClosed error
+    */
+    function testBuy_RevertGivenBuyingClosed(address buyer, uint256 buyAmount) public {
+        // Given - Valid user assumptions
+        vm.assume(buyer != address(0));
+        vm.assume(buyer != address(this));
+        vm.assume(buyer != admin);
+
+        // Given - Valid amount bounds
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        buyAmount = bound(buyAmount, minAmount, maxAmount);
+
+        // Given - Grant whitelist role to the user
+        _authorizer.grantRole(roleId, buyer);
+
+        // Mint collateral tokens to buyer
+        _token.mint(buyer, buyAmount);
+        
+        // Approve funding manager to spend tokens
+        vm.prank(buyer);
+        _token.approve(address(fundingManager), buyAmount);
+
+        // When/Then - Attempt to buy when closed
+        uint256 expectedTokens = _calculateExpectedIssuance(buyAmount);
+        vm.startPrank(buyer);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__BuyingFunctionaltiesClosed()"));
+        fundingManager.buy(buyAmount, expectedTokens);
+        vm.stopPrank();
+    }
+
+    /* testBuy_RevertGivenZeroAmount()
+        └── Given an initialized funding manager contract
+            └── When any whitelisted user attempts to buy tokens with zero amount
+                ├── Given the user is whitelisted
+                ├── Given buying is open
+                └── Then it should revert with InvalidAmount error
+    */
+    function testBuy_RevertGivenZeroAmount(address buyer) public {
+        // Given - Valid user assumptions
+        vm.assume(buyer != address(0));
+        vm.assume(buyer != address(this));
+        vm.assume(buyer != admin);
+
+        // Given - Grant whitelist role to the user
+        _authorizer.grantRole(roleId, buyer);
+
+        // Given - Open buying
+        vm.prank(admin);
+        _prepareBuyConditions(buyer, 1 ether);
+        // fundingManager.openBuy();
+
+        // When/Then - Attempt to buy with zero amount
+        vm.startPrank(buyer);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InvalidDepositAmount()"));
+        fundingManager.buy(0, 0);
+        vm.stopPrank();
+    }
+
+    /* testBuy_SuccessWithMaxAmount()
+        └── Given an initialized funding manager contract
+            └── When a whitelisted user attempts to buy tokens with maximum allowed amount
+                ├── Given buying is open
+                ├── Given the user is whitelisted
+                ├── Given the user has enough payment tokens
+                ├── Given the amount is the maximum allowed
+                └── Then it should:
+                    ├── Transfer the correct payment token amount from buyer to contract
+                    ├── Transfer the correct issued token amount to the buyer
+                    └── Update all balances correctly
+    */
+    function testBuy_SuccessWithMaxAmount(address buyer) public {
+        // Given - Valid user assumptions
+        vm.assume(buyer != address(0));
+        vm.assume(buyer != address(this));
+        vm.assume(buyer != admin);
+
+        // Given - Use maximum allowed amount
+        uint256 buyAmount = 1_000_000 * 10**_token.decimals();
+
+        // Given - Setup buying conditions
+        _authorizer.grantRole(roleId, buyer);
+        _prepareBuyConditions(buyer, buyAmount);
+        vm.prank(admin);
+        fundingManager.openBuy();
+
+        // Given - Calculate expected tokens and store initial balances
+        uint256 expectedTokens = _calculateExpectedIssuance(buyAmount);
+        uint256 buyerBalanceBefore = _token.balanceOf(buyer);
+        uint256 contractBalanceBefore = _token.balanceOf(address(fundingManager));
+        uint256 buyerIssuedTokensBefore = IERC20Metadata(BondingCurveBase_v1(address(fundingManager)).getIssuanceToken()).balanceOf(buyer);
+        
+        // When - Buy tokens with max amount
+        vm.startPrank(buyer);
+        fundingManager.buy(buyAmount, expectedTokens);
+        vm.stopPrank();
+
+        // Then - Verify balances
+        assertEq(
+            _token.balanceOf(buyer),
+            buyerBalanceBefore - buyAmount,
+            "Payment token balance not decreased correctly"
+        );
+        assertEq(
+            _token.balanceOf(address(fundingManager)),
+            contractBalanceBefore + buyAmount,
+            "Contract payment token balance not increased correctly"
+        );
+        assertEq(
+            IERC20Metadata(BondingCurveBase_v1(address(fundingManager)).getIssuanceToken()).balanceOf(buyer),
+            buyerIssuedTokensBefore + expectedTokens,
+            "Issued token balance not increased correctly"
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

@@ -141,10 +141,19 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Storage gap for future upgrades.
     uint[50] private __gap;
 
-    // -------------------------------------------------------------------------
+    // --------------------------------------------------------------------------
     // Modifiers
 
-    //--------------------------------------------------------------------------
+    /// @notice Modifier to check if only direct operations are allowed.
+    modifier onlyDirectOperations() {
+        if (_isDirectOperationsOnly) {
+            revert
+                Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
+        }
+        _;
+    }
+
+    // --------------------------------------------------------------------------
     // Initialization Function
 
     /// @inheritdoc Module_v1
@@ -203,18 +212,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Set direct operations only flag
         setIsDirectOperationsOnly(isDirectOperationsOnly_);
-    }
-
-    // --------------------------------------------------------------------------
-    // Modifiers
-
-    /// @notice Modifier to check if only direct operations are allowed.
-    modifier onlyDirectOperations() {
-        if (_isDirectOperationsOnly) {
-            revert
-                Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
-        }
-        _;
     }
 
     // --------------------------------------------------------------------------

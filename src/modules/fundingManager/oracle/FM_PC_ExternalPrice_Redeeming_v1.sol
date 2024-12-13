@@ -293,14 +293,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @dev    This function expects a queue-based payment processor to be
+    ///         connected. The call will intentionally revert if a non queue-
+    ///         based payment processor is used, as this funding manager is
+    ///         designed to work only with payment processors that support
+    ///         queue-based redemptions.
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
         onlyModuleRole(QUEUE_MANAGER_ROLE)
     {
-        // NOTE: This function expects a Queue-based Payment Processor to be connected.
-        // The call will intentionally revert if a non-Queue PP is used, as this FM
-        // is designed to work only with Payment Processors that support queue-based redemptions.
         (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
             abi.encodeWithSignature("executeRedemptionQueue()")
         );

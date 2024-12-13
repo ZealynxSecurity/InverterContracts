@@ -80,7 +80,8 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @param	decimals_ Token decimals.
     /// @param	maxSupply_ Max token supply.
     /// @param	initialAdmin_ Initial admin address.
-    /// @param	initialBlacklistManager_ Initial blacklist manager (typically an EOA).
+    /// @param	initialBlacklistManager_ Initial blacklist manager (typically an
+    ///         EOA).
     constructor(
         string memory name_,
         string memory symbol_,

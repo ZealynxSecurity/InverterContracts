@@ -12,6 +12,8 @@ import {IOrchestrator_v1} from
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
+import {IOraclePrice_v1} from
+    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 
 /**
  * @title   Manual External Price Oracle Implementation
@@ -111,6 +113,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         returns (bool)
     {
         return interfaceId == type(ILM_ManualExternalPriceSetter_v1).interfaceId
+            || interfaceId == type(IOraclePrice_v1).interfaceId
             || super.supportsInterface(interfaceId);
     }
 

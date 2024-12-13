@@ -16,13 +16,14 @@ import {Clones} from "@oz/proxy/Clones.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
-import "./utils/mocks/OraclePriceMock.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
 import {BondingCurveBase_v1} from "@fm/bondingCurve/abstracts/BondingCurveBase_v1.sol";
 import {RedeemingBondingCurveBase_v1} from "@fm/bondingCurve/abstracts/RedeemingBondingCurveBase_v1.sol";
 import {InvalidOracleMock} from "./utils/mocks/InvalidOracleMock.sol";
 import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-
+import {LM_ManualExternalPriceSetter_v1} from "src/modules/fundingManager/oracle/LM_ManualExternalPriceSetter_v1.sol";
+import {LM_ManualExternalPriceSetter_v1_Exposed} from
+    "test/modules/fundingManager/oracle/utils/mocks/LM_ManualExternalPriceSetter_v1_exposed.sol";
 /**
  * @title FM_PC_ExternalPrice_Redeeming_v1_Test
  * @notice Test contract for FM_PC_ExternalPrice_Redeeming_v1
@@ -44,7 +45,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     ERC20Issuance_v1 issuanceToken;    // The token to be issued
 
     // Mock oracle
-    IOraclePrice_v1 oracle;
+    LM_ManualExternalPriceSetter_v1 oracle;
+
 
     // Constants
     string internal constant NAME = "Issuance Token";
@@ -52,6 +54,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     uint8 internal constant DECIMALS = 18;
     uint internal constant MAX_SUPPLY = type(uint).max;
     bytes32 constant WHITELIST_ROLE = "WHITELIST_ROLE";
+    bytes32 constant ORACLE_ROLE = "ORACLE_ROLE";
     uint8 constant INTERNAL_DECIMALS = 18;
     uint constant BPS = 10000; // Basis points (100%)
 
@@ -70,6 +73,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     string constant TITLE = "Module";
 
     bytes32 internal roleId;
+    bytes32 internal roleIDOracle;
+    bytes32 internal roleIdOracleExposed; 
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Setup
@@ -93,8 +98,30 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         authorizer = new AuthorizerV1Mock();
         _authorizer = authorizer;
 
-        // Setup oracle
-        oracle = new OraclePriceMock();
+        // Setup oracle with proper token decimals
+        address oracleImpl = address(new LM_ManualExternalPriceSetter_v1());
+        oracle = LM_ManualExternalPriceSetter_v1(Clones.clone(oracleImpl));
+        bytes memory oracleConfigData = abi.encode(
+            address(_token),      // collateral token
+            address(issuanceToken) // issuance token
+        );
+
+        _setUpOrchestrator(oracle);
+
+        oracle.init(_orchestrator, _METADATA, oracleConfigData);
+
+        console.log("AFTER");   
+        
+        // Grant price setter role to admin
+        roleIDOracle = _authorizer.generateRoleId(address(oracle), ORACLE_ROLE);
+        _authorizer.grantRole(roleIDOracle, admin);
+
+        // Set initial prices
+        uint initialPrice = 1e18; // 1:1 ratio
+        oracle.setIssuancePrice(initialPrice);
+        oracle.setRedemptionPrice(initialPrice);
+        
+        console.log("AFTER2");   
 
         // Setup funding manager
         address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
@@ -113,9 +140,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         _setUpOrchestrator(fundingManager);
+        console.log("AFTER3");   
 
         // Initialize the funding manager
         fundingManager.init(_orchestrator, _METADATA, configData);
+        console.log("AFTER4");   
 
         // Grant whitelist role
         roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
@@ -321,17 +350,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // Set test prices in the oracle
-        OraclePriceMock(address(oracle)).setPriceForIssuance(2e18);  // 2:1 ratio
-        OraclePriceMock(address(oracle)).setPriceForRedemption(1.9e18);  // 1.9:1 ratio
+        oracle.setIssuancePrice(2e18);  // 2:1 ratio
+        oracle.setRedemptionPrice(1.9e18);  // 1.9:1 ratio
 
         // Verify that we can get prices from the oracle
         assertEq(
-            OraclePriceMock(address(oracle)).getPriceForIssuance(),
+            oracle.getPriceForIssuance(),
             2e18,
             "Oracle issuance price not set correctly"
         );
         assertEq(
-            OraclePriceMock(address(oracle)).getPriceForRedemption(),
+            oracle.getPriceForRedemption(),
             1.9e18,
             "Oracle redemption price not set correctly"
         );
@@ -698,7 +727,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
     /* testBuy_GivenWhitelistedUser()
         └── Given an initialized funding manager contract with sufficient collateral
-            ├── When a whitelisted user buys tokens with fuzzed valid amount
+            ├── When a whitelisted user buys tokens with a valid amount
             │   ├── Then the buy fee should be calculated correctly
             │   ├── Then the collateral tokens should be transferred from user
             │   └── Then the issued tokens should be minted to user
@@ -1008,6 +1037,69 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Sell Operations
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /* testFuzz_Sell_SuccessWithValidAmount()
+        └── Given an initialized funding manager contract
+            └── When a whitelisted user sells tokens with a valid amount
+                ├── Given selling is open
+                ├── Given the user is whitelisted
+                ├── Given the user has enough issued tokens
+                ├── Given the amount is within valid bounds
+                └── Then it should:
+                    ├── Transfer the correct issued token amount from seller to contract
+                    ├── Transfer the correct collateral token amount to the seller
+                    └── Update all balances correctly
+    */
+    function testFuzz_Sell_SuccessWithValidAmount(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound deposit amount to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Prepare sell conditions (this will buy tokens first)
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        // Calculate expected collateral to receive
+        uint256 expectedCollateral = _calculateExpectedCollateral(issuanceAmount);
+        
+        // Record initial balances
+        uint256 initialSellerIssuedTokens = issuanceToken.balanceOf(seller);
+        uint256 initialContractCollateral = _token.balanceOf(address(fundingManager));
+        
+        // When - Sell tokens
+        vm.prank(seller);
+        fundingManager.sell(issuanceAmount, expectedCollateral);
+        
+        // Then - Verify balances and state
+        assertEq(
+            issuanceToken.balanceOf(seller),
+            initialSellerIssuedTokens - issuanceAmount,
+            "Seller issued token balance not decreased correctly"
+        );
+        
+        // Verify that an order was created and redemption amount is correct
+        uint256 openRedemptionAmount = fundingManager.getOpenRedemptionAmount();
+        
+        assertEq(
+            openRedemptionAmount,
+            expectedCollateral,
+            "Open redemption amount should match expected collateral"
+        );
+        
+        // Verify contract still has enough collateral
+        assertGe(
+            _token.balanceOf(address(fundingManager)),
+            initialContractCollateral,
+            "Contract collateral balance should not decrease immediately"
+        );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Helper Functions
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
@@ -1039,7 +1131,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Calculate expected issuance tokens
         uint256 buyFee = fundingManager.getBuyFee();
         uint256 netDeposit = amount - ((amount * buyFee) / BPS);
-        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
+        uint256 oraclePrice = (oracle).getPriceForIssuance();
         issuanceAmount = netDeposit * oraclePrice;
         
         // Execute buy to get issuance tokens
@@ -1065,7 +1157,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function _calculateExpectedIssuance(uint256 collateralAmount) internal view returns (uint256 expectedIssuedTokens) {
         uint256 buyFee = fundingManager.getBuyFee();
         uint256 netDeposit = collateralAmount - ((collateralAmount * buyFee) / BPS);
-        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForIssuance();
+        uint256 oraclePrice = (oracle).getPriceForIssuance();
         expectedIssuedTokens = netDeposit * oraclePrice;
     }
 
@@ -1075,8 +1167,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //      - Applying sell fee to get net collateral
     function _calculateExpectedCollateral(uint256 issuanceAmount) internal view returns (uint256 expectedCollateral) {
         uint256 sellFee = fundingManager.getSellFee();
-        uint256 oraclePrice = IOraclePrice_v1(oracle).getPriceForRedemption();
-        uint256 grossCollateral = issuanceAmount / oraclePrice;
+        uint256 oraclePrice = (oracle).getPriceForRedemption();
+        
+        // First calculate the token amount (same as contract)
+        uint256 tokenAmount = oraclePrice * issuanceAmount;
+        
+        // Convert to collateral decimals (same as contract)
+        uint256 grossCollateral = tokenAmount / (10 ** (18 - _token.decimals()));
+        
+        // Apply fee
         expectedCollateral = grossCollateral - ((grossCollateral * sellFee) / BPS);
     }
 }

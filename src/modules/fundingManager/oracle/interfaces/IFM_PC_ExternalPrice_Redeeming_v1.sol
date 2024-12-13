@@ -81,9 +81,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     // Events
 
     /// @notice	Emitted when reserve tokens are deposited
-    /// @param	depositor The address depositing tokens
-    /// @param	amount The amount deposited
-    event ReserveDeposited(address indexed depositor, uint amount);
+    /// @param	depositor_ The address depositing tokens
+    /// @param	amount_ The amount deposited
+    event ReserveDeposited(address indexed depositor_, uint amount_);
 
     /// @notice	Emitted when a new redemption order is created
     /// @param	orderId Order identifier

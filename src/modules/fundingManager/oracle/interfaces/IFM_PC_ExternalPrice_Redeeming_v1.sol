@@ -113,6 +113,13 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state
     );
 
+    /// @notice	Emitted when the open redemption amount is updated.
+    /// @param	redemptionAmount The new open redemption amount.
+    /// @param	timestamp The timestamp when the update was made.
+    event RedemptionAmountUpdated(
+        uint indexed redemptionAmount, uint indexed timestamp
+    );
+
     // -------------------------------------------------------------------------
     // View Functions
 
@@ -150,4 +157,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
     /// @param oracle_ The address of the oracle
     function setOracleAddress(address oracle_) external;
+
+    /// @notice Deducts the processed redeem amount from the open redemption amount.
+    /// @param processedRedemptionAmount_ The amount of redemption tokens that were processed.
+    function deductProcessedRedeemptionAmount(uint processedRedemptionAmount_)
+        external;
 }

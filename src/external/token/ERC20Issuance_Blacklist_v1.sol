@@ -35,9 +35,9 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version  1.0.0
+ * @custom:version  v1.0.0
  *
- * @custom:standard-version 1.0.0
+ * @custom:standard-version v1.0.0
  *
  * @author  Zealynx Security
  */

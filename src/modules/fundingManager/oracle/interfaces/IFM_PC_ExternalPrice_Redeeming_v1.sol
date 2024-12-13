@@ -113,13 +113,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state
     );
 
-    /// @notice	Emitted when the open redemption amount is updated.
-    /// @param	redemptionAmount The new open redemption amount.
-    /// @param	timestamp The timestamp when the update was made.
-    event RedemptionAmountUpdated(
-        uint indexed redemptionAmount, uint indexed timestamp
-    );
-
     // -------------------------------------------------------------------------
     // View Functions
 
@@ -138,6 +131,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Gets the project treasury address
     /// @return address_ The address of the project treasury
     function getProjectTreasury() external view returns (address);
+
+    /// @notice Gets the direct operations only flag.
+    /// @return Whether only direct operations are allowed.
+    function getIsDirectOperationsOnly() external view returns (bool);
 
     // --------------------------------------------------------------------------
     // External Functions
@@ -158,8 +155,8 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param oracle_ The address of the oracle
     function setOracleAddress(address oracle_) external;
 
-    /// @notice Deducts the processed redeem amount from the open redemption amount.
-    /// @param processedRedemptionAmount_ The amount of redemption tokens that were processed.
-    function deductProcessedRedeemptionAmount(uint processedRedemptionAmount_)
-        external;
+    /// @notice Toggles whether the contract only allows direct operations or not.
+    /// @dev    Only the orchestrator admin can call this function.
+    /// @param isDirectOperationsOnly_ The new value for the flag.
+    function setIsDirectOperationsOnly(bool isDirectOperationsOnly_) external;
 }

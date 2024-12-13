@@ -15,9 +15,8 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  * @title   ERC20 Issuance Token with Blacklist Functionality.
  *
  * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with
- *          blacklisting capabilities. This allows accounts with the blacklist
- *          manager role to restrict specific addresses from participating in
- *          token operations.
+ *          blacklisting capabilities. This allows accounts with the blacklist manager role to restrict specific
+ *          addresses from participating in token operations.
  *
  * @dev     This contract inherits from:
  *              - IERC20Issuance_Blacklist_v1
@@ -27,11 +26,9 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  *              - Batch blacklisting operations.
  *              - Owner-controlled manager role assignment.
  *              - Blacklist manager controlled blacklist management.
- *              Blacklist operations are performed by accounts with the
- *              blacklist manager role, while the contract owner controls
- *              who can be a blacklist manager.
- *              All blacklist operations can only be performed by accounts
- *              with the blacklist manager role.
+ *              Blacklist operations are performed by accounts with the blacklist manager role,
+ *              while the contract owner controls who can be a blacklist manager.
+ *          All blacklist operations can only be performed by accounts with the blacklist manager role.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
@@ -81,18 +78,18 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @param	name_ Token name.
     /// @param	symbol_ Token symbol.
     /// @param	decimals_ Token decimals.
-    /// @param	initialSupply_ Initial token supply.
+    /// @param	maxSupply_ Max token supply.
     /// @param	initialAdmin_ Initial admin address.
     /// @param	initialBlacklistManager_ Initial blacklist manager (typically an EOA).
     constructor(
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        uint initialSupply_,
+        uint maxSupply_,
         address initialAdmin_,
         address initialBlacklistManager_
     )
-        ERC20Issuance_v1(name_, symbol_, decimals_, initialSupply_, initialAdmin_)
+        ERC20Issuance_v1(name_, symbol_, decimals_, maxSupply_, initialAdmin_)
     {
         _setBlacklistManager(initialBlacklistManager_, true);
     }

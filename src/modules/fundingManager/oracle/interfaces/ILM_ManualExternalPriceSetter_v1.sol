@@ -31,32 +31,32 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
 
     // Events
 
-    /// @notice	Emitted when an issuance price is set
-    /// @param	price The price that was set
-    /// @param	timestamp The timestamp when the price was updated
-    event IssuancePriceSet(uint indexed price, uint indexed timestamp);
+    /// @notice	Emitted when an issuance price is set.
+    /// @param	price_ The price that was set.
+    /// @param	timestamp_ The timestamp when the price was updated.
+    event IssuancePriceSet(uint indexed price_, uint indexed timestamp_);
 
-    /// @notice	Emitted when a redemption price is set
-    /// @param	price The price that was set
-    /// @param	timestamp The timestamp when the price was updated
-    event RedemptionPriceSet(uint indexed price, uint indexed timestamp);
+    /// @notice	Emitted when a redemption price is set.
+    /// @param	price_ The price that was set.
+    /// @param	timestamp_ The timestamp when the price was updated.
+    event RedemptionPriceSet(uint indexed price_, uint indexed timestamp_);
 
     // -------------------------------------------------------------------------
 
     // Errors
 
-    /// @notice Thrown when attempting to set a price to zero
+    /// @notice Thrown when attempting to set a price to zero.
     error Module__LM_ExternalPriceSetter__InvalidPrice();
 
     // -------------------------------------------------------------------------
 
     // External Functions
 
-    /// @notice	Sets the issuance price
-    /// @param	price_ The price to set
+    /// @notice	Sets the issuance price.
+    /// @param	price_ The price to set.
     function setIssuancePrice(uint price_) external;
 
-    /// @notice	Sets the redemption price
-    /// @param	price_ The price to set
+    /// @notice	Sets the redemption price.
+    /// @param	price_ The price to set.
     function setRedemptionPrice(uint price_) external;
 }

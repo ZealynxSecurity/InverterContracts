@@ -58,105 +58,128 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice	Thrown when an invalid amount is provided
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
 
-    /// @notice	Fee exceeds maximum allowed value
-    /// @param	fee The fee that was attempted to be set
-    /// @param	maxFee The maximum allowed fee
+    /// @param	fee_ The fee that was attempted to be set.
+    /// @param	maxFee_ The maximum allowed fee.
     error Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-        uint fee, uint maxFee
+        uint fee_, uint maxFee_
     );
 
-    /// @notice	Thrown when the oracle contract does not implement the required interface
+    /// @notice	Thrown when the oracle contract does not implement the required
+    ///         interface.
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface();
 
-    /// @notice	Thrown when third-party operations are disabled
+    /// @notice	Thrown when third-party operations are disabled.
     error Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
 
-    /// @notice	Thrown when a redemption queue execution fails
+    /// @notice	Thrown when a redemption queue execution fails.
     error Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
 
-    /// @notice Thrown when the project treasury address is invalid
+    /// @notice Thrown when the project treasury address is invalid.
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury();
 
     // -------------------------------------------------------------------------
     // Events
 
-    /// @notice	Emitted when reserve tokens are deposited
-    /// @param	depositor_ The address depositing tokens
-    /// @param	amount_ The amount deposited
+    /// @notice	Emitted when reserve tokens are deposited.
+    /// @param	depositor_ The address depositing tokens.
+    /// @param	amount_ The amount deposited.
     event ReserveDeposited(address indexed depositor_, uint amount_);
 
-    /// @notice	Emitted when a new redemption order is created
-    /// @param	orderId Order identifier
-    /// @param	seller Address selling tokens
-    /// @param	receiver Address who receives the redeemed tokens
-    /// @param	sellAmount Amount of tokens to sell
-    /// @param	exchangeRate Current exchange rate
-    /// @param	collateralAmount Amount of collateral
-    /// @param	feePercentage Fee percentage applied
-    /// @param	feeAmount Fee amount calculated
-    /// @param	redemptionAmount Final redemption amount
-    /// @param	collateralToken Address of collateral token
-    /// @param	redemptionTime Time of redemption
-    /// @param	state Initial state of the order
+    /// @notice	Emitted when a new redemption order is created.
+    /// @param	orderId_ Order identifier.
+    /// @param	seller_ Address selling tokens.
+    /// @param	receiver_ Address who receives the redeemed tokens.
+    /// @param	sellAmount_ Amount of tokens to sell.
+    /// @param	exchangeRate_ Current exchange rate.
+    /// @param	collateralAmount_ Amount of collateral.
+    /// @param	feePercentage_ Fee percentage applied.
+    /// @param	feeAmount_ Fee amount calculated.
+    /// @param	redemptionAmount_ Final redemption amount.
+    /// @param	collateralToken_ Address of collateral token.
+    /// @param	redemptionTime_ Time of redemption.
+    /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
-        uint indexed orderId,
-        address indexed seller,
-        address indexed receiver,
-        uint sellAmount,
-        uint exchangeRate,
-        uint collateralAmount,
-        uint feePercentage,
-        uint feeAmount,
-        uint redemptionAmount,
-        address collateralToken,
-        uint redemptionTime,
-        RedemptionState state
+        uint indexed orderId_,
+        address indexed seller_,
+        address indexed receiver_,
+        uint sellAmount_,
+        uint exchangeRate_,
+        uint collateralAmount_,
+        uint feePercentage_,
+        uint feeAmount_,
+        uint redemptionAmount_,
+        address collateralToken_,
+        uint redemptionTime_,
+        RedemptionState state_
     );
 
     // -------------------------------------------------------------------------
     // View Functions
 
-    /// @notice	Gets the current open collateral redemption amount
-    /// @return	amount_ The total amount of open redemptions
+    /// @notice	Gets the current open collateral redemption amount.
+    /// @return	amount_ The total amount of open redemptions.
     function getOpenRedemptionAmount() external view returns (uint amount_);
 
-    /// @notice	Gets the next available order ID
-    /// @return	orderId_ The next order ID
+    /// @notice	Gets the next available order ID.
+    /// @return	orderId_ The next order ID.
     function getNextOrderId() external view returns (uint orderId_);
 
-    /// @notice	Gets the current order ID
-    /// @return	orderId_ The current order ID
+    /// @notice	Gets the current order ID.
+    /// @return	orderId_ The current order ID.
     function getOrderId() external view returns (uint orderId_);
 
-    /// @notice Gets the project treasury address
-    /// @return address_ The address of the project treasury
+    /// @notice Gets the project treasury address.
+    /// @return address_ The address of the project treasury.
     function getProjectTreasury() external view returns (address);
 
     /// @notice Gets the direct operations only flag.
     /// @return Whether only direct operations are allowed.
     function getIsDirectOperationsOnly() external view returns (bool);
 
+    /// @notice Gets current buy fee.
+    /// @return buyFee The current buy fee.
+    function getBuyFee() external view returns (uint);
+
+    /// @notice Gets the maximum fee that can be charged for buy operations.
+    /// @return maxBuyFee_ The maximum buy fee.
+    function getMaxBuyFee() external view returns (uint maxBuyFee_);
+
+    /// @notice Gets the maximum project fee that can be charged for sell 
+    ///         operations.
+    /// @return maxProjectSellFee_ The maximum project sell fee percentage.
+    function getMaxProjectSellFee()
+        external
+        view
+        returns (uint maxProjectSellFee_);
+
+    /// @notice Gets current sell fee.
+    /// @return sellFee The current sell fee.
+    function getSellFee() external view returns (uint);
+
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @notice	Allows depositing collateral to provide reserves for redemptions
-    /// @param	amount_ The amount of collateral to deposit
+    /// @notice	Allows depositing collateral to provide reserves for redemptions.
+    /// @param	amount_ The amount of collateral to deposit.
     function depositReserve(uint amount_) external;
 
-    /// @notice	Executes the redemption queue
+    /// @notice	Executes the redemption queue.
+    /// @dev    This function expects a queue-based payment processor to be
+    ///         connected. The call will intentionally revert if a non queue-
+    ///         based payment processor is used, as this funding manager is
+    ///         designed to work only with payment processors that support
+    ///         queue-based redemptions.
     function executeRedemptionQueue() external;
 
-    /// @notice Sets the project treasury address
-    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
+    /// @notice Sets the project treasury address.
+    /// @param projectTreasury_ The address of the project treasury.
     function setProjectTreasury(address projectTreasury_) external;
 
-    /// @notice Sets the oracle address
-    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
-    /// @param oracle_ The address of the oracle
+    /// @notice Sets the oracle address.
+    /// @param oracle_ The address of the oracle.
     function setOracleAddress(address oracle_) external;
 
     /// @notice Toggles whether the contract only allows direct operations or not.
-    /// @dev    Only the orchestrator admin can call this function.
-    /// @param isDirectOperationsOnly_ The new value for the flag.
+    /// @param  isDirectOperationsOnly_ The new value for the flag.
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_) external;
 }

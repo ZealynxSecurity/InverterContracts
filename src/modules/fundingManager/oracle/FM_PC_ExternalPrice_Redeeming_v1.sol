@@ -293,11 +293,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    /// @dev    This function expects a queue-based payment processor to be
-    ///         connected. The call will intentionally revert if a non queue-
-    ///         based payment processor is used, as this funding manager is
-    ///         designed to work only with payment processors that support
-    ///         queue-based redemptions.
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
@@ -363,9 +358,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @notice Sets the fee for sell operations.
-    /// @dev    Only the orchestrator admin can call this function.
-    /// @param  fee_ New fee amount.
+    /// @inheritdoc IRedeemingBondingCurveBase_v1
     function setSellFee(uint fee_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -381,15 +374,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setSellFee(fee_);
     }
 
-    /// @notice Gets current sell fee.
-    /// @return sellFee The current sell fee.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getSellFee() public view returns (uint) {
         return sellFee;
     }
 
-    /// @notice Sets the fee for buy operations.
-    /// @dev    Only the orchestrator admin can call this function.
-    /// @param  fee_ New fee amount.
+    /// @inheritdoc IBondingCurveBase_v1
     function setBuyFee(uint fee_)
         external
         override(BondingCurveBase_v1)
@@ -418,20 +408,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setOracleAddress(oracle_);
     }
 
-    /// @notice Gets current buy fee.
-    /// @return buyFee The current buy fee.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getBuyFee() public view returns (uint) {
         return buyFee;
     }
 
-    /// @notice Gets the maximum fee that can be charged for buy operations.
-    /// @return maxBuyFee_ The maximum buy fee.
-    function getMaxBuyFee() public view returns (uint maxBuyFee_) {
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function getMaxBuyFee() public view returns (uint) {
         return _maxBuyFee;
     }
 
-    /// @notice Gets the maximum project fee that can be charged for sell operations.
-    /// @return maxProjectSellFee_ The maximum project sell fee percentage.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getMaxProjectSellFee()
         public
         view
@@ -452,8 +439,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // Internal Functions
 
     /// @notice Creates and emits a new redemption order.
-    /// @dev    This function wraps the `_createAndEmitOrder` internal function with
-    ///         specified parameters to handle the transaction and direct the proceeds.
+    /// @dev    This function wraps the `_createAndEmitOrder` internal function 
+    ///         with specified parameters to handle the transaction and direct 
+    ///         the proceeds.
     /// @param  receiver_ The address that will receive the redeemed tokens.
     /// @param  depositAmount_ The amount of tokens to be sold.
     /// @param  collateralRedeemAmount_ The amount of collateral to redeem.
@@ -464,16 +452,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint collateralRedeemAmount_,
         uint issuanceFeeAmount_
     ) internal {
-        // Generate new order ID
+        // Generate new order ID.
         _orderId = _nextOrderId++;
 
-        // Update open redemption amount
+        // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
 
-        // Calculate redemption amount
+        // Calculate redemption amount.
         uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
 
-        // Create and add payment order
+        // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
             recipient: _msgSender(),
             paymentToken: address(token()),
@@ -484,12 +472,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         });
         _addPaymentOrder(order);
 
-        // Process payments through the payment processor
+        // Process payments through the payment processor.
         __Module_orchestrator.paymentProcessor().processPayments(
             IERC20PaymentClientBase_v1(address(this))
         );
 
-        // Emit event with all order details
+        // Emit event with all order details.
         emit RedemptionOrderCreated(
             _orderId,
             _msgSender(),
@@ -505,7 +493,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             RedemptionState.PROCESSING
         );
 
-        // Emit event for tokens sold
+        // Emit event for tokens sold.
         emit TokensSold(
             receiver_, depositAmount_, collateralRedeemAmount_, _msgSender()
         );
@@ -516,10 +504,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    This function wraps the `_sellOrder` internal function with
     ///         the specified parameters to handle the transaction and direct
     ///         the proceeds.
-    /// @param  _receiver   The address that will receive the redeemed tokens.
-    /// @param  _depositAmount  The amount of tokens to be sold.
-    /// @param  _minAmountOut   The minimum acceptable amount of proceeds that the
-    ///                         receiver should receive from the sale.
+    /// @param  _receiver The address that will receive the redeemed tokens.
+    /// @param  _depositAmount The amount of tokens to be sold.
+    /// @param  _minAmountOut The minimum acceptable amount of proceeds that the
+    ///         receiver should receive from the sale.
     function _sellOrder(
         address _receiver,
         uint _depositAmount,
@@ -608,9 +596,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
     }
 
-    /// @dev    Internal function which only emits the event for amount of project fee
-    ///         collected. The contract does not hold collateral as the payout is managed
-    ///         through a redemption queue.
+    /// @dev    Internal function which only emits the event for amount of 
+    ///         project fee collected. The contract does not hold collateral 
+    ///         as the payout is managed through a redemption queue.
     /// @param  _projectFeeAmount The amount of fee collected.
     function _projectFeeCollected(uint _projectFeeAmount)
         internal
@@ -668,9 +656,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @dev    Sets the issuance token.
-    ///         This function overrides the internal function set in {BondingCurveBase_v1},
-    ///         and it updates the `issuanceToken` state variable and caches the decimals
-    ///         as `_issuanceTokenDecimals`.
+    ///         This function overrides the internal function set in 
+    ///         {BondingCurveBase_v1}, and it updates the `issuanceToken` state 
+    ///         variable and caches the decimals as `_issuanceTokenDecimals`.
     /// @param  issuanceToken_ The token which will be issued by the Bonding Curve.
     function _setIssuanceToken(address issuanceToken_)
         internal
@@ -684,7 +672,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Sets the oracle address
-    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
+    /// @dev    May revert with 
+    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
     /// @param oracleAddress_ The address of the oracle
     function _setOracleAddress(address oracleAddress_) internal {
         if (
@@ -699,8 +688,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Sets the project treasury address
-    /// @dev May revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
-    /// @param projectTreasury_ The address of the project treasury
+    /// @dev    May revert with
+    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
+    /// @param  projectTreasury_ The address of the project treasury
     function _setProjectTreasury(address projectTreasury_) internal {
         if (_projectTreasury == address(0)) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
@@ -720,7 +710,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc BondingCurveBase_v1
-    /// @dev        Implementation transfer collateral tokens to the project treasury
+    /// @dev    Implementation transfer collateral tokens to the project treasury
     function _handleCollateralTokensBeforeBuy(address _provider, uint _amount)
         internal
         virtual
@@ -730,8 +720,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
-    /// @dev    Implementation does not transfer collateral tokens to recipient as the
-    ///         payout is managed through a redemption queue.
+    /// @dev    Implementation does not transfer collateral tokens to recipient 
+    ///         as the payout is managed through a redemption queue.
     function _handleCollateralTokensAfterSell(address recipient_, uint amount_)
         internal
         virtual

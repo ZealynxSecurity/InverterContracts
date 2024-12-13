@@ -17,8 +17,8 @@ import {ERC165Upgradeable} from
  * @title   Manual External Price Oracle Implementation
  *
  * @notice  This contract provides a manual price feed mechanism for token
- *          operations, allowing authorized users to set and update prices for
- *          both issuance (buying) and redemption (selling) operations.
+ *          operations, allowing authorized users to set and update prices
+ *          for both issuance (buying) and redemption (selling) operations.
  *
  * @dev     This contract inherits functionalities from:
  *              - Module_v1
@@ -29,14 +29,17 @@ import {ERC165Upgradeable} from
  *          non-zero values.
  *
  *          Price Context:
- *              - Prices are stored internally with 18 decimals for consistent math
- *              - When setting prices: Input values should be in collateral token decimals
- *              - When getting prices: Output values will be in issuance token decimals
+ *              - Prices are stored internally with 18 decimals for consistent 
+ *                math
+ *              - When setting prices: Input values should be in collateral 
+ *                token decimals
+ *              - When getting prices: Output values will be in issuance 
+ *                token decimals
  *
  * @custom:security-contact security@inverter.network
- *                          In case of any concerns or findings, please refer to
- *                          our Security Policy at security.inverter.network or
- *                          email us directly!
+ *                          In case of any concerns or findings, please refer
+ *                          to our Security Policy at security.inverter.network
+ *                          or email us directly!
  *
  * @custom:version   v1.0.0
  *
@@ -48,39 +51,42 @@ contract LM_ManualExternalPriceSetter_v1 is
     ILM_ManualExternalPriceSetter_v1,
     Module_v1
 {
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Constants
 
     /// @notice Role identifier for accounts authorized to set prices
     /// @dev    This role should be granted to trusted price feeders only
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
-    /// @notice Number of decimal places used for internal price representation
+    /// @notice Number of decimal places used for internal price 
+    ///         representation
     /// @dev    All prices are normalized to this precision for consistent
     ///         calculations regardless of input/output token decimals.
     uint8 private constant INTERNAL_DECIMALS = 18;
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // State Variables
 
-    /// @notice The price for issuing tokens (normalized to INTERNAL_DECIMALS)
+    /// @notice The price for issuing tokens (normalized to
+    ///         INTERNAL_DECIMALS).
     uint private _issuancePrice;
 
-    /// @notice The price for redeeming tokens (normalized to INTERNAL_DECIMALS)
+    /// @notice The price for redeeming tokens (normalized to
+    ///         INTERNAL_DECIMALS).
     uint private _redemptionPrice;
 
-    /// @notice Decimals of the collateral token (e.g., USDC with 6 decimals)
-    /// @dev    This is the token used to pay/buy with
+    /// @notice Decimals of the collateral token (e.g., USDC with 6 decimals).
+    /// @dev    This is the token used to pay/buy with.
     uint8 private _collateralTokenDecimals;
 
-    /// @notice Decimals of the issuance token (e.g., ISS with 18 decimals)
-    /// @dev    This is the token being bought/sold
+    /// @notice Decimals of the issuance token (e.g., ISS with 18 decimals).
+    /// @dev    This is the token being bought/sold.
     uint8 private _issuanceTokenDecimals;
 
-    /// @dev    Storage gap for upgradeable contracts
+    /// @dev    Storage gap for upgradeable contracts.
     uint[50] private __gap;
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Initialization
 
     /// @inheritdoc Module_v1
@@ -91,7 +97,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata_);
 
-        // Decode collateral and issuance token addresses from configData_
+        // Decode collateral and issuance token addresses from configData_.
         (address collateralToken, address issuanceToken) =
             abi.decode(configData_, (address, address));
 
@@ -118,9 +124,10 @@ contract LM_ManualExternalPriceSetter_v1 is
     // External Functions
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    /// @dev    The price_ parameter should be provided with the same number of
-    ///         decimals as the collateral token. For example, if the collateral
-    ///         token has 6 decimals and the price is 1.5, input should be 1500000.
+    /// @dev    The price_ parameter should be provided with the same number 
+    ///         of decimals as the collateral token. For example, if the 
+    ///         collateral token has 6 decimals and the price is 1.5, input 
+    ///         should be 1500000.
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
@@ -134,8 +141,8 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     /// @dev    The price_ parameter should be provided with the same number of
-    ///         decimals as the issuance token. For example, if the issuance token
-    ///         has 18 decimals and the price is 1.5, input should be
+    ///         decimals as the issuance token. For example, if the issuance
+    ///         token has 18 decimals and the price is 1.5, input should be
     ///         1500000000000000000.
     function setRedemptionPrice(uint price_)
         external
@@ -179,7 +186,8 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Normalizes a price from token decimals to internal decimals
     /// @param  price_ The price to normalize
-    /// @param  tokenDecimals_ The decimals of the token the price is denominated in
+    /// @param  tokenDecimals_ The decimals of the token the price is 
+    ///         denominated in
     /// @return The normalized price with INTERNAL_DECIMALS precision
     function _normalizePrice(uint price_, uint8 tokenDecimals_)
         internal

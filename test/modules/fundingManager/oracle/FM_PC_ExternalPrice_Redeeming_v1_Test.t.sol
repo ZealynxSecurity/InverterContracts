@@ -3,6 +3,7 @@ pragma solidity 0.8.23;
 
 import {Test, console} from "forge-std/Test.sol";
 import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IOraclePrice_v1} from "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 import {FM_PC_ExternalPrice_Redeeming_v1} from "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IFM_PC_ExternalPrice_Redeeming_v1} from "src/modules/fundingManager/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
@@ -109,8 +110,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         _setUpOrchestrator(oracle);
 
         oracle.init(_orchestrator, _METADATA, oracleConfigData);
-
-        console.log("AFTER");   
         
         // Grant price setter role to admin
         roleIDOracle = _authorizer.generateRoleId(address(oracle), ORACLE_ROLE);
@@ -120,8 +119,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint initialPrice = 1e18; // 1:1 ratio
         oracle.setIssuancePrice(initialPrice);
         oracle.setRedemptionPrice(initialPrice);
-        
-        console.log("AFTER2");   
 
         // Setup funding manager
         address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
@@ -140,11 +137,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         _setUpOrchestrator(fundingManager);
-        console.log("AFTER3");   
 
         // Initialize the funding manager
         fundingManager.init(_orchestrator, _METADATA, configData);
-        console.log("AFTER4");   
 
         // Grant whitelist role
         roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
@@ -1056,12 +1051,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Given - Setup initial state
         address seller = whitelisted;
         
-        // Bound deposit amount to reasonable values
+        // Bound initial deposit to reasonable values
         uint256 minAmount = 1 * 10**_token.decimals();
         uint256 maxAmount = 1_000_000 * 10**_token.decimals();
         depositAmount = bound(depositAmount, minAmount, maxAmount);
         
-        // Prepare sell conditions (this will buy tokens first)
+        // Buy some tokens first to have a balance
         uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
         
         // Calculate expected collateral to receive
@@ -1097,6 +1092,194 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             initialContractCollateral,
             "Contract collateral balance should not decrease immediately"
         );
+    }
+
+    /* testFuzz_Sell_RevertGivenInvalidAmount()
+        └── Given an initialized funding manager contract
+            └── When a whitelisted user sells tokens with an invalid amount
+                ├── Given selling is open
+                ├── Given the user is whitelisted
+                ├── Given the user has some issued tokens
+                └── Then it should:
+                    ├── Revert when amount is zero
+                    └── Revert when amount exceeds user balance
+    */
+    function testFuzz_Sell_RevertGivenInvalidAmount(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        // Test zero amount
+        vm.startPrank(seller);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InvalidDepositAmount()"));
+        fundingManager.sell(0, 1); // Añadimos un minAmountOut válido
+        vm.stopPrank();
+        
+        // Test amount exceeding balance
+        vm.startPrank(seller);
+        uint256 userBalance = issuanceToken.balanceOf(seller);
+        uint256 excessAmount = userBalance + 1;
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, seller, userBalance, excessAmount));
+        fundingManager.sell(excessAmount, 1); // Añadimos un minAmountOut válido
+        vm.stopPrank();
+    }
+
+    /* testFuzz_Sell_ZeroAmount()
+        └── Given an initialized funding manager contract with collateral
+            └── When a whitelisted user attempts to sell tokens
+                ├── Given the user has enough issued tokens
+                ├── Given selling is open
+                └── Then it should:
+                    └── Revert with Module__BondingCurveBase__InvalidDepositAmount when amount is zero
+    */
+    function testFuzz_Sell_ZeroAmount(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        vm.startPrank(seller);
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InvalidDepositAmount()"));
+        fundingManager.sell(0, 1);
+        vm.stopPrank();
+    }
+
+    /* testFuzz_Sell_ExceedingBalance()
+        └── Given an initialized funding manager contract with collateral
+            └── When a whitelisted user attempts to sell tokens
+                ├── Given the user has some issued tokens
+                ├── Given selling is open
+                └── Then it should:
+                    └── Revert with ERC20InsufficientBalance when amount exceeds user balance
+    */
+    function testFuzz_Sell_ExceedingBalance(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        vm.startPrank(seller);
+        uint256 userBalance = issuanceToken.balanceOf(seller);
+        uint256 excessAmount = userBalance + 1;
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, seller, userBalance, excessAmount));
+        fundingManager.sell(excessAmount, 1);
+        vm.stopPrank();
+    }
+
+    /* testFuzz_Sell_InsufficientOutput()
+        └── Given an initialized funding manager contract with collateral
+            └── When a whitelisted user attempts to sell tokens
+                ├── Given the user has enough issued tokens
+                ├── Given selling is open
+                └── Then it should:
+                    └── Revert with Module__BondingCurveBase__InsufficientOutputAmount when minAmountOut is too high
+    */
+    function testFuzz_Sell_InsufficientOutput(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        vm.startPrank(seller);
+        // Try to sell 1 token but require an unreasonably high minAmountOut
+        uint256 sellAmount = 1 * 10**_token.decimals();
+        uint256 unreasonablyHighMinAmountOut = type(uint256).max;
+        vm.expectRevert(abi.encodeWithSignature("Module__BondingCurveBase__InsufficientOutputAmount()"));
+        fundingManager.sell(sellAmount, unreasonablyHighMinAmountOut);
+        vm.stopPrank();
+    }
+
+    /* testFuzz_Sell_SellingDisabled()
+        └── Given an initialized funding manager contract with collateral
+            └── When a whitelisted user attempts to sell tokens
+                ├── Given the user has enough issued tokens
+                ├── Given selling is closed
+                └── Then it should:
+                    └── Revert with Module__RedeemingBondingCurveBase__SellingFunctionaltiesClosed
+    */
+    function testFuzz_Sell_SellingDisabled(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        vm.startPrank(address(this));
+        fundingManager.closeSell();
+        vm.stopPrank();
+        
+        vm.startPrank(seller);
+        vm.expectRevert(abi.encodeWithSignature("Module__RedeemingBondingCurveBase__SellingFunctionaltiesClosed()"));
+        fundingManager.sell(1, 1);
+        vm.stopPrank();
+    }
+
+    /* testFuzz_Sell_InsufficientCollateral()
+        └── Given an initialized funding manager contract
+            └── When a whitelisted user attempts to sell tokens
+                ├── Given the user has enough issued tokens
+                ├── Given selling is open
+                ├── Given contract has no collateral
+                └── Then it should:
+                    └── Revert with Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption
+    */
+    function testFuzz_Sell_InsufficientCollateral(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        // First, let's drain the contract's collateral
+        vm.startPrank(admin);
+        uint256 contractBalance = _token.balanceOf(address(fundingManager));
+        _token.transfer(user, contractBalance); // Transfer all collateral away
+        vm.stopPrank();
+        
+        vm.startPrank(seller);
+        vm.expectRevert(abi.encodeWithSignature("Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption()"));
+        fundingManager.sell(1, 1);
+        vm.stopPrank();
+        
+        // Restore contract's collateral for next tests
+        vm.startPrank(address(this));
+        _token.transfer(address(fundingManager), contractBalance);
+        vm.stopPrank();
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

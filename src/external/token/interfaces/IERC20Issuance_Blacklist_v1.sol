@@ -61,59 +61,61 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     error ERC20Issuance_Blacklist_NotBlacklistManager();
 
     /// @notice Thrown when attempting to mint tokens to a blacklisted address
-    error ERC20Issuance_Blacklist_BlacklistedAddress(address account);
+    error ERC20Issuance_Blacklist_BlacklistedAddress(address account_);
 
     /// @notice Thrown when batch operation exceeds the maximum allowed size
-    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint provided, uint limit);
+    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint provided_, uint limit_);
 
     //--------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Checks if an address is blacklisted
-    /// @param account_ The address to check
-    /// @return isBlacklisted_ True if address is blacklisted
+    /// @notice Checks if an address is blacklisted.
+    /// @param account_ The address to check.
+    /// @return isBlacklisted_ True if address is blacklisted.
     function isBlacklisted(address account_)
         external
         view
         returns (bool isBlacklisted_);
 
-    /// @notice Checks if an address is a blacklist manager
-    /// @param account_ The address to check
-    /// @return isBlacklistManager_ True if address is a blacklist manager
+    /// @notice Checks if an address is a blacklist manager.
+    /// @param  account_ The address to check.
+    /// @return isBlacklistManager_ True if address is a blacklist manager.
     function isBlacklistManager(address account_)
         external
         view
         returns (bool isBlacklistManager_);
 
-    /// @notice Adds an address to blacklist
-    /// @param account_ The address to blacklist
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
+    /// @notice Adds an address to blacklist.
+    /// @param  account_ The address to the blacklist.
+    /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress.
     function addToBlacklist(address account_) external;
 
-    /// @notice Removes an address from blacklist
-    /// @param account_ The address to remove
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
+    /// @notice Removes an address from the blacklist.
+    /// @param  account_ The address to remove.
+    /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress.
     function removeFromBlacklist(address account_) external;
 
-    /// @notice Adds multiple addresses to blacklist
-    /// @param accounts_ Array of addresses to blacklist
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
-    ///      The array size should not exceed the block gas limit. Consider using
-    ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
-    function addToBlacklistBatchAddresses(address[] memory accounts_)
+    /// @notice Adds multiple addresses to the blacklist.
+    /// @param  accounts_ Array of addresses to the blacklist.
+    /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress
+    ///         The array size should not exceed the block gas limit. Consider 
+    ///         using smaller batches (e.g., 100-200 addresses) to ensure 
+    ///         transaction success.
+    function addToBlacklistBatchAddresses(address[] calldata accounts_)
         external;
 
-    /// @notice Removes multiple addresses from blacklist
-    /// @param accounts_ Array of addresses to remove
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
-    ///      The array size should not exceed the block gas limit. Consider using
-    ///      smaller batches (e.g., 100-200 addresses) to ensure transaction success.
+    /// @notice Removes multiple addresses from the blacklist.
+    /// @param  accounts_ Array of addresses to remove.
+    /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress
+    ///         The array size should not exceed the block gas limit. Consider 
+    ///         using smaller batches (e.g., 100-200 addresses) to ensure 
+    ///         transaction success.
     function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
         external;
 
-    /// @notice Sets or revokes blacklist manager role for an address
-    /// @param manager_ The address to grant or revoke the role from
-    /// @param allowed_ Whether to grant (true) or revoke (false) the role
-    /// @dev May revert with ERC20Issuance_Blacklist_ZeroAddress
+    /// @notice Sets or revokes blacklist manager role for an address.
+    /// @param  manager_ The address to grant or revoke the role from.
+    /// @param  allowed_ Whether to grant (true) or revoke (false) the role.
+    /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress.
     function setBlacklistManager(address manager_, bool allowed_) external;
 }

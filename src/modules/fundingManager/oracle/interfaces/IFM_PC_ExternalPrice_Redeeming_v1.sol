@@ -31,9 +31,9 @@ import {IRedeemingBondingCurveBase_v1} from
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   1.0.0
+ * @custom:version   v1.0.0
  *
- * @custom:standard-version  1.0.0
+ * @custom:standard-version  v1.0.0
  *
  * @author  Zealynx Security
  */
@@ -77,7 +77,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Thrown when the project treasury address is invalid
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury();
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Events
 
     /// @notice	Emitted when reserve tokens are deposited
@@ -136,7 +136,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return Whether only direct operations are allowed.
     function getIsDirectOperationsOnly() external view returns (bool);
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @notice	Allows depositing collateral to provide reserves for redemptions

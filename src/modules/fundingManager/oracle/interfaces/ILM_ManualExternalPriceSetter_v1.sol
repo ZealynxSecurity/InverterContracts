@@ -20,14 +20,14 @@ import {IOraclePrice_v1} from
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   1.0.0
+ * @custom:version   v1.0.0
  *
- * @custom:standard-version  1.0.0
+ * @custom:standard-version  v1.0.0
  *
  * @author  Zealynx Security
  */
 interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
     // Events
 
@@ -41,14 +41,14 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     /// @param	timestamp The timestamp when the price was updated
     event RedemptionPriceSet(uint indexed price, uint indexed timestamp);
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
     // Errors
 
     /// @notice Thrown when attempting to set a price to zero
     error Module__LM_ExternalPriceSetter__InvalidPrice();
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
 
     // External Functions
 

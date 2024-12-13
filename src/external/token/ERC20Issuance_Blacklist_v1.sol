@@ -45,13 +45,13 @@ contract ERC20Issuance_Blacklist_v1 is
     IERC20Issuance_Blacklist_v1,
     ERC20Issuance_v1
 {
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Constants
 
     /// @notice	Maximum number of addresses that can be blacklisted in a batch.
     uint public constant BATCH_LIMIT = 200;
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Storage
 
     /// @notice	Mapping of blacklisted addresses.
@@ -60,7 +60,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @notice	Mapping of blacklist manager addresses.
     mapping(address account => bool isManager) private _isBlacklistManager;
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Modifiers
 
     /// @notice Modifier to check if the caller is a blacklist manager.
@@ -71,7 +71,7 @@ contract ERC20Issuance_Blacklist_v1 is
         _;
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Constructor
 
     /// @notice	Constructor for ERC20Issuance_Blacklist_v1.
@@ -95,7 +95,7 @@ contract ERC20Issuance_Blacklist_v1 is
         _setBlacklistManager(initialBlacklistManager_, true);
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // View Functions
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
@@ -110,7 +110,7 @@ contract ERC20Issuance_Blacklist_v1 is
         return _isBlacklistManager[account_];
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
@@ -178,7 +178,7 @@ contract ERC20Issuance_Blacklist_v1 is
         _setBlacklistManager(manager_, allowed_);
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Internal Functions
 
     /// @notice Internal hook to enforce blacklist restrictions on token transfers.

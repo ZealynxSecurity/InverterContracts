@@ -37,9 +37,10 @@ import {ERC165Upgradeable} from
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
  *
- * @notice  A funding manager implementation that uses external oracle price feeds
- *          for token operations. It integrates payment client functionality and
- *          supports token redemption through a bonding curve mechanism.
+ * @notice  A funding manager implementation that uses external oracle price
+ *          feeds for token operations. It integrates payment client
+ *          functionality and supports token redemption through a bonding curve
+ *          mechanism.
  *
  * @dev     This contract inherits from:
  *              - IFM_PC_ExternalPrice_Redeeming_v1
@@ -48,17 +49,17 @@ import {ERC165Upgradeable} from
  *          Key features:
  *              - External price integration
  *              - Payment client functionality
- *          The contract uses external price feeds for both issuance and redemption
- *          operations, ensuring market-aligned token pricing.
+ *          The contract uses external price feeds for both issuance and 
+ *          redemption operations, ensuring market-aligned token pricing.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   1.0.0
+ * @custom:version   v1.0.0
  *
- * @custom:standard-version  1.0.0
+ * @custom:standard-version  v1.0.0
  *
  * @author  Zealynx Security
  */
@@ -97,26 +98,33 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // State Variables
 
     /// @notice Oracle price feed contract used for price discovery.
-    /// @dev    Contract that provides external price information for token valuation.
+    /// @dev    Contract that provides external price information for token 
+    ///         valuation.
     IOraclePrice_v1 private _oracle;
 
     /// @notice Token that is accepted by this funding manager for deposits.
-    /// @dev    The ERC20 token contract used for collateral in this funding manager.
+    /// @dev    The ERC20 token contract used for collateral in this funding 
+    ///         manager.
     IERC20 private _token;
 
     /// @notice Token decimals of the issuance token.
-    /// @dev    Number of decimal places used by the issuance token for proper decimal handling.
+    /// @dev    Number of decimal places used by the issuance token for proper 
+    ///         decimal handling.
     uint8 private _issuanceTokenDecimals;
 
     /// @notice Token decimals of the Orchestrator token.
-    /// @dev    Number of decimal places used by the collateral token for proper decimal handling.
+    /// @dev    Number of decimal places used by the collateral token for proper 
+    ///         decimal handling.
     uint8 private _collateralTokenDecimals;
 
-    /// @notice Maximum fee that can be charged for sell operations, in basis points.
-    /// @notice Maximum allowed project fee percentage that can be charged when selling tokens.
+    /// @notice Maximum fee that can be charged for sell operations, in basis 
+    ///         points.
+    /// @notice Maximum allowed project fee percentage that can be charged when 
+    ///         selling tokens.
     uint private _maxProjectSellFee;
 
-    /// @notice Maximum fee that can be charged for buy operations, in basis points.
+    /// @notice Maximum fee that can be charged for buy operations, in basis 
+    ///         points.
     /// @dev    Maximum allowed project fee percentage for buying tokens.
     uint private _maxBuyFee;
 
@@ -128,20 +136,22 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Keeps track of the next available order ID to ensure uniqueness.
     uint private _nextOrderId;
 
-    /// @notice Total amount of collateral tokens currently in redemption process.
+    /// @notice Total amount of collateral tokens currently in redemption
+    ///         process.
     /// @dev    Tracks the sum of all pending redemption orders.
     uint private _openRedemptionAmount;
 
     /// @notice Flag indicating if direct operations are only allowed.
     bool private _isDirectOperationsOnly;
 
-    /// @notice Address of the project treasury which will receive the collateral tokens
+    /// @notice Address of the project treasury which will receive the 
+    ///         collateral tokens
     address private _projectTreasury;
 
     /// @dev    Storage gap for future upgrades.
     uint[50] private __gap;
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Modifiers
 
     /// @notice Modifier to check if only direct operations are allowed.
@@ -153,7 +163,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _;
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Initialization Function
 
     /// @inheritdoc Module_v1
@@ -162,10 +172,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         Metadata memory metadata_,
         bytes memory configData_
     ) external override(Module_v1) initializer {
-        // Initialize parent contracts
+        // Initialize base module
         __Module_init(orchestrator_, metadata_);
 
-        // Decode config data
+        // Decode config data.
         (
             address projectTreasury_,
             address issuanceToken_,
@@ -214,7 +224,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // View Functions
 
     /// @inheritdoc IFundingManager_v1

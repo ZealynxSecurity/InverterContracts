@@ -16,20 +16,20 @@ pragma solidity ^0.8.0;
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   1.0.0
+ * @custom:version   v1.0.0
  *
- * @custom:standard-version  1.0.0
+ * @custom:standard-version  v1.0.0
  *
  * @author  Zealynx Security
  */
 interface IOraclePrice_v1 {
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Errors
 
     /// @notice	Thrown when price returned is zero
     error OraclePrice__ZeroPrice();
 
-    // --------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @notice	Gets current price for token issuance (buying tokens)

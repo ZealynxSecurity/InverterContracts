@@ -15,8 +15,9 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  * @title   ERC20 Issuance Token with Blacklist Functionality.
  *
  * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with
- *          blacklisting capabilities. This allows accounts with the blacklist manager role to restrict specific
- *          addresses from participating in token operations.
+ *          blacklisting capabilities. This allows accounts with the blacklist
+ *          manager role to restrict specific addresses from participating in
+ *          token operations.
  *
  * @dev     This contract inherits from:
  *              - IERC20Issuance_Blacklist_v1

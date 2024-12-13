@@ -420,7 +420,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Gets the maximum project fee that can be charged for sell operations.
     /// @return maxProjectSellFee_ The maximum project sell fee percentage.
-    function getMaxProjectSellFee() public view returns (uint maxProjectSellFee_) {
+    function getMaxProjectSellFee()
+        public
+        view
+        returns (uint maxProjectSellFee_)
+    {
         return _maxProjectSellFee;
     }
 
@@ -436,7 +440,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // Internal Functions
 
     /// @notice Creates and emits a new redemption order.
-    /// @dev    This function wraps the `_createAndEmitOrder` internal function with 
+    /// @dev    This function wraps the `_createAndEmitOrder` internal function with
     ///         specified parameters to handle the transaction and direct the proceeds.
     /// @param  receiver_ The address that will receive the redeemed tokens.
     /// @param  depositAmount_ The amount of tokens to be sold.
@@ -495,14 +499,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         );
     }
 
-    /// @notice Executes a sell order, with the proceeds being sent directly to 
+    /// @notice Executes a sell order, with the proceeds being sent directly to
     ///         the _receiver's address.
-    /// @dev    This function wraps the `_sellOrder` internal function with 
-    ///         the specified parameters to handle the transaction and direct 
+    /// @dev    This function wraps the `_sellOrder` internal function with
+    ///         the specified parameters to handle the transaction and direct
     ///         the proceeds.
     /// @param  _receiver   The address that will receive the redeemed tokens.
     /// @param  _depositAmount  The amount of tokens to be sold.
-    /// @param  _minAmountOut   The minimum acceptable amount of proceeds that the 
+    /// @param  _minAmountOut   The minimum acceptable amount of proceeds that the
     ///                         receiver should receive from the sale.
     function _sellOrder(
         address _receiver,
@@ -592,8 +596,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
     }
 
-    /// @dev    Internal function which only emits the event for amount of project fee 
-    ///         collected. The contract does not hold collateral as the payout is managed 
+    /// @dev    Internal function which only emits the event for amount of project fee
+    ///         collected. The contract does not hold collateral as the payout is managed
     ///         through a redemption queue.
     /// @param  _projectFeeAmount The amount of fee collected.
     function _projectFeeCollected(uint _projectFeeAmount)
@@ -652,8 +656,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @dev    Sets the issuance token.
-    ///         This function overrides the internal function set in {BondingCurveBase_v1}, 
-    ///         and it updates the `issuanceToken` state variable and caches the decimals 
+    ///         This function overrides the internal function set in {BondingCurveBase_v1},
+    ///         and it updates the `issuanceToken` state variable and caches the decimals
     ///         as `_issuanceTokenDecimals`.
     /// @param  issuanceToken_ The token which will be issued by the Bonding Curve.
     function _setIssuanceToken(address issuanceToken_)

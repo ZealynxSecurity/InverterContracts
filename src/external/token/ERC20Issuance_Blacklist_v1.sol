@@ -99,8 +99,6 @@ contract ERC20Issuance_Blacklist_v1 is
     // View Functions
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
-    /// @param	account_ The account to check.
-    /// @return	True if the account is blacklisted.
     function isBlacklisted(address account_) public view returns (bool) {
         return _blacklist[account_];
     }

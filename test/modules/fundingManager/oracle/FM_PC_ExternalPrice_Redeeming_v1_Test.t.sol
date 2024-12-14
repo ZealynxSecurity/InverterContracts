@@ -1234,7 +1234,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Buy some tokens first to have a balance
         uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
         
-        vm.startPrank(address(this));
+        vm.startPrank(admin);
+        fundingManager.closeBuy();
         fundingManager.closeSell();
         vm.stopPrank();
         
@@ -1275,6 +1276,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.expectRevert(abi.encodeWithSignature("Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption()"));
         fundingManager.sell(1, 1);
         vm.stopPrank();
+        console.log("AFTER");
         
         // Restore contract's collateral for next tests
         vm.startPrank(address(this));

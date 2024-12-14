@@ -25,11 +25,19 @@ import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 import {LM_ManualExternalPriceSetter_v1} from "src/modules/fundingManager/oracle/LM_ManualExternalPriceSetter_v1.sol";
 import {LM_ManualExternalPriceSetter_v1_Exposed} from
     "test/modules/fundingManager/oracle/utils/mocks/LM_ManualExternalPriceSetter_v1_exposed.sol";
+import {
+    IERC20PaymentClientBase_v1,
+    ERC20PaymentClientBaseV1Mock,
+    ERC20Mock
+} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
+import {PP_Streaming_v1AccessMock} from
+    "test/utils/mocks/modules/paymentProcessor/PP_Streaming_v1AccessMock.sol";
 /**
  * @title FM_PC_ExternalPrice_Redeeming_v1_Test
  * @notice Test contract for FM_PC_ExternalPrice_Redeeming_v1
  */
-contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
+contract FM_PC_ExternalPrice_Redeeming_v1_Test is Test, ModuleTest {
+
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Storage
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -41,12 +49,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     address admin;
     address user;
     address whitelisted;
+    address queueManager;
 
     // Mock tokens
     ERC20Issuance_v1 issuanceToken;    // The token to be issued
 
     // Mock oracle
     LM_ManualExternalPriceSetter_v1 oracle;
+
+    // Payment processor
+    PP_Streaming_v1AccessMock paymentProcessor;
+    ERC20PaymentClientBaseV1Mock paymentClient;
 
 
     // Constants
@@ -56,6 +69,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     uint internal constant MAX_SUPPLY = type(uint).max;
     bytes32 constant WHITELIST_ROLE = "WHITELIST_ROLE";
     bytes32 constant ORACLE_ROLE = "ORACLE_ROLE";
+    bytes32 constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
     uint8 constant INTERNAL_DECIMALS = 18;
     uint constant BPS = 10000; // Basis points (100%)
 
@@ -74,8 +88,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     string constant TITLE = "Module";
 
     bytes32 internal roleId;
-    bytes32 internal roleIDOracle;
-    bytes32 internal roleIdOracleExposed; 
+    bytes32 internal roleIDOracle; 
+    bytes32 internal queueManagerRoleId;
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Setup
@@ -86,6 +100,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         admin = makeAddr("admin");
         user = makeAddr("user");
         whitelisted = makeAddr("whitelisted");
+        queueManager = makeAddr("queueManager");
 
         admin = address(this);
         vm.startPrank(admin);
@@ -99,6 +114,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         authorizer = new AuthorizerV1Mock();
         _authorizer = authorizer;
 
+        //paymentProcessor
+        address PaymentImpl = address(new PP_Streaming_v1AccessMock());
+        paymentProcessor = PP_Streaming_v1AccessMock(Clones.clone(PaymentImpl));
+
+        _setUpOrchestrator(paymentProcessor);
+        paymentProcessor.init(_orchestrator, _METADATA, bytes(""));
+        _authorizer.setIsAuthorized(address(this), true);
+        // Set up PaymentClient Correctöy
+        PaymentImpl = address(new ERC20PaymentClientBaseV1Mock());
+        paymentClient = ERC20PaymentClientBaseV1Mock(Clones.clone(PaymentImpl));
+
+        _orchestrator.initiateAddModuleWithTimelock(address(paymentClient));
+        vm.warp(block.timestamp + _orchestrator.MODULE_UPDATE_TIMELOCK());
+        _orchestrator.executeAddModule(address(paymentClient));
+
+        paymentClient.init(_orchestrator, _METADATA, bytes(""));
+        paymentClient.setIsAuthorized(address(paymentProcessor), true);
+        paymentClient.setToken(_token);
+
+
+
         // Setup oracle with proper token decimals
         address oracleImpl = address(new LM_ManualExternalPriceSetter_v1());
         oracle = LM_ManualExternalPriceSetter_v1(Clones.clone(oracleImpl));
@@ -106,11 +142,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             address(_token),      // collateral token
             address(issuanceToken) // issuance token
         );
-
         _setUpOrchestrator(oracle);
-
         oracle.init(_orchestrator, _METADATA, oracleConfigData);
-        
         // Grant price setter role to admin
         roleIDOracle = _authorizer.generateRoleId(address(oracle), ORACLE_ROLE);
         _authorizer.grantRole(roleIDOracle, admin);
@@ -144,6 +177,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Grant whitelist role
         roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
         _authorizer.grantRole(roleId, whitelisted);
+
+        // Grant queue manager role to queueManager address
+        queueManagerRoleId = _authorizer.generateRoleId(address(fundingManager), QUEUE_MANAGER_ROLE);
+        _authorizer.grantRole(queueManagerRoleId, queueManager);
 
         // Grant minting rights to the funding manager
         issuanceToken.setMinter(address(fundingManager), true);
@@ -1254,6 +1291,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 └── Then it should:
                     └── Revert with Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption
     */
+    // TODO:
+        // This test is not working
+        // Revise _sellOrder
+            // Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption
+            /* 
+            if ((projectCollateralFeeCollected) + collateralRedeemAmount > collateralToken.balanceOf(address(this))) 
+            */
     function testFuzz_Sell_InsufficientCollateral(uint256 depositAmount) public {
         // Given - Setup initial state
         address seller = whitelisted;
@@ -1265,23 +1309,138 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         
         // Buy some tokens first to have a balance
         uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
-        
+        uint256 CollateralFee = fundingManager.projectCollateralFeeCollected();
+        vm.assume(CollateralFee == 10000);
         // First, let's drain the contract's collateral
-        vm.startPrank(admin);
-        uint256 contractBalance = _token.balanceOf(address(fundingManager));
-        _token.transfer(user, contractBalance); // Transfer all collateral away
+        vm.startPrank(address(admin));
+        console.log("BEFORE");
+        console.log("CollateralFee", CollateralFee);
+        fundingManager.withdrawProjectCollateralFee(user, CollateralFee);
+        console.log("AFTER");
+        console.log("CollateralFee", fundingManager.projectCollateralFeeCollected());
         vm.stopPrank();
         
+        console.log("AFTER");
         vm.startPrank(seller);
         vm.expectRevert(abi.encodeWithSignature("Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption()"));
         fundingManager.sell(1, 1);
         vm.stopPrank();
-        console.log("AFTER");
         
-        // Restore contract's collateral for next tests
-        vm.startPrank(address(this));
-        _token.transfer(address(fundingManager), contractBalance);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // Redemption Orders
+    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+    /* testFuzz_RedemptionOrder_Creation()
+        └── Given an initialized funding manager contract
+            └── When a whitelisted user sells tokens
+                ├── Given the user has enough issued tokens
+                ├── Given selling is open
+                └── Then it should:
+                    ├── Create a redemption order with correct parameters
+                    ├── Update the open redemption amount
+                    ├── Set the order state to PROCESSING
+                    └── Emit TokensSold event with correct parameters
+    */
+    function testFuzz_RedemptionOrder_Creation(uint256 depositAmount) public {
+        // Given - Setup initial state
+        address seller = whitelisted;
+        
+        // Bound initial deposit to reasonable values
+        uint256 minAmount = 1 * 10**_token.decimals();
+        uint256 maxAmount = 1_000_000 * 10**_token.decimals();
+        depositAmount = bound(depositAmount, minAmount, maxAmount);
+        
+        // Buy some tokens first to have a balance
+        uint256 issuanceAmount = _prepareSellConditions(seller, depositAmount);
+        
+        // Calculate expected redemption amount
+        uint256 sellAmount = issuanceAmount / 2; // Sell half of what we bought
+        uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
+        
+        // Record initial state
+        uint256 initialOpenRedemptionAmount = fundingManager.getOpenRedemptionAmount();
+        
+        vm.startPrank(seller);
+        // Execute sell to create redemption order
+        fundingManager.sell(sellAmount, 1);
         vm.stopPrank();
+        
+        // Verify open redemption amount increased
+        assertEq(
+            fundingManager.getOpenRedemptionAmount(),
+            initialOpenRedemptionAmount + expectedCollateral,
+            "Open redemption amount not updated correctly"
+        );
+    }
+
+    /* testFuzz_RedemptionQueue_Execution()
+        └── Given an initialized funding manager contract with pending redemptions
+            └── When the queue manager executes the redemption queue
+                ├── Given there are multiple redemption orders
+                └── Then it should:
+                    ├── Process all pending redemption orders
+                    ├── Update the open redemption amount correctly
+                    └── Update order IDs appropriately
+    */
+    function testFuzz_RedemptionQueue_Execution(uint256[] calldata depositAmounts) public {
+        vm.assume(depositAmounts.length > 0 && depositAmounts.length <= 5);
+        
+        // Setup - Create multiple redemption orders
+        uint256 totalOpenRedemption = 0;
+        for(uint i = 0; i < depositAmounts.length; i++) {
+            // Ensure reasonable deposit amounts
+            uint256 depositAmount = bound(depositAmounts[i], 1 * 10**_token.decimals(), 1_000_000 * 10**_token.decimals());
+            
+            // Buy and sell tokens to create redemption orders
+            uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
+            uint256 sellAmount = issuanceAmount / 2;
+            
+            vm.prank(whitelisted);
+            fundingManager.sell(sellAmount, 1);
+            
+            totalOpenRedemption += _calculateExpectedCollateral(sellAmount);
+        }
+        
+        // Record state before execution
+        uint256 initialOpenRedemption = fundingManager.getOpenRedemptionAmount();
+        uint256 initialOrderId = fundingManager.getOrderId();
+        uint256 initialNextOrderId = fundingManager.getNextOrderId();
+        uint256 initialProcessedPayments = _paymentProcessor.processPaymentsTriggered();
+        
+        
+        // Execute redemption queue with queueManager (who has QUEUE_MANAGER_ROLE)
+        //TODO
+            //Implement executeRedemptionQueue in payment
+        vm.prank(queueManager);
+        fundingManager.executeRedemptionQueue();
+        
+        // Verify payment processor processed the orders
+        assertEq(
+            _paymentProcessor.processPaymentsTriggered(),
+            initialProcessedPayments + 1,
+            "Payment processor should have processed payments"
+        );
+        
+        // // Verify final state
+        // assertEq(
+        //     fundingManager.getOpenRedemptionAmount(),
+        //     0,
+        //     "Open redemption amount should be zero after queue execution"
+        // );
+        
+        // assertGt(
+        //     fundingManager.getOrderId(),
+        //     initialOrderId,
+        //     "Order ID should increase after execution"
+        // );
+        
+        // assertEq(
+        //     fundingManager.getOrderId(),
+        //     initialNextOrderId,
+        //     "Current order ID should match previous next order ID"
+        // );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════

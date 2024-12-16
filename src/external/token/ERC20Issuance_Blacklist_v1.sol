@@ -27,9 +27,11 @@ import {ERC20Capped} from "@oz/token/ERC20/extensions/ERC20Capped.sol";
  *              - Batch blacklisting operations.
  *              - Owner-controlled manager role assignment.
  *              - Blacklist manager controlled blacklist management.
- *              Blacklist operations are performed by accounts with the blacklist manager role,
- *              while the contract owner controls who can be a blacklist manager.
- *          All blacklist operations can only be performed by accounts with the blacklist manager role.
+ *              Blacklist operations are performed by accounts with the
+ *              blacklist manager role, while the contract owner controls who
+ *              can be a blacklist manager.
+ *          All blacklist operations can only be performed by accounts with the
+ *          blacklist manager role.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to

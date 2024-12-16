@@ -72,7 +72,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     // External Functions
 
     /// @notice Checks if an address is blacklisted.
-    /// @param account_ The address to check.
+    /// @param  account_ The address to check.
     /// @return isBlacklisted_ True if address is blacklisted.
     function isBlacklisted(address account_)
         external

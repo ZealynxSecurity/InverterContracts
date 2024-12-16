@@ -325,6 +325,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
         ThirdPartyOperationsEnabled
+        buyingIsEnabled
     {
         super.buyFor(receiver_, depositAmount_, minAmountOut_);
     }
@@ -334,6 +335,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
+        sellingIsEnabled
     {
         _sellOrder(_msgSender(), depositAmount_, minAmountOut_);
     }
@@ -344,6 +346,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
         ThirdPartyOperationsEnabled
+        sellingIsEnabled
     {
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }

@@ -407,7 +407,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
-    function getBuyFee() public view returns (uint) {
+    function getBuyFee() public view returns (uint buyFee_) {
         return buyFee;
     }
 
@@ -588,7 +588,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+            _receiver,
+            _depositAmount,
+            collateralRedeemAmount,
+            issuanceFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);

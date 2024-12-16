@@ -138,16 +138,16 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     function getOrderId() external view returns (uint orderId_);
 
     /// @notice Gets the project treasury address.
-    /// @return address_ The address of the project treasury.
-    function getProjectTreasury() external view returns (address);
+    /// @return treasury_ The address of the project treasury.
+    function getProjectTreasury() external view returns (address treasury_);
 
     /// @notice Gets the direct operations only flag.
-    /// @return Whether only direct operations are allowed.
-    function getIsDirectOperationsOnly() external view returns (bool);
+    /// @return isDirectOnly_ Whether only direct operations are allowed.
+    function getIsDirectOperationsOnly() external view returns (bool isDirectOnly_);
 
     /// @notice Gets current buy fee.
-    /// @return buyFee The current buy fee.
-    function getBuyFee() external view returns (uint);
+    /// @return buyFee_ The current buy fee.
+    function getBuyFee() external view returns (uint buyFee_);
 
     /// @notice Gets the maximum fee that can be charged for buy operations.
     /// @return maxBuyFee_ The maximum buy fee.
@@ -162,8 +162,8 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         returns (uint maxProjectSellFee_);
 
     /// @notice Gets current sell fee.
-    /// @return sellFee The current sell fee.
-    function getSellFee() external view returns (uint);
+    /// @return fee_ The current sell fee.
+    function getSellFee() external view returns (uint fee_);
 
     // -------------------------------------------------------------------------
     // External Functions

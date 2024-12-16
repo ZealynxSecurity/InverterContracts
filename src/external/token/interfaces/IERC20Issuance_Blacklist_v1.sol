@@ -64,7 +64,9 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     error ERC20Issuance_Blacklist_BlacklistedAddress(address account_);
 
     /// @notice Thrown when batch operation exceeds the maximum allowed size
-    error ERC20Issuance_Blacklist_BatchLimitExceeded(uint provided_, uint limit_);
+    error ERC20Issuance_Blacklist_BatchLimitExceeded(
+        uint provided_, uint limit_
+    );
 
     //--------------------------------------------------------------------------
     // External Functions
@@ -98,8 +100,8 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @notice Adds multiple addresses to the blacklist.
     /// @param  accounts_ Array of addresses to the blacklist.
     /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress
-    ///         The array size should not exceed the block gas limit. Consider 
-    ///         using smaller batches (e.g., 100-200 addresses) to ensure 
+    ///         The array size should not exceed the block gas limit. Consider
+    ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
     function addToBlacklistBatchAddresses(address[] calldata accounts_)
         external;
@@ -107,8 +109,8 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     /// @notice Removes multiple addresses from the blacklist.
     /// @param  accounts_ Array of addresses to remove.
     /// @dev    May revert with ERC20Issuance_Blacklist_ZeroAddress
-    ///         The array size should not exceed the block gas limit. Consider 
-    ///         using smaller batches (e.g., 100-200 addresses) to ensure 
+    ///         The array size should not exceed the block gas limit. Consider
+    ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
     function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
         external;

@@ -7,6 +7,8 @@ import {ILM_ManualExternalPriceSetter_v1} from
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
+import {IOraclePrice_v1} from
+    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 
 // External
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
@@ -29,11 +31,11 @@ import {ERC165Upgradeable} from
  *          non-zero values.
  *
  *          Price Context:
- *              - Prices are stored internally with 18 decimals for consistent 
+ *              - Prices are stored internally with 18 decimals for consistent
  *                math
- *              - When setting prices: Input values should be in collateral 
+ *              - When setting prices: Input values should be in collateral
  *                token decimals
- *              - When getting prices: Output values will be in issuance 
+ *              - When getting prices: Output values will be in issuance
  *                token decimals
  *
  * @custom:security-contact security@inverter.network
@@ -51,6 +53,18 @@ contract LM_ManualExternalPriceSetter_v1 is
     ILM_ManualExternalPriceSetter_v1,
     Module_v1
 {
+    /// @inheritdoc ERC165Upgradeable
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        override
+        returns (bool)
+    {
+        return interfaceId == type(ILM_ManualExternalPriceSetter_v1).interfaceId
+            || interfaceId == type(IOraclePrice_v1).interfaceId
+            || super.supportsInterface(interfaceId);
+    }
+
     // -------------------------------------------------------------------------
     // Constants
 
@@ -58,7 +72,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This role should be granted to trusted price feeders only
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
-    /// @notice Number of decimal places used for internal price 
+    /// @notice Number of decimal places used for internal price
     ///         representation
     /// @dev    All prices are normalized to this precision for consistent
     ///         calculations regardless of input/output token decimals.
@@ -107,26 +121,12 @@ contract LM_ManualExternalPriceSetter_v1 is
     }
 
     //--------------------------------------------------------------------------
-    // Interface Support
-
-    /// @inheritdoc ERC165Upgradeable
-    function supportsInterface(bytes4 interfaceId)
-        public
-        view
-        override
-        returns (bool)
-    {
-        return interfaceId == type(ILM_ManualExternalPriceSetter_v1).interfaceId
-            || super.supportsInterface(interfaceId);
-    }
-
-    //--------------------------------------------------------------------------
     // External Functions
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    /// @dev    The price_ parameter should be provided with the same number 
-    ///         of decimals as the collateral token. For example, if the 
-    ///         collateral token has 6 decimals and the price is 1.5, input 
+    /// @dev    The price_ parameter should be provided with the same number
+    ///         of decimals as the collateral token. For example, if the
+    ///         collateral token has 6 decimals and the price is 1.5, input
     ///         should be 1500000.
     function setIssuancePrice(uint price_)
         external
@@ -186,7 +186,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Normalizes a price from token decimals to internal decimals
     /// @param  price_ The price to normalize
-    /// @param  tokenDecimals_ The decimals of the token the price is 
+    /// @param  tokenDecimals_ The decimals of the token the price is
     ///         denominated in
     /// @return The normalized price with INTERNAL_DECIMALS precision
     function _normalizePrice(uint price_, uint8 tokenDecimals_)

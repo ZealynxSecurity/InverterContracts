@@ -144,7 +144,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return maxBuyFee_ The maximum buy fee.
     function getMaxBuyFee() external view returns (uint maxBuyFee_);
 
-    /// @notice Gets the maximum project fee that can be charged for sell 
+    /// @notice Gets the maximum project fee that can be charged for sell
     ///         operations.
     /// @return maxProjectSellFee_ The maximum project sell fee percentage.
     function getMaxProjectSellFee()

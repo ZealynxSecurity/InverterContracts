@@ -49,7 +49,7 @@ import {ERC165Upgradeable} from
  *          Key features:
  *              - External price integration
  *              - Payment client functionality
- *          The contract uses external price feeds for both issuance and 
+ *          The contract uses external price feeds for both issuance and
  *          redemption operations, ensuring market-aligned token pricing.
  *
  * @custom:security-contact security@inverter.network
@@ -98,32 +98,32 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // State Variables
 
     /// @notice Oracle price feed contract used for price discovery.
-    /// @dev    Contract that provides external price information for token 
+    /// @dev    Contract that provides external price information for token
     ///         valuation.
     IOraclePrice_v1 private _oracle;
 
     /// @notice Token that is accepted by this funding manager for deposits.
-    /// @dev    The ERC20 token contract used for collateral in this funding 
+    /// @dev    The ERC20 token contract used for collateral in this funding
     ///         manager.
     IERC20 private _token;
 
     /// @notice Token decimals of the issuance token.
-    /// @dev    Number of decimal places used by the issuance token for proper 
+    /// @dev    Number of decimal places used by the issuance token for proper
     ///         decimal handling.
     uint8 private _issuanceTokenDecimals;
 
     /// @notice Token decimals of the Orchestrator token.
-    /// @dev    Number of decimal places used by the collateral token for proper 
+    /// @dev    Number of decimal places used by the collateral token for proper
     ///         decimal handling.
     uint8 private _collateralTokenDecimals;
 
-    /// @notice Maximum fee that can be charged for sell operations, in basis 
+    /// @notice Maximum fee that can be charged for sell operations, in basis
     ///         points.
-    /// @notice Maximum allowed project fee percentage that can be charged when 
+    /// @notice Maximum allowed project fee percentage that can be charged when
     ///         selling tokens.
     uint private _maxProjectSellFee;
 
-    /// @notice Maximum fee that can be charged for buy operations, in basis 
+    /// @notice Maximum fee that can be charged for buy operations, in basis
     ///         points.
     /// @dev    Maximum allowed project fee percentage for buying tokens.
     uint private _maxBuyFee;
@@ -144,7 +144,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Flag indicating if direct operations are only allowed.
     bool private _isDirectOperationsOnly;
 
-    /// @notice Address of the project treasury which will receive the 
+    /// @notice Address of the project treasury which will receive the
     ///         collateral tokens
     address private _projectTreasury;
 
@@ -442,8 +442,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // Internal Functions
 
     /// @notice Creates and emits a new redemption order.
-    /// @dev    This function wraps the `_createAndEmitOrder` internal function 
-    ///         with specified parameters to handle the transaction and direct 
+    /// @dev    This function wraps the `_createAndEmitOrder` internal function
+    ///         with specified parameters to handle the transaction and direct
     ///         the proceeds.
     /// @param  receiver_ The address that will receive the redeemed tokens.
     /// @param  depositAmount_ The amount of tokens to be sold.
@@ -535,8 +535,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint projectFeeAmount;
         uint netDeposit;
 
-        // Get net amount, protocol and project fee amounts. Currently there is no
-        // issuance project fee enabled
+        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
+        // fee enabled
         (netDeposit, protocolFeeAmount, /* projectFee */ ) =
         _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
 
@@ -550,16 +550,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Burn issued token from user
         _burn(_msgSender(), _depositAmount);
 
-        // Process the protocol fee. We can re-mint some of the burned tokens, since
-        // we aren't paying out the backing collateral
+        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
+        // the backing collateral
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
         // Cache Collateral Token
         IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
 
-        // Require that enough collateral token is held to cover the fee amount
+        // Require that enough collateral token is held to be redeemable
         if (
-            (projectCollateralFeeCollected)
+            (collateralRedeemAmount + projectCollateralFeeCollected)
                 > collateralToken.balanceOf(address(this))
         ) {
             revert
@@ -573,7 +573,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             collateralRedeemAmount, collateralSellFeePercentage, sellFee
         );
         // Process the protocol fee
-        // Protocol fee is not charged for redemption in this implementation
         _processProtocolFeeViaTransfer(
             collateralTreasury, collateralToken, protocolFeeAmount
         );
@@ -599,8 +598,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
     }
 
-    /// @dev    Internal function which only emits the event for amount of 
-    ///         project fee collected. The contract does not hold collateral 
+    /// @dev    Internal function which only emits the event for amount of
+    ///         project fee collected. The contract does not hold collateral
     ///         as the payout is managed through a redemption queue.
     /// @param  _projectFeeAmount The amount of fee collected.
     function _projectFeeCollected(uint _projectFeeAmount)
@@ -659,8 +658,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @dev    Sets the issuance token.
-    ///         This function overrides the internal function set in 
-    ///         {BondingCurveBase_v1}, and it updates the `issuanceToken` state 
+    ///         This function overrides the internal function set in
+    ///         {BondingCurveBase_v1}, and it updates the `issuanceToken` state
     ///         variable and caches the decimals as `_issuanceTokenDecimals`.
     /// @param  issuanceToken_ The token which will be issued by the Bonding Curve.
     function _setIssuanceToken(address issuanceToken_)
@@ -675,7 +674,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Sets the oracle address
-    /// @dev    May revert with 
+    /// @dev    May revert with
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
     /// @param oracleAddress_ The address of the oracle
     function _setOracleAddress(address oracleAddress_) internal {
@@ -723,7 +722,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc RedeemingBondingCurveBase_v1
-    /// @dev    Implementation does not transfer collateral tokens to recipient 
+    /// @dev    Implementation does not transfer collateral tokens to recipient
     ///         as the payout is managed through a redemption queue.
     function _handleCollateralTokensAfterSell(address recipient_, uint amount_)
         internal

@@ -89,9 +89,7 @@ contract ERC20Issuance_Blacklist_v1 is
         uint maxSupply_,
         address initialAdmin_,
         address initialBlacklistManager_
-    )
-        ERC20Issuance_v1(name_, symbol_, decimals_, maxSupply_, initialAdmin_)
-    {
+    ) ERC20Issuance_v1(name_, symbol_, decimals_, maxSupply_, initialAdmin_) {
         _setBlacklistManager(initialBlacklistManager_, true);
     }
 

@@ -676,7 +676,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the oracle address
     /// @dev    May revert with
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
-    /// @param oracleAddress_ The address of the oracle
+    /// @param  oracleAddress_ The address of the oracle
     function _setOracleAddress(address oracleAddress_) internal {
         if (
             !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(

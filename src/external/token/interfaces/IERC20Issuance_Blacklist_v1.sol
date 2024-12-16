@@ -39,7 +39,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     // Events
 
     /// @notice Emitted when an address is added to the blacklist
-    /// @param account_ The address that was blacklisted
+    /// @param  account_ The address that was blacklisted.
     event AddedToBlacklist(address indexed account_);
 
     /// @notice Emitted when an address is removed from the blacklist

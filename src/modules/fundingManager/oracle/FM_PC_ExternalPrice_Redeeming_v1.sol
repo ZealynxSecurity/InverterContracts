@@ -25,12 +25,12 @@ import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
@@ -73,7 +73,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         view
         override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
-        returns (bool)
+        returns (bool isSupported_)
     {
         return interfaceId_
             == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
@@ -87,12 +87,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @dev    Value is used to convert deposit amount to 18 decimals.
     uint8 private constant EIGHTEEN_DECIMALS = 18;
-
-    /// @notice Role for whitelisted addresses.
-    bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
-
-    /// @notice Role for payment queue.
-    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
 
     // -------------------------------------------------------------------------
     // State Variables

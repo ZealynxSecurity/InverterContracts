@@ -68,7 +68,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ERC20PaymentClientBase_v1,
     RedeemingBondingCurveBase_v1
 {
-    /// @inheritdoc ERC165Upgradeable.
+    /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId_)
         public
         view
@@ -87,6 +87,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @dev    Value is used to convert deposit amount to 18 decimals.
     uint8 private constant EIGHTEEN_DECIMALS = 18;
+
+    // -------------------------------------------------------------------------
+    // Constants
+
+    /// @notice Role for whitelist management.
+    bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
+
+    /// @notice Role for payment queue management.
+    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -160,7 +169,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Initialization Function
 
-    /// @inheritdoc Module_v1.
+    /// @inheritdoc Module_v1
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
@@ -221,12 +230,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc IFundingManager_v1.
+    /// @inheritdoc IFundingManager_v1
     function token() public view override returns (IERC20 token_) {
         return _token;
     }
 
-    /// @inheritdoc IBondingCurveBase_v1.
+    /// @inheritdoc IBondingCurveBase_v1
     function getStaticPriceForBuying()
         public
         view
@@ -236,7 +245,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForIssuance();
     }
 
-    /// @inheritdoc IRedeemingBondingCurveBase_v1.
+    /// @inheritdoc IRedeemingBondingCurveBase_v1
     function getStaticPriceForSelling()
         public
         view
@@ -246,27 +255,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForRedemption();
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getOpenRedemptionAmount() external view returns (uint amount_) {
         return _openRedemptionAmount;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getNextOrderId() external view returns (uint orderId_) {
         return _nextOrderId;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getOrderId() external view returns (uint orderId_) {
         return _orderId;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getProjectTreasury() external view returns (address treasury_) {
         return _projectTreasury;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getIsDirectOperationsOnly() public view returns (bool isDirectOnly_) {
         return _isDirectOperationsOnly;
     }
@@ -274,7 +283,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function depositReserve(uint amount_) external {
         if (amount_ == 0) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
@@ -286,7 +295,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit ReserveDeposited(_msgSender(), amount_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
@@ -304,7 +313,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Public Functions
 
-    /// @inheritdoc BondingCurveBase_v1.
+    /// @inheritdoc BondingCurveBase_v1
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -314,7 +323,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super.buyFor(_msgSender(), collateralAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc BondingCurveBase_v1.
+    /// @inheritdoc BondingCurveBase_v1
     function buyFor(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -325,7 +334,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super.buyFor(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc RedeemingBondingCurveBase_v1.
+    /// @inheritdoc RedeemingBondingCurveBase_v1
     function sell(uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -335,7 +344,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(_msgSender(), depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc RedeemingBondingCurveBase_v1.
+    /// @inheritdoc RedeemingBondingCurveBase_v1
     function sellTo(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -346,7 +355,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc IFundingManager_v1.
+    /// @inheritdoc IFundingManager_v1
     function transferOrchestratorToken(address to_, uint amount_)
         external
         onlyPaymentClient
@@ -356,7 +365,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @inheritdoc IRedeemingBondingCurveBase_v1.
+    /// @inheritdoc IRedeemingBondingCurveBase_v1
     function setSellFee(uint fee_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -372,12 +381,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setSellFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getSellFee() public view returns (uint fee_) {
         return sellFee;
     }
 
-    /// @inheritdoc IBondingCurveBase_v1.
+    /// @inheritdoc IBondingCurveBase_v1
     function setBuyFee(uint fee_)
         external
         override(BondingCurveBase_v1)
@@ -393,7 +402,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setBuyFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function setProjectTreasury(address projectTreasury_)
         external
         onlyOrchestratorAdmin
@@ -401,22 +410,22 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setProjectTreasury(projectTreasury_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function setOracleAddress(address oracle_) external onlyOrchestratorAdmin {
         _setOracleAddress(oracle_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getBuyFee() public view returns (uint buyFee_) {
         return buyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getMaxBuyFee() public view returns (uint maxBuyFee_) {
         return _maxBuyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getMaxProjectSellFee()
         public
         view
@@ -425,7 +434,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _maxProjectSellFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         public
         onlyOrchestratorAdmin
@@ -700,7 +709,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _projectTreasury = projectTreasury_;
     }
 
-    /// @inheritdoc BondingCurveBase_v1.
+    /// @inheritdoc BondingCurveBase_v1
     function _handleIssuanceTokensAfterBuy(address recipient_, uint amount_)
         internal
         virtual
@@ -710,7 +719,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         IERC20Issuance_v1(issuanceToken).mint(recipient_, amount_);
     }
 
-    /// @inheritdoc BondingCurveBase_v1.
+    /// @inheritdoc BondingCurveBase_v1
     /// @dev    Implementation transfer collateral tokens to the project treasury.
     function _handleCollateralTokensBeforeBuy(address _provider, uint _amount)
         internal

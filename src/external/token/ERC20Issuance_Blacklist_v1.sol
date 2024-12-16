@@ -99,12 +99,12 @@ contract ERC20Issuance_Blacklist_v1 is
     // -------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc	IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc	IERC20Issuance_Blacklist_v1
     function isBlacklisted(address account_) public view returns (bool) {
         return _blacklist[account_];
     }
 
-    /// @inheritdoc	IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc	IERC20Issuance_Blacklist_v1
     function isBlacklistManager(address account_) public view returns (bool) {
         return _isBlacklistManager[account_];
     }
@@ -112,7 +112,7 @@ contract ERC20Issuance_Blacklist_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function addToBlacklist(address account_) public onlyBlacklistManager {
         if (account_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
@@ -123,7 +123,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklist(address account_)
         public
         onlyBlacklistManager
@@ -137,7 +137,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function addToBlacklistBatched(address[] memory accounts_)
         external
         onlyBlacklistManager
@@ -153,7 +153,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklistBatched(address[] memory accounts_)
         external
         onlyBlacklistManager
@@ -169,7 +169,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
     }
 
-    /// @inheritdoc IERC20Issuance_Blacklist_v1.
+    /// @inheritdoc IERC20Issuance_Blacklist_v1
     function setBlacklistManager(address manager_, bool allowed_)
         external
         onlyOwner
@@ -185,7 +185,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @param  from_ Address tokens are transferred from.
     /// @param  to_ Address tokens are transferred to.
     /// @param  amount_ Number of tokens to transfer.
-    /// @inheritdoc ERC20Capped.
+    /// @inheritdoc ERC20Capped
     function _update(address from_, address to_, uint amount_)
         internal
         override(ERC20Capped)

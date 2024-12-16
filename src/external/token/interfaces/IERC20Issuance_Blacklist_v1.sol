@@ -103,7 +103,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     ///         The array size should not exceed the block gas limit. Consider
     ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
-    function addToBlacklistBatchAddresses(address[] calldata accounts_)
+    function addToBlacklistBatched(address[] calldata accounts_)
         external;
 
     /// @notice Removes multiple addresses from the blacklist.
@@ -112,7 +112,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     ///         The array size should not exceed the block gas limit. Consider
     ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
-    function removeFromBlacklistBatchAddresses(address[] calldata accounts_)
+    function removeFromBlacklistBatched(address[] calldata accounts_)
         external;
 
     /// @notice Sets or revokes blacklist manager role for an address.

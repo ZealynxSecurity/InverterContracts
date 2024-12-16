@@ -43,15 +43,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     IRedeemingBondingCurveBase_v1
 {
     // -------------------------------------------------------------------------
-    // Constants
-
-    /// @notice Role for whitelist management.
-    bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
-
-    /// @notice Role for payment queue management.
-    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
-
-    // -------------------------------------------------------------------------
     // Type Declarations
 
     // Enum for redemption order states.

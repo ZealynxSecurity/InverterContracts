@@ -53,7 +53,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     ILM_ManualExternalPriceSetter_v1,
     Module_v1
 {
-    /// @inheritdoc ERC165Upgradeable.
+    /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId)
         public
         view
@@ -103,7 +103,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // Initialization
 
-    /// @inheritdoc Module_v1.
+    /// @inheritdoc Module_v1
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
@@ -123,7 +123,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1.
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
@@ -135,7 +135,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         emit IssuancePriceSet(price_, block.timestamp);
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1.
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setRedemptionPrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)

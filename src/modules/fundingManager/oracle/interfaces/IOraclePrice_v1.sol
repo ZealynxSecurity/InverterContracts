@@ -16,7 +16,7 @@ pragma solidity ^0.8.0;
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   v1.0.0
+ * @custom:version  v1.0.0
  *
  * @custom:standard-version  v1.0.0
  *

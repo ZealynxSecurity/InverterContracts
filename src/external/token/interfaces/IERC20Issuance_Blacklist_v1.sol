@@ -47,8 +47,8 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     event RemovedFromBlacklist(address indexed account_);
 
     /// @notice Emitted when a blacklist manager role is granted or revoked
-    /// @param account_ The address that was granted or revoked the role
-    /// @param allowed_ Whether the role was granted (true) or revoked (false)
+    /// @param  account_ The address that was granted or revoked the role
+    /// @param  allowed_ Whether the role was granted (true) or revoked (false)
     event BlacklistManagerUpdated(address indexed account_, bool allowed_);
 
     //--------------------------------------------------------------------------

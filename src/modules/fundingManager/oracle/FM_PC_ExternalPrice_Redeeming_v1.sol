@@ -616,7 +616,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @notice Sets the maximum fee that can be charged for sell operations.
-    /// @param fee_ The maximum fee percentage to set.
+    /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectSellFee(uint fee_) internal {
         _maxProjectSellFee = fee_;
     }

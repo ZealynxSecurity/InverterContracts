@@ -149,7 +149,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // Modifiers
 
     /// @notice Modifier to check if only direct operations are allowed.
-    modifier ThirdPartyOperationsEnabled() {
+    modifier thirdPartyOperationsEnabled() {
         if (_isDirectOperationsOnly) {
             revert
                 Module__FM_PC_ExternalPrice_Redeeming_ThirdPartyOperationsDisabled();
@@ -309,6 +309,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
+        buyingIsEnabled
     {
         super.buyFor(_msgSender(), collateralAmount_, minAmountOut_);
     }
@@ -318,7 +319,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
-        ThirdPartyOperationsEnabled
+        thirdPartyOperationsEnabled
         buyingIsEnabled
     {
         super.buyFor(receiver_, depositAmount_, minAmountOut_);
@@ -339,7 +340,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
-        ThirdPartyOperationsEnabled
+        thirdPartyOperationsEnabled
         sellingIsEnabled
     {
         _sellOrder(receiver_, depositAmount_, minAmountOut_);

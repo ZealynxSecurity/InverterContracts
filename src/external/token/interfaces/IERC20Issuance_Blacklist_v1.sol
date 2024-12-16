@@ -12,8 +12,8 @@ import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
  *          addresses from participating in token operations.
  *
  * @dev     This contract inherits from:
- *              - IERC20Issuance_Blacklist_v1
- *              - ERC20Issuance_v1
+ *              - IERC20Issuance_Blacklist_v1.
+ *              - ERC20Issuance_v1.
  *          Key features:
  *              - Individual address blacklisting.
  *              - Batch blacklisting operations.
@@ -35,40 +35,40 @@ import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
  * @author  Zealynx Security
  */
 interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Events
 
-    /// @notice Emitted when an address is added to the blacklist
+    /// @notice Emitted when an address is added to the blacklist.
     /// @param  account_ The address that was blacklisted.
     event AddedToBlacklist(address indexed account_);
 
-    /// @notice Emitted when an address is removed from the blacklist
-    /// @param  account_ The address that was removed from blacklist
+    /// @notice Emitted when an address is removed from the blacklist.
+    /// @param  account_ The address that was removed from blacklist.
     event RemovedFromBlacklist(address indexed account_);
 
-    /// @notice Emitted when a blacklist manager role is granted or revoked
-    /// @param  account_ The address that was granted or revoked the role
-    /// @param  allowed_ Whether the role was granted (true) or revoked (false)
+    /// @notice Emitted when a blacklist manager role is granted or revoked.
+    /// @param  account_ The address that was granted or revoked the role.
+    /// @param  allowed_ Whether the role was granted (true) or revoked (false).
     event BlacklistManagerUpdated(address indexed account_, bool allowed_);
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // Errors
 
-    /// @notice Thrown when attempting to blacklist the zero address
+    /// @notice Thrown when attempting to blacklist the zero address.
     error ERC20Issuance_Blacklist_ZeroAddress();
 
-    /// @notice Thrown when caller does not have blacklist manager role
+    /// @notice Thrown when caller does not have blacklist manager role.
     error ERC20Issuance_Blacklist_NotBlacklistManager();
 
-    /// @notice Thrown when attempting to mint tokens to a blacklisted address
+    /// @notice Thrown when attempting to mint tokens to a blacklisted address.
     error ERC20Issuance_Blacklist_BlacklistedAddress(address account_);
 
-    /// @notice Thrown when batch operation exceeds the maximum allowed size
+    /// @notice Thrown when batch operation exceeds the maximum allowed size.
     error ERC20Issuance_Blacklist_BatchLimitExceeded(
         uint provided_, uint limit_
     );
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @notice Checks if an address is blacklisted.

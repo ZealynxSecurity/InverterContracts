@@ -9,20 +9,20 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 
 /**
- * @title   External Price Funding Manager Interface
+ * @title   External Price Funding Manager Interface.
  *
  * @notice  Interface for a funding manager that uses external price feeds for token
  *          operations, integrating payment client functionality and supporting
  *          token redemption mechanisms.
  *
  * @dev     This interface inherits from:
- *              - IFundingManager_v1
- *              - IERC20PaymentClientBase_v1
- *              - IRedeemingBondingCurveBase_v1
+ *              - IFundingManager_v1.
+ *              - IERC20PaymentClientBase_v1.
+ *              - IRedeemingBondingCurveBase_v1.
  *          Key operations:
- *              - Token buying with collateral
- *              - Token selling through creation of payment orders
- *              - Price calculations for tokens and collateral
+ *              - Token buying with collateral.
+ *              - Token selling through creation of payment orders.
+ *              - Price calculations for tokens and collateral.
  *          All operations must respect external price feeds and access control
  *          mechanisms defined in the implementation.
  *
@@ -45,7 +45,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Type Declarations
 
-    // Enum for redemption order states
+    // Enum for redemption order states.
     enum RedemptionState {
         COMPLETED,
         CANCELLED,
@@ -55,7 +55,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Errors
 
-    /// @notice	Thrown when an invalid amount is provided
+    /// @notice	Thrown when an invalid amount is provided.
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
 
     /// @param	fee_ The fee that was attempted to be set.

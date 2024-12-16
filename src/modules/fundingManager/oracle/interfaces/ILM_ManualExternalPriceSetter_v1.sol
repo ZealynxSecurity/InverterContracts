@@ -6,7 +6,7 @@ import {IOraclePrice_v1} from
     "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 
 /**
- * @title   Manual External Price Oracle Interface
+ * @title   Manual External Price Oracle Interface.
  *
  * @notice  Interface for the manual price feed mechanism that allows setting
  *          and updating prices for token issuance and redemption operations.
@@ -53,10 +53,18 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     // External Functions
 
     /// @notice	Sets the issuance price.
+    /// @dev    The price_ parameter should be provided with the same number
+    ///         of decimals as the collateral token. For example, if the
+    ///         collateral token has 6 decimals and the price is 1.5, input
+    ///         should be 1500000.
     /// @param	price_ The price to set.
     function setIssuancePrice(uint price_) external;
 
     /// @notice	Sets the redemption price.
+    /// @dev    The price_ parameter should be provided with the same number of
+    ///         decimals as the issuance token. For example, if the issuance
+    ///         token has 18 decimals and the price is 1.5, input should be
+    ///         1500000000000000000.
     /// @param	price_ The price to set.
     function setRedemptionPrice(uint price_) external;
 }

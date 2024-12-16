@@ -35,7 +35,7 @@ import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
- * @title   External Price Oracle Funding Manager with Payment Client
+ * @title   External Price Oracle Funding Manager with Payment Client.
  *
  * @notice  A funding manager implementation that uses external oracle price
  *          feeds for token operations. It integrates payment client
@@ -43,12 +43,12 @@ import {ERC165Upgradeable} from
  *          mechanism.
  *
  * @dev     This contract inherits from:
- *              - IFM_PC_ExternalPrice_Redeeming_v1
- *              - ERC20PaymentClientBase_v1
- *              - RedeemingBondingCurveBase_v1
+ *              - IFM_PC_ExternalPrice_Redeeming_v1.
+ *              - ERC20PaymentClientBase_v1.
+ *              - RedeemingBondingCurveBase_v1.
  *          Key features:
- *              - External price integration
- *              - Payment client functionality
+ *              - External price integration.
+ *              - Payment client functionality.
  *          The contract uses external price feeds for both issuance and
  *          redemption operations, ensuring market-aligned token pricing.
  *
@@ -68,7 +68,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ERC20PaymentClientBase_v1,
     RedeemingBondingCurveBase_v1
 {
-    /// @inheritdoc ERC165Upgradeable
+    /// @inheritdoc ERC165Upgradeable.
     function supportsInterface(bytes4 interfaceId_)
         public
         view
@@ -145,7 +145,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     bool private _isDirectOperationsOnly;
 
     /// @notice Address of the project treasury which will receive the
-    ///         collateral tokens
+    ///         collateral tokens.
     address private _projectTreasury;
 
     /// @dev    Storage gap for future upgrades.
@@ -166,13 +166,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Initialization Function
 
-    /// @inheritdoc Module_v1
+    /// @inheritdoc Module_v1.
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
         bytes memory configData_
     ) external override(Module_v1) initializer {
-        // Initialize base module
+        // Initialize base module.
         __Module_init(orchestrator_, metadata_);
 
         // Decode config data.
@@ -190,16 +190,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             (address, address, address, uint, uint, uint, uint, bool)
         );
 
-        // Set accepted token
+        // Set accepted token.
         _token = IERC20(acceptedToken_);
 
-        // Cache token decimals for collateral
+        // Cache token decimals for collateral.
         _collateralTokenDecimals = IERC20Metadata(address(_token)).decimals();
 
-        // Initialize base functionality (should handle token settings)
+        // Initialize base functionality (should handle token settings).
         _setIssuanceToken(issuanceToken_);
 
-        // Checking for valid fees
+        // Checking for valid fees.
         if (buyFee_ > maxBuyFee_) {
             revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
                 buyFee_, maxBuyFee_
@@ -210,29 +210,29 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
                 sellFee_, maxSellFee_
             );
         }
-        // Set project treasury
+        // Set project treasury.
         _setProjectTreasury(projectTreasury_);
 
-        // Set fees
+        // Set fees.
         _setBuyFee(buyFee_);
         _setSellFee(sellFee_);
 
         _setMaxBuyFee(maxBuyFee_);
         _setMaxProjectSellFee(maxSellFee_);
 
-        // Set direct operations only flag
+        // Set direct operations only flag.
         setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     // -------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc IFundingManager_v1
+    /// @inheritdoc IFundingManager_v1.
     function token() public view override returns (IERC20) {
         return _token;
     }
 
-    /// @inheritdoc IBondingCurveBase_v1
+    /// @inheritdoc IBondingCurveBase_v1.
     function getStaticPriceForBuying()
         public
         view
@@ -242,7 +242,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForIssuance();
     }
 
-    /// @inheritdoc IRedeemingBondingCurveBase_v1
+    /// @inheritdoc IRedeemingBondingCurveBase_v1.
     function getStaticPriceForSelling()
         public
         view
@@ -252,27 +252,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForRedemption();
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getOpenRedemptionAmount() external view returns (uint amount_) {
         return _openRedemptionAmount;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getNextOrderId() external view returns (uint orderId_) {
         return _nextOrderId;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getOrderId() external view returns (uint orderId_) {
         return _orderId;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getProjectTreasury() external view returns (address) {
         return _projectTreasury;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getIsDirectOperationsOnly() public view returns (bool) {
         return _isDirectOperationsOnly;
     }
@@ -280,19 +280,19 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function depositReserve(uint amount_) external {
         if (amount_ == 0) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
         }
 
-        // Transfer collateral from sender to FM
+        // Transfer collateral from sender to FM.
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
 
         emit ReserveDeposited(_msgSender(), amount_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function executeRedemptionQueue()
         external
         override(IFM_PC_ExternalPrice_Redeeming_v1)
@@ -310,7 +310,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Public Functions
 
-    /// @inheritdoc BondingCurveBase_v1
+    /// @inheritdoc BondingCurveBase_v1.
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -319,7 +319,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super.buyFor(_msgSender(), collateralAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc BondingCurveBase_v1
+    /// @inheritdoc BondingCurveBase_v1.
     function buyFor(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(BondingCurveBase_v1)
@@ -330,7 +330,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super.buyFor(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @inheritdoc RedeemingBondingCurveBase_v1.
     function sell(uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -340,7 +340,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(_msgSender(), depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc RedeemingBondingCurveBase_v1
+    /// @inheritdoc RedeemingBondingCurveBase_v1.
     function sellTo(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -351,7 +351,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc IFundingManager_v1
+    /// @inheritdoc IFundingManager_v1.
     function transferOrchestratorToken(address to_, uint amount_)
         external
         onlyPaymentClient
@@ -361,7 +361,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @inheritdoc IRedeemingBondingCurveBase_v1
+    /// @inheritdoc IRedeemingBondingCurveBase_v1.
     function setSellFee(uint fee_)
         public
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
@@ -377,18 +377,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setSellFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getSellFee() public view returns (uint) {
         return sellFee;
     }
 
-    /// @inheritdoc IBondingCurveBase_v1
+    /// @inheritdoc IBondingCurveBase_v1.
     function setBuyFee(uint fee_)
         external
         override(BondingCurveBase_v1)
         onlyOrchestratorAdmin
     {
-        // Check that fee doesn't exceed maximum allowed
+        // Check that fee doesn't exceed maximum allowed.
         if (fee_ > _maxBuyFee) {
             revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
                 fee_, _maxBuyFee
@@ -398,7 +398,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super._setBuyFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function setProjectTreasury(address projectTreasury_)
         external
         onlyOrchestratorAdmin
@@ -406,22 +406,22 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setProjectTreasury(projectTreasury_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function setOracleAddress(address oracle_) external onlyOrchestratorAdmin {
         _setOracleAddress(oracle_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getBuyFee() public view returns (uint) {
         return buyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getMaxBuyFee() public view returns (uint) {
         return _maxBuyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function getMaxProjectSellFee()
         public
         view
@@ -430,7 +430,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _maxProjectSellFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         public
         onlyOrchestratorAdmin
@@ -521,7 +521,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
-        // Get protocol fee percentages and treasury addresses
+        // Get protocol fee percentages and treasury addresses.
         (
             address collateralTreasury,
             address issuanceTreasury,
@@ -536,28 +536,28 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint netDeposit;
 
         // Get net amount, protocol and project fee amounts. Currently there is no issuance project
-        // fee enabled
+        // fee enabled.
         (netDeposit, protocolFeeAmount, /* projectFee */ ) =
         _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
 
         issuanceFeeAmount = protocolFeeAmount;
 
-        // Calculate redeem amount based on upstream formula
+        // Calculate redeem amount based on upstream formula.
         uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
 
         totalCollateralTokenMovedOut = collateralRedeemAmount;
 
-        // Burn issued token from user
+        // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
         // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
-        // the backing collateral
+        // the backing collateral.
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
-        // Cache Collateral Token
+        // Cache Collateral Token.
         IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
 
-        // Require that enough collateral token is held to be redeemable
+        // Require that enough collateral token is held to be redeemable.
         if (
             (collateralRedeemAmount + projectCollateralFeeCollected)
                 > collateralToken.balanceOf(address(this))
@@ -567,30 +567,30 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             );
         }
 
-        // Get net amount, protocol and project fee amounts
+        // Get net amount, protocol and project fee amounts.
         (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
         _calculateNetAndSplitFees(
             collateralRedeemAmount, collateralSellFeePercentage, sellFee
         );
-        // Process the protocol fee
+        // Process the protocol fee.
         _processProtocolFeeViaTransfer(
             collateralTreasury, collateralToken, protocolFeeAmount
         );
 
-        // Add project fee if applicable
+        // Add project fee if applicable.
         if (projectFeeAmount > 0) {
             _projectFeeCollected(projectFeeAmount);
         }
 
-        // Revert when the redeem amount is lower than minimum amount the user expects
+        // Revert when the redeem amount is lower than minimum amount the user expects.
         if (collateralRedeemAmount < _minAmountOut) {
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }
 
-        // Use virtual function to handle collateral tokens
+        // Use virtual function to handle collateral tokens.
         _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
 
-        // Create and emit the order
+        // Create and emit the order.
         _createAndEmitOrder(
             _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
         );
@@ -629,14 +629,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(BondingCurveBase_v1)
         returns (uint mintAmount_)
     {
-        // First convert deposit amount to required decimals
+        // First convert deposit amount to required decimals.
         uint normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             depositAmount_,
             IERC20Metadata(address(token())).decimals(),
             IERC20Metadata(address(issuanceToken)).decimals()
         );
 
-        // Then calculate the token amount using the normalized amount
+        // Then calculate the token amount using the normalized amount.
         mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_;
     }
 
@@ -648,10 +648,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint redeemAmount_)
     {
-        // Calculate redeem amount through oracle price
+        // Calculate redeem amount through oracle price.
         uint tokenAmount_ = _oracle.getPriceForRedemption() * depositAmount_;
 
-        // Convert redeem amount to collateral decimals
+        // Convert redeem amount to collateral decimals.
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals
         );
@@ -673,10 +673,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit IssuanceTokenSet(issuanceToken_, decimals_);
     }
 
-    /// @notice Sets the oracle address
+    /// @notice Sets the oracle address.
     /// @dev    May revert with
-    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface
-    /// @param  oracleAddress_ The address of the oracle
+    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface.
+    /// @param  oracleAddress_ The address of the oracle.
     function _setOracleAddress(address oracleAddress_) internal {
         if (
             !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(
@@ -689,10 +689,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _oracle = IOraclePrice_v1(oracleAddress_);
     }
 
-    /// @notice Sets the project treasury address
+    /// @notice Sets the project treasury address.
     /// @dev    May revert with
-    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury
-    /// @param  projectTreasury_ The address of the project treasury
+    ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury.
+    /// @param  projectTreasury_ The address of the project treasury.
     function _setProjectTreasury(address projectTreasury_) internal {
         if (_projectTreasury == address(0)) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
@@ -701,18 +701,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _projectTreasury = projectTreasury_;
     }
 
-    /// @inheritdoc BondingCurveBase_v1
+    /// @inheritdoc BondingCurveBase_v1.
     function _handleIssuanceTokensAfterBuy(address recipient_, uint amount_)
         internal
         virtual
         override
     {
-        // Transfer issuance tokens to recipient
+        // Transfer issuance tokens to recipient.
         IERC20Issuance_v1(issuanceToken).mint(recipient_, amount_);
     }
 
-    /// @inheritdoc BondingCurveBase_v1
-    /// @dev    Implementation transfer collateral tokens to the project treasury
+    /// @inheritdoc BondingCurveBase_v1.
+    /// @dev    Implementation transfer collateral tokens to the project treasury.
     function _handleCollateralTokensBeforeBuy(address _provider, uint _amount)
         internal
         virtual
@@ -729,6 +729,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         virtual
         override
     {
-        // This function is not used in this implementation
+        // This function is not used in this implementation.
     }
 }

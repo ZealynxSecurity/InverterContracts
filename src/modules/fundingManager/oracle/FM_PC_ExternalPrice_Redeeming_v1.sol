@@ -113,7 +113,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Maximum fee that can be charged for sell operations, in basis
     ///         points.
-    /// @notice Maximum allowed project fee percentage that can be charged when
+    /// @dev    Maximum allowed project fee percentage that can be charged when
     ///         selling tokens.
     uint private _maxProjectSellFee;
 

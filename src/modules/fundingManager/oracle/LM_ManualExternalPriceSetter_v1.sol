@@ -120,7 +120,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         _issuanceTokenDecimals = IERC20Metadata(issuanceToken).decimals();
     }
 
-    //--------------------------------------------------------------------------
+    // -------------------------------------------------------------------------
     // External Functions
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1.

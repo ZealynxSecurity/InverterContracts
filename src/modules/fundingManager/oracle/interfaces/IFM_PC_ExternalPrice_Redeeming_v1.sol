@@ -9,31 +9,31 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 
 /**
- * @title   External Price Funding Manager Interface.
+ * @title   External Price Oracle Funding Manager with Payment Client.
  *
- * @notice  Interface for a funding manager that uses external price feeds for token
- *          operations, integrating payment client functionality and supporting
- *          token redemption mechanisms.
+ * @notice  A funding manager implementation that uses external oracle price
+ *          feeds for token operations. It integrates payment client
+ *          functionality and supports token redemption through a bonding curve
+ *          mechanism.
  *
- * @dev     This interface inherits from:
- *              - IFundingManager_v1.
- *              - IERC20PaymentClientBase_v1.
- *              - IRedeemingBondingCurveBase_v1.
- *          Key operations:
- *              - Token buying with collateral.
- *              - Token selling through creation of payment orders.
- *              - Price calculations for tokens and collateral.
- *          All operations must respect external price feeds and access control
- *          mechanisms defined in the implementation.
+ * @dev     This contract inherits from:
+ *              - IFM_PC_ExternalPrice_Redeeming_v1.
+ *              - ERC20PaymentClientBase_v1.
+ *              - RedeemingBondingCurveBase_v1.
+ *          Key features:
+ *              - External price integration.
+ *              - Payment client functionality.
+ *          The contract uses external price feeds for both issuance and
+ *          redemption operations, ensuring market-aligned token pricing.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version   v1.0.0
+ * @custom:version  v1.0.0
  *
- * @custom:standard-version  v1.0.0
+ * @custom:standard-version v1.0.0
  *
  * @author  Zealynx Security
  */

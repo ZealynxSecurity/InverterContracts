@@ -582,7 +582,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             _projectFeeCollected(projectFeeAmount);
         }
 
-        // Revert when the redeem amount is lower than minimum amount the user expects.
+        // Revert when the redeem amount is lower than minimum amount the user
+        // expects.
         if (collateralRedeemAmount < _minAmountOut) {
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }

@@ -222,7 +222,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // View Functions
 
     /// @inheritdoc IFundingManager_v1.
-    function token() public view override returns (IERC20) {
+    function token() public view override returns (IERC20 token_) {
         return _token;
     }
 
@@ -231,7 +231,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         view
         override(BondingCurveBase_v1)
-        returns (uint)
+        returns (uint buyPrice_)
     {
         return _oracle.getPriceForIssuance();
     }
@@ -241,7 +241,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         view
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
-        returns (uint)
+        returns (uint sellPrice_)
     {
         return _oracle.getPriceForRedemption();
     }
@@ -262,12 +262,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
-    function getProjectTreasury() external view returns (address) {
+    function getProjectTreasury() external view returns (address treasury_) {
         return _projectTreasury;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
-    function getIsDirectOperationsOnly() public view returns (bool) {
+    function getIsDirectOperationsOnly() public view returns (bool isDirectOnly_) {
         return _isDirectOperationsOnly;
     }
 
@@ -372,7 +372,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
-    function getSellFee() public view returns (uint) {
+    function getSellFee() public view returns (uint fee_) {
         return sellFee;
     }
 
@@ -411,7 +411,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1.
-    function getMaxBuyFee() public view returns (uint) {
+    function getMaxBuyFee() public view returns (uint maxBuyFee_) {
         return _maxBuyFee;
     }
 

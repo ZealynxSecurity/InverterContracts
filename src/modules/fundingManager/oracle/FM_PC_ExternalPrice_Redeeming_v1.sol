@@ -276,7 +276,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getIsDirectOperationsOnly() public view returns (bool isDirectOnly_) {
+    function getIsDirectOperationsOnly()
+        public
+        view
+        returns (bool isDirectOnly_)
+    {
         return _isDirectOperationsOnly;
     }
 
@@ -597,10 +601,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver,
-            _depositAmount,
-            collateralRedeemAmount,
-            issuanceFeeAmount
+            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
@@ -702,7 +703,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury.
     /// @param  projectTreasury_ The address of the project treasury.
     function _setProjectTreasury(address projectTreasury_) internal {
-        if (_projectTreasury == address(0)) {
+        if (projectTreasury_ == address(0)) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
             );
         }

@@ -134,7 +134,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Gets the direct operations only flag.
     /// @return isDirectOnly_ Whether only direct operations are allowed.
-    function getIsDirectOperationsOnly() external view returns (bool isDirectOnly_);
+    function getIsDirectOperationsOnly()
+        external
+        view
+        returns (bool isDirectOnly_);
 
     /// @notice Gets current buy fee.
     /// @return buyFee_ The current buy fee.

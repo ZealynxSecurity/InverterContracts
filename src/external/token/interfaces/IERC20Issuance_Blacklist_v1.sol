@@ -103,8 +103,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     ///         The array size should not exceed the block gas limit. Consider
     ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
-    function addToBlacklistBatched(address[] calldata accounts_)
-        external;
+    function addToBlacklistBatched(address[] calldata accounts_) external;
 
     /// @notice Removes multiple addresses from the blacklist.
     /// @param  accounts_ Array of addresses to remove.

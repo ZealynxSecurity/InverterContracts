@@ -77,6 +77,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         return interfaceId_
             == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+            || interfaceId_ == type(IFundingManager_v1).interfaceId
             || super.supportsInterface(interfaceId_);
     }
 

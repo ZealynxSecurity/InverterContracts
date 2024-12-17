@@ -77,6 +77,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         return interfaceId_
             == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+            || interfaceId_ == type(IFundingManager_v1).interfaceId
             || super.supportsInterface(interfaceId_);
     }
 
@@ -276,7 +277,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getIsDirectOperationsOnly() public view returns (bool isDirectOnly_) {
+    function getIsDirectOperationsOnly()
+        public
+        view
+        returns (bool isDirectOnly_)
+    {
         return _isDirectOperationsOnly;
     }
 
@@ -597,10 +602,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver,
-            _depositAmount,
-            collateralRedeemAmount,
-            issuanceFeeAmount
+            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);

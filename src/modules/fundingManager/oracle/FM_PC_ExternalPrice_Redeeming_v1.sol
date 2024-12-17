@@ -224,7 +224,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setMaxProjectSellFee(maxSellFee_);
 
         // Set direct operations only flag.
-        setIsDirectOperationsOnly(isDirectOperationsOnly_);
+        _setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     // -------------------------------------------------------------------------
@@ -443,11 +443,19 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         onlyOrchestratorAdmin
     {
-        _isDirectOperationsOnly = isDirectOperationsOnly_;
+        _setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     // -------------------------------------------------------------------------
     // Internal Functions
+
+    /// @notice Sets the value of the `isDirectOperationsOnly` flag.
+    /// @param  isDirectOperationsOnly_ The new value of the flag.
+    function _setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
+        internal
+    {
+        _isDirectOperationsOnly = isDirectOperationsOnly_;
+    }
 
     /// @notice Creates and emits a new redemption order.
     /// @dev    This function wraps the `_createAndEmitOrder` internal function

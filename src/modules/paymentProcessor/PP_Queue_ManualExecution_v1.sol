@@ -4,13 +4,15 @@ pragma solidity 0.8.23;
 // Internal
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
-import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
+import {IPaymentProcessor_v1} from
+    "src/modules/paymentProcessor/IPaymentProcessor_v1.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {IPP_Queue_ManualExecution_v1} from
     "@pp/interfaces/IPP_Queue_ManualExecution_v1.sol";
-import {ERC165Upgradeable, Module_v1} from "src/modules/base/Module_v1.sol";
+import {ERC165Upgradeable, Module_v1} from
+    "src/modules/base/Module_v1.sol";
 import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
 
 // External
@@ -36,11 +38,6 @@ contract PP_Queue_ManualExecution_v1 is
     IPP_Queue_ManualExecution_v1,
     PP_Queue_v1
 {
-    //--------------------------------------------------------------------------
-    // Libraries
-
-    // Add library usage here
-
     //--------------------------------------------------------------------------
     // ERC165
 
@@ -70,7 +67,7 @@ contract PP_Queue_ManualExecution_v1 is
     function processPayments(IERC20PaymentClientBase_v1 client_)
         external
         virtual
-        override(PP_Queue_v1)
+        override(PP_Queue_v1, IPaymentProcessor_v1)
         onlyModule
         clientIsValid(address(client_))
     {
@@ -86,12 +83,8 @@ contract PP_Queue_ManualExecution_v1 is
         }
     }
 
-    function executePaymentOrderQueue(IERC20PaymentClientBase_v1 client_)
-        external
-        onlyModule
-        clientIsValid(address(client_))
-    {
-        // @todo manually execute the payment order
+    /// @inheritdoc IPP_Queue_ManualExecution_v1
+    function executePaymentQueue() external onlyModuleRole(QUEUE_OPERATOR_ROLE) {
         _executePaymentQueue();
     }
 

@@ -549,7 +549,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
-        // Process the protocol fee. We can re-mint some of the burned tokens, 
+        // Process the protocol fee. We can re-mint some of the burned tokens,
         // since we aren't paying out the backing collateral.
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
@@ -733,7 +733,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc ERC20PaymentClientBase_v1
-    /// @dev	We do not need to ensure the token balance because all the 
+    /// @dev	We do not need to ensure the token balance because all the
     ///         collateral is taken out.
     function _ensureTokenBalance(address token_) internal virtual override {
         // No balance check needed.

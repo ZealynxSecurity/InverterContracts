@@ -9,7 +9,7 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 
 /**
- * @title   External Price Oracle Funding Manager with Payment Client.
+ * @title   External Price Oracle Funding Manager with Payment Client
  *
  * @notice  A funding manager implementation that uses external oracle price
  *          feeds for token operations. It integrates payment client
@@ -134,7 +134,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Gets the direct operations only flag.
     /// @return isDirectOnly_ Whether only direct operations are allowed.
-    function getIsDirectOperationsOnly() external view returns (bool isDirectOnly_);
+    function getIsDirectOperationsOnly()
+        external
+        view
+        returns (bool isDirectOnly_);
 
     /// @notice Gets current buy fee.
     /// @return buyFee_ The current buy fee.

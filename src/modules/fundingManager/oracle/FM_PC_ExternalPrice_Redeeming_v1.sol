@@ -35,7 +35,7 @@ import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
- * @title   External Price Oracle Funding Manager with Payment Client.
+ * @title   External Price Oracle Funding Manager with Payment Client
  *
  * @notice  A funding manager implementation that uses external oracle price
  *          feeds for token operations. It integrates payment client
@@ -222,7 +222,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setMaxProjectSellFee(maxSellFee_);
 
         // Set direct operations only flag.
-        setIsDirectOperationsOnly(isDirectOperationsOnly_);
+        _setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     // -------------------------------------------------------------------------
@@ -426,11 +426,19 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         public
         onlyOrchestratorAdmin
     {
-        _isDirectOperationsOnly = isDirectOperationsOnly_;
+        _setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
     // -------------------------------------------------------------------------
     // Internal Functions
+
+    /// @notice Sets the value of the `isDirectOperationsOnly` flag.
+    /// @param  isDirectOperationsOnly_ The new value of the flag.
+    function _setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
+        internal
+    {
+        _isDirectOperationsOnly = isDirectOperationsOnly_;
+    }
 
     /// @notice Creates and emits a new redemption order.
     /// @dev    This function wraps the `_createAndEmitOrder` internal function
@@ -526,8 +534,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint projectFeeAmount;
         uint netDeposit;
 
-        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
-        // fee enabled.
+        // Get net amount, protocol and project fee amounts. Currently there is
+        // no issuance project fee enabled.
         (netDeposit, protocolFeeAmount, /* projectFee */ ) =
         _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
 
@@ -541,8 +549,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
-        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
-        // the backing collateral.
+        // Process the protocol fee. We can re-mint some of the burned tokens, 
+        // since we aren't paying out the backing collateral.
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
         // Cache Collateral Token.
@@ -686,7 +694,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury.
     /// @param  projectTreasury_ The address of the project treasury.
     function _setProjectTreasury(address projectTreasury_) internal {
-        if (_projectTreasury == address(0)) {
+        if (projectTreasury_ == address(0)) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
             );
         }
@@ -722,5 +730,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override
     {
         // This function is not used in this implementation.
+    }
+
+    /// @inheritdoc ERC20PaymentClientBase_v1
+    /// @dev	We do not need to ensure the token balance because all the 
+    ///         collateral is taken out.
+    function _ensureTokenBalance(address token_) internal virtual override {
+        // No balance check needed.
     }
 }

@@ -5,11 +5,12 @@ pragma solidity ^0.8.0;
 import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
 
 /**
- * @title   ERC20 Issuance Token with Blacklist Functionality.
+ * @title   ERC20 Issuance Token with Blacklist Functionality
  *
  * @notice  An ERC20 token implementation that extends ERC20Issuance_v1 with
- *          blacklisting capabilities. This allows accounts with the blacklist manager role to restrict specific
- *          addresses from participating in token operations.
+ *          blacklisting capabilities. This allows accounts with the blacklist
+ *          manager role to restrict specific addresses from participating in
+ *          token operations.
  *
  * @dev     This contract inherits from:
  *              - IERC20Issuance_Blacklist_v1.
@@ -19,18 +20,20 @@ import {IERC20Issuance_v1} from "@ex/token/IERC20Issuance_v1.sol";
  *              - Batch blacklisting operations.
  *              - Owner-controlled manager role assignment.
  *              - Blacklist manager controlled blacklist management.
- *              Blacklist operations are performed by accounts with the blacklist manager role,
- *              while the contract owner controls who can be a blacklist manager.
- *          All blacklist operations can only be performed by accounts with the blacklist manager role.
+ *              Blacklist operations are performed by accounts with the
+ *              blacklist manager role, while the contract owner controls who
+ *              can be a blacklist manager.
+ *          All blacklist operations can only be performed by accounts with the
+ *          blacklist manager role.
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
  *                          our Security Policy at security.inverter.network or
  *                          email us directly!
  *
- * @custom:version  1.0.0
+ * @custom:version  v1.0.0
  *
- * @custom:standard-version 1.0.0
+ * @custom:standard-version v1.0.0
  *
  * @author  Zealynx Security
  */
@@ -103,8 +106,7 @@ interface IERC20Issuance_Blacklist_v1 is IERC20Issuance_v1 {
     ///         The array size should not exceed the block gas limit. Consider
     ///         using smaller batches (e.g., 100-200 addresses) to ensure
     ///         transaction success.
-    function addToBlacklistBatched(address[] calldata accounts_)
-        external;
+    function addToBlacklistBatched(address[] calldata accounts_) external;
 
     /// @notice Removes multiple addresses from the blacklist.
     /// @param  accounts_ Array of addresses to remove.

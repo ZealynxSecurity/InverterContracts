@@ -16,7 +16,7 @@ import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 /**
- * @title   Manual External Price Oracle Implementation.
+ * @title   Manual External Price Oracle Implementation
  *
  * @notice  This contract provides a manual price feed mechanism for token
  *          operations, allowing authorized users to set and update prices

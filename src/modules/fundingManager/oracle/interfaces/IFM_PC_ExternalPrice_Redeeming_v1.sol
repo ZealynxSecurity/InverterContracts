@@ -9,7 +9,7 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 
 /**
- * @title   External Price Oracle Funding Manager with Payment Client.
+ * @title   External Price Oracle Funding Manager with Payment Client
  *
  * @notice  A funding manager implementation that uses external oracle price
  *          feeds for token operations. It integrates payment client

@@ -6,7 +6,7 @@ import {IOraclePrice_v1} from
     "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
 
 /**
- * @title   Manual External Price Oracle Interface.
+ * @title   Manual External Price Oracle Interface
  *
  * @notice  Interface for the manual price feed mechanism that allows setting
  *          and updating prices for token issuance and redemption operations.

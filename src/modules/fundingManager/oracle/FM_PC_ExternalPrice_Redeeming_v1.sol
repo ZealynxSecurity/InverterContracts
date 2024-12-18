@@ -552,8 +552,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint projectFeeAmount;
         uint netDeposit;
 
-        // Get net amount, protocol and project fee amounts. Currently there is no issuance project
-        // fee enabled.
+        // Get net amount, protocol and project fee amounts. Currently there is
+        // no issuance project fee enabled.
         (netDeposit, protocolFeeAmount, /* projectFee */ ) =
         _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
 
@@ -567,8 +567,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
-        // Process the protocol fee. We can re-mint some of the burned tokens, since we aren't paying out
-        // the backing collateral.
+        // Process the protocol fee. We can re-mint some of the burned tokens, 
+        // since we aren't paying out the backing collateral.
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
         // Cache Collateral Token.

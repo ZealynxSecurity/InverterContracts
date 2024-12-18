@@ -95,9 +95,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Role for whitelist management.
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
-    /// @notice Role for payment queue management.
-    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
-
     // -------------------------------------------------------------------------
     // State Variables
 
@@ -298,21 +295,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
 
         emit ReserveDeposited(_msgSender(), amount_);
-    }
-
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function executeRedemptionQueue()
-        external
-        override(IFM_PC_ExternalPrice_Redeeming_v1)
-        onlyModuleRole(QUEUE_MANAGER_ROLE)
-    {
-        (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
-            abi.encodeWithSignature("executeRedemptionQueue()")
-        );
-
-        if (!success) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -567,7 +549,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
-        // Process the protocol fee. We can re-mint some of the burned tokens, 
+        // Process the protocol fee. We can re-mint some of the burned tokens,
         // since we aren't paying out the backing collateral.
         _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
 
@@ -751,7 +733,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc ERC20PaymentClientBase_v1
-    /// @dev	We do not need to ensure the token balance because all the 
+    /// @dev	We do not need to ensure the token balance because all the
     ///         collateral is taken out.
     function _ensureTokenBalance(address token_) internal virtual override {
         // No balance check needed.

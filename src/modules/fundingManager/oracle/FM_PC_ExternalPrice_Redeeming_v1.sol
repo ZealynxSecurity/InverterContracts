@@ -749,4 +749,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // This function is not used in this implementation.
     }
+
+    /// @inheritdoc ERC20PaymentClientBase_v1
+    /// @dev	We do not need to ensure the token balance because all the 
+    ///         collateral is taken out.
+    function _ensureTokenBalance(address token_) internal virtual override {
+        // No balance check needed.
+    }
 }

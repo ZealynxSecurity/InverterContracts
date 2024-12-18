@@ -163,14 +163,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	amount_ The amount of collateral to deposit.
     function depositReserve(uint amount_) external;
 
-    /// @notice	Executes the redemption queue.
-    /// @dev    This function expects a queue-based payment processor to be
-    ///         connected. The call will intentionally revert if a non queue-
-    ///         based payment processor is used, as this funding manager is
-    ///         designed to work only with payment processors that support
-    ///         queue-based redemptions.
-    function executeRedemptionQueue() external;
-
     /// @notice Sets the project treasury address.
     /// @param projectTreasury_ The address of the project treasury.
     function setProjectTreasury(address projectTreasury_) external;

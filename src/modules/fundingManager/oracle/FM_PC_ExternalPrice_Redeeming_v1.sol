@@ -95,9 +95,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Role for whitelist management.
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
 
-    /// @notice Role for payment queue management.
-    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
-
     // -------------------------------------------------------------------------
     // State Variables
 
@@ -298,21 +295,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         IERC20(token()).safeTransferFrom(_msgSender(), address(this), amount_);
 
         emit ReserveDeposited(_msgSender(), amount_);
-    }
-
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function executeRedemptionQueue()
-        external
-        override(IFM_PC_ExternalPrice_Redeeming_v1)
-        onlyModuleRole(QUEUE_MANAGER_ROLE)
-    {
-        (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
-            abi.encodeWithSignature("executeRedemptionQueue()")
-        );
-
-        if (!success) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
-        }
     }
 
     // -------------------------------------------------------------------------

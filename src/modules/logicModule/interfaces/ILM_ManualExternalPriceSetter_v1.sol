@@ -2,8 +2,7 @@
 pragma solidity ^0.8.0;
 
 // Internal
-import {IOraclePrice_v1} from
-    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
+import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
 
 /**
  * @title   Manual External Price Oracle Interface

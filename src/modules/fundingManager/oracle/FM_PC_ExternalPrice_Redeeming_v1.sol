@@ -132,10 +132,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Unique identifier for the current order being processed.
     uint private _orderId;
 
-    /// @notice Counter for generating unique order IDs.
-    /// @dev    Keeps track of the next available order ID to ensure uniqueness.
-    uint private _nextOrderId;
-
     /// @notice Total amount of collateral tokens currently in redemption
     ///         process.
     /// @dev    Tracks the sum of all pending redemption orders.
@@ -222,6 +218,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Set direct operations only flag.
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
+
+        // Set the flags for the PaymentOrders
+        uint8[] memory flags = new uint8[](1); // The Module will use 1 flag
+        flags[0] = 0; // orderID, flag_ID 0
+
+        __ERC20PaymentClientBase_v1_init(flags);
     }
 
     // -------------------------------------------------------------------------
@@ -255,11 +257,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getOpenRedemptionAmount() external view returns (uint amount_) {
         return _openRedemptionAmount;
-    }
-
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getNextOrderId() external view returns (uint orderId_) {
-        return _nextOrderId;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -453,24 +450,37 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint collateralRedeemAmount_,
         uint issuanceFeeAmount_
     ) internal {
-        // Generate new order ID.
-        _orderId = _nextOrderId++;
-
         // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
 
         // Calculate redemption amount.
         uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
 
+        // Generate new order ID by hashing this contract address and the next
+        // order id.
+        bytes32 orderId = keccak256(abi.encodePacked(_orderId++, address(this)));
+
+        bytes32 flags;
+        bytes32[] memory data;
+
+        {
+            bytes32[] memory paymentParameters = new bytes32[](1);
+            paymentParameters[0] = bytes32(_orderId);
+
+            (flags, data) = _assemblePaymentConfig(paymentParameters);
+        }
+
         // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
-            recipient: _msgSender(),
+            recipient: receiver_,
             paymentToken: address(token()),
             amount: collateralRedeemAmount_,
-            start: block.timestamp,
-            cliff: 0,
-            end: block.timestamp
+            originChainId: block.chainid,
+            targetChainId: block.chainid,
+            flags: flags,
+            data: data
         });
+
         _addPaymentOrder(order);
 
         // Process payments through the payment processor.
@@ -480,7 +490,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Emit event with all order details.
         emit RedemptionOrderCreated(
-            _orderId,
+            orderId,
             _msgSender(),
             receiver_,
             depositAmount_,
@@ -515,6 +525,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint _minAmountOut
     )
         internal
+        virtual
         override(RedeemingBondingCurveBase_v1)
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
@@ -555,16 +566,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Cache Collateral Token.
         IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
 
-        // Require that enough collateral token is held to be redeemable.
-        if (
-            (collateralRedeemAmount + projectCollateralFeeCollected)
-                > collateralToken.balanceOf(address(this))
-        ) {
-            revert
-                Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption(
-            );
-        }
-
         // Get net amount, protocol and project fee amounts.
         (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
         _calculateNetAndSplitFees(
@@ -578,6 +579,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Add project fee if applicable.
         if (projectFeeAmount > 0) {
             _projectFeeCollected(projectFeeAmount);
+        }
+
+        // Require that enough collateral tokens are held to cover the project
+        // collateral fee.
+        if (
+            projectCollateralFeeCollected
+                > collateralToken.balanceOf(address(this))
+        ) {
+            revert
+                Module__RedeemingBondingCurveBase__InsufficientCollateralForProjectFee(
+            );
         }
 
         // Revert when the redeem amount is lower than minimum amount the user

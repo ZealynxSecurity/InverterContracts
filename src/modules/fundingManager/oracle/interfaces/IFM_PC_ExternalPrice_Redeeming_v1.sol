@@ -99,7 +99,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	redemptionTime_ Time of redemption.
     /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
-        uint indexed orderId_,
+        bytes32 indexed orderId_,
         address indexed seller_,
         address indexed receiver_,
         uint sellAmount_,
@@ -119,10 +119,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice	Gets the current open collateral redemption amount.
     /// @return	amount_ The total amount of open redemptions.
     function getOpenRedemptionAmount() external view returns (uint amount_);
-
-    /// @notice	Gets the next available order ID.
-    /// @return	orderId_ The next order ID.
-    function getNextOrderId() external view returns (uint orderId_);
 
     /// @notice	Gets the current order ID.
     /// @return	orderId_ The current order ID.

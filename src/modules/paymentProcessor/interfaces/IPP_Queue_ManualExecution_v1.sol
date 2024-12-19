@@ -28,35 +28,15 @@ import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
  * @custom:version  v1.0.0
  *
  * @custom:standard-version v1.0.0
+ *
+ * @author  Zealynx Security
  */
 interface IPP_Queue_ManualExecution_v1 is IPP_Queue_v1 {
     // -------------------------------------------------------------------------
-    // Events
-
-    /**
-     * @notice	Emitted when a payment queue is manually executed.
-     * @dev	    This event is emitted after the successful execution of the
-     *          payment queue.
-     */
-    event PaymentQueueExecuted();
-
-    // -------------------------------------------------------------------------
-    // Errors
-
-    /**
-     * @notice	Thrown when attempting to execute an empty payment queue.
-     * @dev	    This error is thrown when executePaymentQueue is called on an
-     *          empty queue.
-     */
-    error Module__PP_Queue_EmptyQueue();
-
-    // -------------------------------------------------------------------------
     // Functions
 
-    /**
-     * @notice	Manually executes all pending payment orders in the queue.
-     * @dev	    This function processes all pending orders in the queue. It
-     *          requires the QUEUE_OPERATOR_ROLE.
-     */
+    /// @notice  Executes all pending payment orders in the queue.
+    /// @dev     This function processes all pending orders in the queue. It
+    ///          requires the QUEUE_OPERATOR_ROLE.
     function executePaymentQueue() external;
 }

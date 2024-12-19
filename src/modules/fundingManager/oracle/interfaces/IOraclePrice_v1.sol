@@ -4,7 +4,9 @@ pragma solidity ^0.8.0;
 /**
  * @title   Oracle Price Interface
  *
- * @notice  Interface for oracle price feed calculations that provides a standardized
+ * @notice  Interface for oracle price feed calculations that provides a
+ *          standardized way to query token prices for both issuance and
+ *          redemption operations.
  *          way to query token prices for both issuance and redemption operations.
  *
  * @dev     Designed to facilitate various oracle price implementations. Each

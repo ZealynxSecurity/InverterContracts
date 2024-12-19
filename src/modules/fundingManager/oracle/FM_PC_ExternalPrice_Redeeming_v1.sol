@@ -3,11 +3,10 @@ pragma solidity 0.8.23;
 
 // Internal
 import {IFM_PC_ExternalPrice_Redeeming_v1} from
-    "src/modules/fundingManager/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+    "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IERC20Issuance_Blacklist_v1} from
     "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
-import {IOraclePrice_v1} from
-    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
+import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
 import {ERC20PaymentClientBase_v1} from
     "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
 import {IOrchestrator_v1} from

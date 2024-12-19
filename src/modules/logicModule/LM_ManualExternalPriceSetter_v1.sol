@@ -3,12 +3,11 @@ pragma solidity 0.8.23;
 
 // Internal
 import {ILM_ManualExternalPriceSetter_v1} from
-    "src/modules/fundingManager/oracle/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
+    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
-import {IOraclePrice_v1} from
-    "src/modules/fundingManager/oracle/interfaces/IOraclePrice_v1.sol";
+import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
 
 // External
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";

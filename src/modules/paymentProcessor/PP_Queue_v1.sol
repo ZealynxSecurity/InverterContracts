@@ -226,6 +226,26 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         for (uint i; i < orderLength; ++i) {
             // Add order to order queue
             _addPaymentOrderToQueue(orders[i], address(client_));
+
+            PC 1 calls this function
+            PC 1 adds 3 elements to the linked list
+            PC 1 executes the queue, but no collateral, so it keeps unchained
+
+            PC 2 calls this function
+            PC 2 adds 3 elements to the linked list
+            PC 2 executes the queue
+                Loops through elemens of PC 1 and fails to execute queue because PC 1 doesn't have collateral
+                STOP
+                Loops through all of the elements and check if any of the other PCs has collateral
+            
+            _queue[client]
+            if PC 1 executes payment order queue
+            Just loop through _queue[PC1] linked list until PC1 doens't have collateral
+
+            Cancel queue based on Id
+            cancel(orderId)
+            _orders[orderId = hash].client
+            _queue[client] do whatever with the element in the
         }
         // Execute Order Queue
         _executePaymentQueue();
@@ -261,6 +281,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                 client, _msgSender()
             );
         }
+
+        // @note might it be possible 
 
         _claimPreviouslyUnclaimable(client, token, receiver);
     }
@@ -371,6 +393,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         QueuedOrder storage order = _orders[firstId];
+        order.client == msg.sender()
+        
 
         // Skip if order is not in PROCESSING state.
         if (order.state != RedemptionState.PROCESSING) {
@@ -379,6 +403,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         // Extract timing parameters.
+        // @todo probably don't need the extra validation as we don't have a vesting associcated with it
         (
             , // queueId not needed here.
             uint startTime,
@@ -397,7 +422,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                 order.order.paymentToken, order.client, order.order.amount
             )
         ) {
-            _updateOrderState(firstId, RedemptionState.CANCELLED);
+            // _updateOrderState(firstId, RedemptionState.CANCELLED); // @todo can be removed
             return false;
         }
 
@@ -408,7 +433,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param	orderId_ The ID of the order to process.
     /// @param	order_ The order to process.
     /// @return	success_ True if the payment was successful.
-    function _executePaymentTransfer(
+function _executePaymentTransfer(
         uint orderId_,
         QueuedOrder storage order_
     ) internal returns (bool success_) {
@@ -482,7 +507,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice	Adds a payment order to the queue.
     /// @param	order_ The payment order to add.
-    /// @param  client_ The client paying for the order.
+    /// @param  client_ The client sending the order.
     /// @return	orderId_ The ID of the added order.
     function _addPaymentOrderToQueue(
         IERC20PaymentClientBase_v1.PaymentOrder memory order_,
@@ -492,9 +517,15 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         if (_queue.length() >= _maxQueueSize) {
             revert Module__PP_Queue_QueueOperationFailed();
         }
+        // @note check if we need the max length value
+
+        // 1. get the data and flag field from the payment order
+        // 2. get the hashed orderID from the FM_PC which has been encoded together with the FM_PC address
+        // 4. Use the orderID from the FM to create a new linked List element, store the QueuedOrder in the mapping through the hash
 
         // Create new order
-        orderId_ = _nextOrderId++;
+        // orderId_ = get hashed orderID from paymentOrder
+    
         _orders[orderId_] = QueuedOrder({
             order: order_,
             state: RedemptionState.PROCESSING,
@@ -511,7 +542,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             order_.recipient,
             order_.paymentToken,
             order_.amount,
-            uint(order_.flags),
+            uint(order_.flags), // We might want to emit the data field as well if we output the flags
             block.timestamp
         );
     }

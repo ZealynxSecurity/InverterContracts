@@ -110,7 +110,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param   executor_ Address that executed the queue.
     /// @param   count_ Number of orders processed.
     event PaymentQueueExecuted(address indexed executor_, uint count_);
-
+    
     // -------------------------------------------------------------------------
     // Errors
 

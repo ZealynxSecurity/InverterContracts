@@ -68,9 +68,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Constants
 
-    /// @dev    Role identifier for queue management operations.
-    bytes32 public constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
-
     /// @dev    Role for queue operations.
     bytes32 public constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR";
 
@@ -122,7 +119,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @dev    Checks that the client is calling for itself.
     modifier clientIsValid(address client_) {
-        // Modifier logic moved to internal function for contract size reduction.
         _ensureValidClient(client_);
         _;
     }
@@ -146,6 +142,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         _maxQueueSize = maxQueueSize_;
         _maxOrderLifetime = maxOrderLifetime_;
+        
         _queue.init();
     }
 
@@ -167,13 +164,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @inheritdoc IPP_Queue_v1
     function getOrderQueue() external view returns (uint[] memory queue_) {
         uint[] memory queue = new uint[](_queue.length());
-        uint i;
+        uint index_;
         for (
             uint id = _queue.getNextId(LinkedIdList._SENTINEL);
             id != LinkedIdList._SENTINEL;
             id = _queue.getNextId(id)
         ) {
-            queue[i++] = id;
+            queue[index_++] = id;
         }
         queue_ = queue;
     }
@@ -366,7 +363,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // Internal
 
     ///	@notice	Processes the next payment order in the queue.
-    ///	@return	success_	True if a payment was processed.
+    ///	@return	success_ True if a payment was processed.
     function _processNextOrder() internal returns (bool success_) {
         uint firstId = _queue.getNextId(LinkedIdList._SENTINEL);
         if (firstId == LinkedIdList._SENTINEL) {
@@ -375,15 +372,15 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         QueuedOrder storage order = _orders[firstId];
 
-        // Skip if order is not in PROCESSING state
+        // Skip if order is not in PROCESSING state.
         if (order.state != RedemptionState.PROCESSING) {
             _removeFromQueue(firstId);
             return false;
         }
 
-        // Extract timing parameters
+        // Extract timing parameters.
         (
-            , // queueId not needed here
+            , // queueId not needed here.
             uint startTime,
             uint cliffPeriod,
             uint endTime
@@ -394,7 +391,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return false;
         }
 
-        // Check token balance and allowance
+        // Check token balance and allowance.
         if (
             !_validTokenBalance(
                 order.order.paymentToken, order.client, order.order.amount
@@ -404,14 +401,67 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return false;
         }
 
+        return _executePaymentTransfer(firstId, order);
+    }
+
+    /// @notice	Executes the actual payment transfer for an order.
+    /// @param	orderId_ The ID of the order to process.
+    /// @param	order_ The order to process.
+    /// @return	success_ True if the payment was successful.
+    function _executePaymentTransfer(
+        uint orderId_,
+        QueuedOrder storage order_
+    ) internal returns (bool success_) {
         // Process payment
-        IERC20(order.order.paymentToken).safeTransfer(
-            order.order.recipient, order.order.amount
+        (bool success, bytes memory data) = order_.order.paymentToken.call(
+            abi.encodeWithSelector(
+                IERC20(order_.order.paymentToken).transferFrom.selector,
+                order_.client,
+                order_.order.recipient,
+                order_.order.amount
+            )
         );
 
-        _updateOrderState(firstId, RedemptionState.COMPLETED);
-        _removeFromQueue(firstId);
-        return true;
+        // If transfer was successful
+        if (
+            success && 
+            (data.length == 0 || abi.decode(data, (bool))) && 
+            order_.order.paymentToken.code.length != 0
+        ) {
+            _updateOrderState(orderId_, RedemptionState.COMPLETED);
+            _removeFromQueue(orderId_);
+
+            // Notify client about successful payment.
+            IERC20PaymentClientBase_v1(order_.client).amountPaid(
+                order_.order.paymentToken,
+                order_.order.amount
+            );
+
+            emit TokensReleased(
+                order_.order.recipient,
+                order_.order.paymentToken,
+                order_.order.amount
+            );
+
+            return true;
+        } else {
+            // Store as unclaimable and update state.
+            _unclaimableAmountsForRecipient[order_.client][
+                order_.order.paymentToken
+            ][order_.order.recipient] += order_.order.amount;
+
+            emit UnclaimableAmountAdded(
+                order_.client,
+                order_.order.paymentToken,
+                order_.order.recipient,
+                order_.order.amount
+            );
+
+            _updateOrderState(orderId_, RedemptionState.CANCELLED);
+            _removeFromQueue(orderId_);
+            
+            return false;
+        }
     }
 
     /// @notice	Executes all pending orders in the queue.
@@ -500,12 +550,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address token,
         address paymentReceiver
     ) internal {
-        // Get amount.
-        address sender = _msgSender();
         // Copy value over.
-        uint amount = _unclaimableAmountsForRecipient[client][token][sender];
+        uint amount = 
+            _unclaimableAmountsForRecipient[client][token][_msgSender()];
         // Delete the field.
-        delete _unclaimableAmountsForRecipient[client][token][sender];
+        delete _unclaimableAmountsForRecipient[client][token][_msgSender()];
 
         // Make sure to let paymentClient know that amount doesnt have
         // to be stored anymore.

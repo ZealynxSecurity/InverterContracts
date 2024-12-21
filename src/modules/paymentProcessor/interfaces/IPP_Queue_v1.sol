@@ -37,7 +37,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     // -------------------------------------------------------------------------
     // Type Declarations
 
-    // Enum for redemption order states
+    // Enum for redemption order states.
     enum RedemptionState {
         COMPLETED,
         CANCELLED,
@@ -68,6 +68,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param	orderId_ Unique identifier of the payment order.
     /// @param	recipient_ Address that will receive the payment.
     /// @param	token_ Address of the token to be transferred.
+    /// @param  client_ Address of the client that queued the order.
     /// @param	amount_ Amount of tokens to be transferred.
     /// @param	flags_ Processing flags for the order.
     /// @param	timestamp_ Time when the order was created.
@@ -75,6 +76,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         uint indexed orderId_,
         address indexed recipient_,
         address indexed token_,
+        address client_,
         uint amount_,
         uint flags_,
         uint timestamp_
@@ -83,22 +85,27 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @notice	Emitted when a payment order changes its state.
     /// @param	orderId_ Unique identifier of the payment order.
     /// @param	state_ New state of the payment order.
+    /// @param  client_ Address of the client that owns the order.
     event PaymentOrderStateChanged(
-        uint indexed orderId_, RedemptionState indexed state_
+        uint indexed orderId_,
+        RedemptionState indexed state_,
+        address indexed client_
     );
 
     /// @notice  Emitted when an order is skipped due to timing constraints.
     /// @param   orderId_ ID of the order.
+    /// @param   client_ Address of the client that owns the order.
     /// @param   reason_ Reason for skipping:
-    ///         1: not started,
-    ///         2: in cliff,
-    ///         3: expired.
+    ///             1: not started,
+    ///             2: in cliff,
+    ///             3: expired.
     /// @param   currentTime_ Current block timestamp.
     /// @param   startTime_ Start time of the order.
     /// @param   cliffEnd_ End of cliff period.
     /// @param   endTime_ End time of the order.
     event PaymentOrderTimingSkip(
         uint indexed orderId_,
+        address indexed client_,
         uint8 reason_,
         uint currentTime_,
         uint startTime_,
@@ -108,9 +115,12 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     /// @notice  Emitted when the payment queue is executed.
     /// @param   executor_ Address that executed the queue.
+    /// @param   client_ Address of the client whose queue was executed.
     /// @param   count_ Number of orders processed.
-    event PaymentQueueExecuted(address indexed executor_, uint count_);
-    
+    event PaymentQueueExecuted(
+        address indexed executor_, address indexed client_, uint count_
+    );
+
     // -------------------------------------------------------------------------
     // Errors
 
@@ -118,7 +128,9 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     error Module__PP_Queue_ZeroAmount();
 
     /// @notice	Payment order not found in queue.
-    error Module__PP_Queue_InvalidOrderId();
+    /// @param  client_ Address of the client.
+    /// @param  orderId_ ID of the order that was not found.
+    error Module__PP_Queue_InvalidOrderId(address client_, uint orderId_);
 
     /// @notice	Caller not authorized for operation.
     error Module__PP_Queue_Unauthorized();
@@ -127,7 +139,8 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     error Module__PP_Queue_InvalidState();
 
     /// @notice	Queue operation failed.
-    error Module__PP_Queue_QueueOperationFailed();
+    /// @param  client_ Address of the client whose queue failed.
+    error Module__PP_Queue_QueueOperationFailed(address client_);
 
     /// @notice	Caller not authorized for operation.
     error Module__PP_Queue_OnlyCallableByClient();
@@ -136,15 +149,15 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     error Module__PP_Queue_InvalidConfig();
 
     /// @notice	Invalid payment order recipient.
-    /// @param   recipient_ The invalid recipient address.
+    /// @param  recipient_ The invalid recipient address.
     error Module__PP_Queue_InvalidRecipient(address recipient_);
 
     /// @notice	Invalid payment token.
-    /// @param   token_ The invalid token address.
+    /// @param  token_ The invalid token address.
     error Module__PP_Queue_InvalidToken(address token_);
 
     /// @notice	Invalid payment amount.
-    /// @param   amount_ The invalid amount.
+    /// @param  amount_ The invalid amount.
     error Module__PP_Queue_InvalidAmount(uint amount_);
 
     /// @notice	Invalid chain ID in payment order.
@@ -155,9 +168,9 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         uint originChainId_, uint targetChainId_, uint currentChainId_
     );
 
-    /// @notice	Invalid flags or data format.
-    /// @param   flags_ The flags provided.
-    /// @param   dataLength_ The length of the data array.
+    /// @notice Invalid flags or data format.
+    /// @param  flags_ The flags provided.
+    /// @param  dataLength_ The length of the data array.
     error Module__PP_Queue_InvalidFlagsOrData(bytes32 flags_, uint dataLength_);
 
     /// @notice Invalid token implementation.
@@ -175,11 +188,15 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @notice	Queue is empty.
     error Module__PP_Queue_EmptyQueue();
 
+    /// @notice	Invalid client address.
+    /// @param  client_ The invalid client address.
+    error Module__PP_Queue_InvalidClientAddress(address client_);
+
     // -------------------------------------------------------------------------
     // Functions
 
     /// @notice	Retrieves a payment order by its ID.
-    /// @param	orderId_ The ID of the payment order.
+    /// @param  orderId_ The ID of the payment order.
     /// @return	order_ The payment order data.
     function getOrder(uint orderId_)
         external
@@ -187,21 +204,31 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         returns (QueuedOrder memory order_);
 
     /// @notice	Gets the current queue of order IDs.
+    /// @param  client_ Address of the client whose queue to get.
     /// @return	queue_ Array of order IDs in queue.
-    function getOrderQueue() external view returns (uint[] memory queue_);
+    function getOrderQueue(address client_)
+        external
+        view
+        returns (uint[] memory queue_);
 
     /// @notice	Gets the current position in queue for processing.
+    /// @param  client_ Address of the client whose queue head to get.
     /// @return	head_ Current queue head position.
-    function getQueueHead() external view returns (uint head_);
+    function getQueueHead(address client_) external view returns (uint head_);
 
     /// @notice	Gets the next insertion position in queue.
+    /// @param  client_ Address of the client whose queue tail to get.
     /// @return	tail_ Current queue tail position.
-    function getQueueTail() external view returns (uint tail_);
+    function getQueueTail(address client_) external view returns (uint tail_);
 
     /// @notice	Gets the size of the queue.
+    /// @param  client_ Address of the client whose queue size to get.
     /// @return	size_ Current queue size.
     /// @return	maxSize_ Maximum queue size.
-    function getQueueSize() external view returns (uint size_, uint maxSize_);
+    function getQueueSize(address client_)
+        external
+        view
+        returns (uint size_, uint maxSize_);
 
     /// @notice	Gets total number of orders created.
     /// @return	total_ Total number of orders.
@@ -230,6 +257,9 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         returns (bool success_);
 
     /// @notice	Processes the next order in the queue.
+    /// @param  client_ Address of the client whose queue head to get.
     /// @return	success_ True if processing was successful.
-    function processNextOrder() external returns (bool success_);
+    function processNextOrder(address client_)
+        external
+        returns (bool success_);
 }

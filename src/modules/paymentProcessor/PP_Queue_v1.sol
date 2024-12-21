@@ -91,8 +91,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice Maximum lifetime of an order in seconds.
     uint private _maxOrderLifetime;
 
-    /// @notice Queue of payment orders.
-    LinkedIdList.List private _queue;
+    /// @notice Queue of payment orders per client.
+    mapping(address client => LinkedIdList.List queue) private _queue;
 
     /// @notice Tracks all payments that could not be made to the
     ///         paymentReceiver.
@@ -142,8 +142,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         _maxQueueSize = maxQueueSize_;
         _maxOrderLifetime = maxOrderLifetime_;
-        
-        _queue.init();
     }
 
     //--------------------------------------------------------------------------
@@ -156,38 +154,50 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         returns (QueuedOrder memory order_)
     {
         if (!_orderExists(orderId_)) {
-            revert Module__PP_Queue_InvalidOrderId();
+            revert Module__PP_Queue_InvalidOrderId(
+                _orders[orderId_].client, orderId_
+            );
         }
         order_ = _orders[orderId_];
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getOrderQueue() external view returns (uint[] memory queue_) {
-        uint[] memory queue = new uint[](_queue.length());
+    function getOrderQueue(address client_)
+        external
+        view
+        returns (uint[] memory queue_)
+    {
+        uint[] memory queue = new uint[](_queue[client_].length());
         uint index_;
+
         for (
-            uint id = _queue.getNextId(LinkedIdList._SENTINEL);
+            uint id = _queue[client_].getNextId(LinkedIdList._SENTINEL);
             id != LinkedIdList._SENTINEL;
-            id = _queue.getNextId(id)
+            id = _queue[client_].getNextId(id)
         ) {
             queue[index_++] = id;
         }
+
         queue_ = queue;
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueHead() external view returns (uint head_) {
-        head_ = _queue.getNextId(LinkedIdList._SENTINEL);
+    function getQueueHead(address client_) external view returns (uint head_) {
+        head_ = _queue[client_].getNextId(LinkedIdList._SENTINEL);
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueTail() external view returns (uint tail_) {
-        tail_ = _queue.lastId();
+    function getQueueTail(address client_) external view returns (uint tail_) {
+        tail_ = _queue[client_].lastId();
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueSize() external view returns (uint size_, uint maxSize_) {
-        size_ = _queue.length();
+    function getQueueSize(address client_)
+        external
+        view
+        returns (uint size_, uint maxSize_)
+    {
+        size_ = _queue[client_].length();
         maxSize_ = _maxQueueSize;
     }
 
@@ -227,8 +237,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             // Add order to order queue
             _addPaymentOrderToQueue(orders[i], address(client_));
         }
-        // Execute Order Queue
-        _executePaymentQueue();
+        // Execute Order Queue.
+        _executePaymentQueue(address(client_));
     }
 
     /// @inheritdoc IPaymentProcessor_v1
@@ -294,12 +304,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             )
         }
 
-        // Check token balance and allowance
+        // Check token balance and allowance.
         if (!_validTokenBalance(token_, client_, amount_)) {
-            revert Module__PP_Queue_QueueOperationFailed();
+            revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
-        // Create payment order
+        // Create payment order.
         IERC20PaymentClientBase_v1.PaymentOrder memory order =
         IERC20PaymentClientBase_v1.PaymentOrder({
             recipient: receiver_,
@@ -311,7 +321,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             data: decodedData
         });
 
-        // Add to queue
+        // Add to queue.
         orderId_ = _addPaymentOrderToQueue(order, client_);
     }
 
@@ -323,7 +333,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     {
         // Validate queue ID.
         if (!_orderExists(orderId_)) {
-            revert Module__PP_Queue_InvalidOrderId();
+            revert Module__PP_Queue_InvalidOrderId(
+                _orders[orderId_].client, orderId_
+            );
         }
 
         QueuedOrder storage order = _orders[orderId_];
@@ -351,12 +363,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function processNextOrder()
+    function processNextOrder(address client_)
         external
         onlyModuleRole(QUEUE_OPERATOR_ROLE)
         returns (bool success_)
     {
-        success_ = _processNextOrder();
+        success_ = _processNextOrder(client_);
     }
 
     // -------------------------------------------------------------------------
@@ -364,8 +376,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     ///	@notice	Processes the next payment order in the queue.
     ///	@return	success_ True if a payment was processed.
-    function _processNextOrder() internal returns (bool success_) {
-        uint firstId = _queue.getNextId(LinkedIdList._SENTINEL);
+    function _processNextOrder(address client_)
+        internal
+        returns (bool success_)
+    {
+        _ensureValidClient(client_);
+        uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
         if (firstId == LinkedIdList._SENTINEL) {
             return false;
         }
@@ -408,11 +424,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param	orderId_ The ID of the order to process.
     /// @param	order_ The order to process.
     /// @return	success_ True if the payment was successful.
-    function _executePaymentTransfer(
-        uint orderId_,
-        QueuedOrder storage order_
-    ) internal returns (bool success_) {
-        // Process payment
+    function _executePaymentTransfer(uint orderId_, QueuedOrder storage order_)
+        internal
+        returns (bool success_)
+    {
+        // Process payment.
         (bool success, bytes memory data) = order_.order.paymentToken.call(
             abi.encodeWithSelector(
                 IERC20(order_.order.paymentToken).transferFrom.selector,
@@ -422,19 +438,17 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             )
         );
 
-        // If transfer was successful
+        // If transfer was successful.
         if (
-            success && 
-            (data.length == 0 || abi.decode(data, (bool))) && 
-            order_.order.paymentToken.code.length != 0
+            success && (data.length == 0 || abi.decode(data, (bool)))
+                && order_.order.paymentToken.code.length != 0
         ) {
             _updateOrderState(orderId_, RedemptionState.COMPLETED);
             _removeFromQueue(orderId_);
 
             // Notify client about successful payment.
             IERC20PaymentClientBase_v1(order_.client).amountPaid(
-                order_.order.paymentToken,
-                order_.order.amount
+                order_.order.paymentToken, order_.order.amount
             );
 
             emit TokensReleased(
@@ -446,9 +460,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return true;
         } else {
             // Store as unclaimable and update state.
-            _unclaimableAmountsForRecipient[order_.client][
-                order_.order.paymentToken
-            ][order_.order.recipient] += order_.order.amount;
+            _unclaimableAmountsForRecipient[order_.client][order_
+                .order
+                .paymentToken][order_.order.recipient] += order_.order.amount;
 
             emit UnclaimableAmountAdded(
                 order_.client,
@@ -459,25 +473,27 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
             _updateOrderState(orderId_, RedemptionState.CANCELLED);
             _removeFromQueue(orderId_);
-            
+
             return false;
         }
     }
 
     /// @notice	Executes all pending orders in the queue.
-    function _executePaymentQueue() internal {
-        uint firstId = _queue.getNextId(LinkedIdList._SENTINEL);
+    function _executePaymentQueue(address client_) internal {
+        _ensureValidClient(client_);
+        uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
         if (firstId == LinkedIdList._SENTINEL) {
             revert Module__PP_Queue_EmptyQueue();
         }
 
         uint processedCount;
-        while (firstId != LinkedIdList._SENTINEL && _processNextOrder()) {
+        while (firstId != LinkedIdList._SENTINEL && _processNextOrder(client_))
+        {
             ++processedCount;
-            firstId = _queue.getNextId(LinkedIdList._SENTINEL);
+            firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
         }
 
-        emit PaymentQueueExecuted(_msgSender(), processedCount);
+        emit PaymentQueueExecuted(_msgSender(), client_, processedCount);
     }
 
     /// @notice	Adds a payment order to the queue.
@@ -488,9 +504,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         IERC20PaymentClientBase_v1.PaymentOrder memory order_,
         address client_
     ) internal returns (uint orderId_) {
+        _ensureValidClient(client_);
         // Check queue size
-        if (_queue.length() >= _maxQueueSize) {
-            revert Module__PP_Queue_QueueOperationFailed();
+        if (_queue[client_].length() >= _maxQueueSize) {
+            revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
         // Create new order
@@ -504,11 +521,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         });
 
         // Add to linked list
-        _queue.addId(orderId_);
+        _queue[client_].addId(orderId_);
 
         emit PaymentOrderQueued(
             orderId_,
             order_.recipient,
+            client_,
             order_.paymentToken,
             order_.amount,
             uint(order_.flags),
@@ -520,8 +538,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param	orderId_ ID of the order to remove.
     function _removeFromQueue(uint orderId_) internal {
         require(orderId_ != 0, "Invalid order ID.");
-        uint prevId = _queue.getPreviousId(orderId_);
-        _queue.removeId(prevId, orderId_);
+        address client_ = _orders[orderId_].client;
+        uint prevId = _queue[client_].getPreviousId(orderId_);
+        _queue[client_].removeId(prevId, orderId_);
     }
 
     /// @dev    Validates token balance and allowance for a payment.
@@ -551,7 +570,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address paymentReceiver
     ) internal {
         // Copy value over.
-        uint amount = 
+        uint amount =
             _unclaimableAmountsForRecipient[client][token][_msgSender()];
         // Delete the field.
         delete _unclaimableAmountsForRecipient[client][token][_msgSender()];
@@ -649,10 +668,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         uint cliffEnd = startTime_ + cliffPeriod_;
 
-        // Check if order has started
+        // Check if order has started.
         if (startTime_ > 0 && currentTime < startTime_) {
             emit PaymentOrderTimingSkip(
                 orderId_,
+                _orders[orderId_].client,
                 SKIP_NOT_STARTED,
                 currentTime,
                 startTime_,
@@ -662,10 +682,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return false;
         }
 
-        // Check if cliff period has passed
+        // Check if cliff period has passed.
         if (cliffPeriod_ > 0 && currentTime < cliffEnd) {
             emit PaymentOrderTimingSkip(
                 orderId_,
+                _orders[orderId_].client,
                 SKIP_IN_CLIFF,
                 currentTime,
                 startTime_,
@@ -675,10 +696,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return false;
         }
 
-        // Check if order hasn't expired
+        // Check if order hasn't expired.
         if (endTime_ > 0 && currentTime > endTime_) {
             emit PaymentOrderTimingSkip(
                 orderId_,
+                _orders[orderId_].client,
                 SKIP_EXPIRED,
                 currentTime,
                 startTime_,
@@ -785,7 +807,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         RedemptionState currentState_,
         RedemptionState newState_
     ) internal pure returns (bool valid_) {
-        // Can't transition from completed or cancelled
+        // Can't transition from completed or cancelled.
         if (
             currentState_ == RedemptionState.COMPLETED
                 || currentState_ == RedemptionState.CANCELLED
@@ -795,7 +817,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             );
         }
 
-        // Can only transition to completed or cancelled from processing
+        // Can only transition to completed or cancelled from processing.
         if (
             newState_ == RedemptionState.COMPLETED
                 || newState_ == RedemptionState.CANCELLED
@@ -819,7 +841,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
         _validStateTransition(orderId_, order.state, state_);
         order.state = state_;
-        emit PaymentOrderStateChanged(orderId_, state_);
+        emit PaymentOrderStateChanged(orderId_, state_, order.client);
     }
 
     /// @dev    Validates flags and corresponding data array.
@@ -832,49 +854,49 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         uint flagsValue = uint(flags_);
         uint requiredDataLength = 0;
 
-        // Count how many flags are set
+        // Count how many flags are set.
         for (uint8 i; i < 8; ++i) {
             if (flagsValue & (1 << i) != 0) {
                 requiredDataLength++;
             }
         }
 
-        // Verify data array length matches number of set flags
+        // Verify data array length matches number of set flags.
         if (data_.length < requiredDataLength) {
             revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
         }
 
-        // Validate each flag's data based on type
+        // Validate each flag's data based on type.
         uint dataIndex = 0;
 
-        // Check orderID flag (bit 0)
+        // Check orderID flag (bit 0).
         if (flagsValue & (1 << FLAG_ORDER_ID) != 0) {
-            // orderID must be non-zero
+            // orderID must be non-zero.
             if (uint(data_[dataIndex++]) == 0) {
                 revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
             }
         }
 
-        // Check start time flag (bit 1)
+        // Check start time flag (bit 1).
         if (flagsValue & (1 << FLAG_START_TIME) != 0) {
-            // start time must be in the future or 0
+            // start time must be in the future or 0.
             uint startTime = uint(data_[dataIndex++]);
             if (startTime != 0 && startTime < block.timestamp) {
                 revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
             }
         }
 
-        // Check cliff period flag (bit 2)
+        // Check cliff period flag (bit 2).
         if (flagsValue & (1 << FLAG_CLIFF_PERIOD) != 0) {
-            dataIndex++; // cliff period can be any value
+            dataIndex++; // cliff period can be any value.
         }
 
-        // Check end time flag (bit 3)
+        // Check end time flag (bit 3).
         if (flagsValue & (1 << FLAG_END_TIME) != 0) {
-            // end time must be after start time if both are specified
+            // end time must be after start time if both are specified.
             if (flagsValue & (1 << FLAG_START_TIME) != 0) {
                 uint endTime = uint(data_[dataIndex]);
-                // start time is second element if present
+                // start time is second element if present.
                 uint startTime = uint(data_[1]);
                 if (endTime <= startTime) {
                     revert Module__PP_Queue_InvalidFlagsOrData(
@@ -888,6 +910,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    Internal function to check whether the client is valid.
     /// @param  client_ Address to validate.
     function _ensureValidClient(address client_) internal view {
+        if (client_ == address(0)) {
+            revert Module__PP_Queue_InvalidClientAddress(client_);
+        }
         if (client_ != _msgSender()) {
             revert Module__PP_Queue_OnlyCallableByClient();
         }

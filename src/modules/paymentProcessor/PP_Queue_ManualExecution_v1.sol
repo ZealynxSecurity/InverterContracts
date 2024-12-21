@@ -68,7 +68,7 @@ contract PP_Queue_ManualExecution_v1 is
     uint[50] private __gap;
 
     // -------------------------------------------------------------------------
-    // Public (Mutating)
+    // Public
 
     /// @inheritdoc IPaymentProcessor_v1
     function processPayments(IERC20PaymentClientBase_v1 client_)
@@ -95,6 +95,6 @@ contract PP_Queue_ManualExecution_v1 is
         external
         onlyModuleRole(QUEUE_OPERATOR_ROLE)
     {
-        _executePaymentQueue();
+        _executePaymentQueue(_msgSender());
     }
 }

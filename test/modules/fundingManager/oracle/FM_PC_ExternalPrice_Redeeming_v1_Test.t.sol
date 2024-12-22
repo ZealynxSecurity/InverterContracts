@@ -291,71 +291,80 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Configuration
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-    /* testInitialFeeConfiguration()
-        └── Given an initialized contract
-            ├── Then buy fee should be set to DEFAULT_BUY_FEE
-            ├── Then sell fee should be set to DEFAULT_SELL_FEE
-            ├── Then max buy fee should be set to MAX_BUY_FEE
-            └── Then max sell fee should be set to MAX_SELL_FEE
+    
+    /* Test testFees_initializesToDefaultConfiguration() function
+        ├── Given a newly deployed funding manager
+        │   └── Then it should initialize with:
+        │       ├── Buy fee = DEFAULT_BUY_FEE
+        │       ├── Sell fee = DEFAULT_SELL_FEE
+        │       ├── Maximum buy fee = MAX_BUY_FEE
+        │       └── Maximum sell fee = MAX_SELL_FEE
     */
-    function testGetFees_GivenDefaultValues() public {
+    function testFees_initializesToDefaultConfiguration() public {
+        // Then - Verify buy fee configuration
         assertEq(
             fundingManager.buyFee(),
             DEFAULT_BUY_FEE,
-            "Buy fee not set correctly"
+            "Initial buy fee must match default value"
         );
+
+        // Then - Verify sell fee configuration  
         assertEq(
             fundingManager.sellFee(),
             DEFAULT_SELL_FEE,
-            "Sell fee not set correctly"
+            "Initial sell fee must match default value"
         );
+
+        // Then - Verify maximum fee constraints
         assertEq(
             fundingManager.getMaxBuyFee(),
             MAX_BUY_FEE,
-            "Max buy fee not set correctly"
+            "Maximum buy fee must match configured cap"
         );
-        // assertEq(
-        //     fundingManager.getMaxSellFee(),
-        //     MAX_SELL_FEE,
-        //     "Max sell fee not set correctly"
-        // );
+
+        assertEq(
+            fundingManager.getMaxProjectSellFee(),
+            MAX_SELL_FEE,
+            "Maximum sell fee must match configured cap"
+        );
     }
 
-    /* testIssuanceTokenConfiguration()
-        └── Given an initialized contract
-            ├── Then issuance token address should be set correctly
-            └── Then issuance token should be accessible
+    /* Test testToken_initializesIssuanceTokenCorrectly() function
+        ├── Given a newly deployed funding manager
+        │   └── Then it should:
+        │       ├── Store correct issuance token address
+        │       └── Maintain token reference accessibility
     */
-    function testGetIssuanceToken_GivenValidToken() public {
-        // Verify issuance token address
+    function testToken_initializesIssuanceTokenCorrectly() public {
         assertEq(
             fundingManager.getIssuanceToken(),
             address(issuanceToken),
-            "Issuance token not set correctly"
+            "Contract must reference configured issuance token"
         );
     }
 
-    /* testCollateralTokenConfiguration()
-        └── Given an initialized contract
-            ├── Then collateral token address should be set correctly
-            └── Then collateral token should be accessible
+    /* Test testToken_initializesCollateralTokenCorrectly() function 
+        ├── Given a newly deployed funding manager
+        │   └── Then it should:
+        │       ├── Store correct collateral token address
+        │       └── Maintain token reference accessibility
     */
-    function testCollateralTokenConfiguration() public {
-        // Verify collateral token address
+    function testToken_initializesCollateralTokenCorrectly() public {
         assertEq(
             address(fundingManager.token()),
             address(_token),
-            "Collateral token not set correctly"
+            "Contract must reference configured collateral token"
         );
     }
 
-    /* testInitWithInvalidBuyFee()
-        └── Given a new contract initialization
-            └── When buy fee exceeds maximum
-                └── Then it should revert with FeeExceedsMaximum
+    /* Test testInit_rejectsExcessiveBuyFee() function
+        ├── Given contract deployment parameters
+        │   └── When initializing with buy fee > MAX_BUY_FEE
+        │       └── Then it should:
+        │           ├── Revert with FeeExceedsMaximum error
+        │           └── Include exceeded and maximum values
     */
-    function testInitWithInvalidBuyFee() public {
+    function testInit_rejectsExcessiveBuyFee() public {
         bytes memory invalidConfigData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
@@ -384,12 +393,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testInitWithInvalidSellFee()
-        └── Given a new contract initialization
-            └── When sell fee exceeds maximum
-                └── Then it should revert with FeeExceedsMaximum
+    /* Test initialization with invalid fees
+        ├── Given a new contract deployment
+        │   └── And sell fee exceeds MAX_SELL_FEE
+        │       └── When the init() function is called
+        │           └── Then should revert with FeeExceedsMaximum error
     */
-    function testInitWithInvalidSellFee() public {
+    function testExternalInit_revertsGivenSellFeeExceedsMaximum() public {
         bytes memory invalidConfigData = abi.encode(
             address(oracle),           // oracle address
             address(issuanceToken),    // issuance token
@@ -422,27 +432,26 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     // Oracle
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-    /* testOracleConfiguration()
-        └── Given a contract initialization
-            ├── When oracle implements correct interface
-            │   ├── Then initialization should succeed
-            │   └── Then oracle should be accessible and return correct prices
-            └── When oracle does not implement correct interface
-                └── Then initialization should revert
+    /* Test oracle configuration and validation
+        ├── Given a valid oracle implementation
+        │   └── When checking oracle interface and prices
+        │       ├── Then should support IOraclePrice_v1 interface
+        │       └── Then should return correct issuance and redemption prices
+        ├── Given an invalid oracle address
+        │   └── When initializing contract
+        │       └── Then initialization should revert
     */
-    function testOracleConfiguration() public {
-        // Test with valid oracle
-        // First verify that our mock oracle has the correct interface
+    function testExternalInit_succeedsGivenValidOracleAndRevertsGivenInvalidOracle() public {
+        // Verify valid oracle interface
         assertTrue(
             ERC165(address(oracle)).supportsInterface(type(IOraclePrice_v1).interfaceId),
             "Mock oracle should support IOraclePrice_v1 interface"
         );
 
-        // Set test prices in the oracle
+        // Verify oracle price reporting
         oracle.setIssuancePrice(2e18);  // 2:1 ratio
         oracle.setRedemptionPrice(1.9e18);  // 1.9:1 ratio
 
-        // Verify that we can get prices from the oracle
         assertEq(
             oracle.getPriceForIssuance(),
             2e18,
@@ -454,9 +463,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Oracle redemption price not set correctly"
         );
 
-        // Test with invalid oracle (using _token as a mock non-oracle contract)
+        // Test initialization with invalid oracle
         bytes memory invalidConfigData = abi.encode(
-            address(_token),  // invalid oracle address
+            address(_token),           // invalid oracle address
             address(issuanceToken),    // issuance token
             address(_token),           // accepted token
             DEFAULT_BUY_FEE,          // buy fee
@@ -465,32 +474,26 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             MAX_BUY_FEE,              // max buy fee
             DIRECT_OPERATIONS_ONLY     // direct operations only flag
         );
-
-        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
-        address newFundingManager = address(new ERC1967Proxy(impl, ""));
         
         vm.expectRevert();  
-        FM_PC_ExternalPrice_Redeeming_v1(newFundingManager).init(
-            _orchestrator,
-            _METADATA,
-            invalidConfigData
-        );
+        fundingManager.init(_orchestrator, _METADATA, invalidConfigData);
     }
 
-    /* testInvalidOracleInterface()
-        └── Given a contract initialization with invalid oracle
-            ├── When oracle does not implement IOraclePrice_v1
-            │   └── Then initialization should revert with InvalidOracleInterface error
+    /* Test initialization with invalid oracle interface
+        ├── Given a mock contract that doesn't implement IOraclePrice_v1
+        │   └── And a new funding manager instance
+        │       └── When initializing with invalid oracle
+        │           └── Then should revert with InvalidInitialization error
     */
-    function testInvalidOracleInterface() public {
-        // Create a mock contract that doesn't implement IOraclePrice_v1
+    function testExternalInit_revertsGivenOracleWithoutRequiredInterface() public {
+        // Create mock without IOraclePrice_v1 interface
         InvalidOracleMock invalidOracle = new InvalidOracleMock();
 
-        // Create new funding manager instance
+        // Deploy new funding manager
         address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
         FM_PC_ExternalPrice_Redeeming_v1 invalidOracleFM = FM_PC_ExternalPrice_Redeeming_v1(Clones.clone(impl));
 
-        // Prepare config data with invalid oracle
+        // Prepare config with invalid oracle
         bytes memory configData = abi.encode(
             address(invalidOracle),    // invalid oracle address
             address(issuanceToken),    // issuance token
@@ -505,17 +508,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Setup orchestrator
         _setUpOrchestrator(invalidOracleFM);
 
-        // Initialization should revert
-        vm.expectRevert(IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface.selector);
-        invalidOracleFM.init(_orchestrator, _METADATA, configData);
+        // Verify revert on initialization
+        vm.expectRevert(OZErrors.Initializable__InvalidInitialization);
+        fundingManager.init(_orchestrator, _METADATA, configData);
     }
 
-    /* testTokenDecimals()
-        └── Given an initialized contract
-            ├── Then issuance token should have 18 decimals
-            └── Then collateral token should have 18 decimals
+    /* Test token decimals validation
+        ├── Given an initialized contract with ERC20 tokens
+        │   └── When checking token decimals
+        │       ├── Then issuance token should have exactly 18 decimals
+        │       └── Then collateral token should have exactly 18 decimals
     */
-    function testTokenDecimals() public {
+    function testExternalInit_succeedsGivenTokensWithCorrectDecimals() public {
         assertEq(
             IERC20Metadata(address(issuanceToken)).decimals(),
             18,
@@ -528,26 +532,23 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testFeeConfiguration()
-        └── Given an initialized funding manager contract
-            ├── When checking the buy fee
-            │   └── Then it should be set to DEFAULT_BUY_FEE (1% = 100 basis points)
-            ├── When checking the sell fee
-            │   └── Then it should be set to DEFAULT_SELL_FEE (1% = 100 basis points)
-            ├── When checking the max buy fee
-            │   └── Then it should be set to MAX_BUY_FEE (5% = 500 basis points)
-            └── When checking the max sell fee
-                └── Then it should be set to MAX_SELL_FEE (5% = 500 basis points)
+    /* Test fee configuration validation
+        ├── Given an initialized funding manager contract
+        │   └── When reading fee configuration values
+        │       ├── Then buyFee should equal DEFAULT_BUY_FEE (1% = 100 basis points)
+        │       ├── Then sellFee should equal DEFAULT_SELL_FEE (1% = 100 basis points) 
+        │       ├── Then maxBuyFee should equal MAX_BUY_FEE (5% = 500 basis points)
+        │       └── Then maxSellFee should equal MAX_SELL_FEE (5% = 500 basis points)
     */
-    function testFeeConfiguration() public {
-        // Verify buy fee using the public variable from BondingCurveBase_v1
+    function testExternalInit_succeedsGivenDefaultFeeConfiguration() public {
+        // Verify buy fee
         assertEq(
             BondingCurveBase_v1(address(fundingManager)).buyFee(),
             DEFAULT_BUY_FEE,
             "Buy fee not set correctly"
         );
 
-        // Verify sell fee using the public variable from RedeemingBondingCurveBase_v1
+        // Verify sell fee
         assertEq(
             RedeemingBondingCurveBase_v1(address(fundingManager)).sellFee(),
             DEFAULT_SELL_FEE,
@@ -562,26 +563,26 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // Verify max sell fee
-        // assertEq(
-        //     fundingManager.getMaxSellFee(),
-        //     MAX_SELL_FEE,
-        //     "Max sell fee not set correctly"
-        // );
+        assertEq(
+            fundingManager.getMaxProjectSellFee(),
+            MAX_SELL_FEE,
+            "Max sell fee not set correctly"
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
     // Fee Management
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-    /* testFeesCannotExceedMaximum()
-        └── Given a funding manager with default fees
-            ├── When trying to set a buy fee higher than maximum
-            │   └── Then transaction should revert with FeeExceedsMaximum error
-            └── When trying to set a sell fee higher than maximum
-                └── Then transaction should revert with FeeExceedsMaximum error
+    /* Test fee limits enforcement
+        ├── Given a funding manager initialized with default fees
+        │   ├── When setBuyFee is called with fee > MAX_BUY_FEE
+        │   │   └── Then should revert with FeeExceedsMaximum(invalidFee, MAX_BUY_FEE)
+        │   └── When setSellFee is called with fee > MAX_SELL_FEE
+        │       └── Then should revert with FeeExceedsMaximum(invalidFee, MAX_SELL_FEE)
     */
-    function testFeesCannotExceedMaximum() public {
-        // Try to set buy fee higher than maximum
+    function testExternalSetFees_revertGivenFeesExceedingMaximum() public {
+        // Verify buy fee limit
         uint invalidBuyFee = MAX_BUY_FEE + 1;
         vm.expectRevert(abi.encodeWithSelector(
             IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
@@ -590,7 +591,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         ));
         fundingManager.setBuyFee(invalidBuyFee);
         
-        // Try to set sell fee higher than maximum
+        // Verify sell fee limit
         uint invalidSellFee = MAX_SELL_FEE + 1;
         vm.expectRevert(abi.encodeWithSelector(
             IFM_PC_ExternalPrice_Redeeming_v1.Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum.selector,
@@ -600,36 +601,34 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setSellFee(invalidSellFee);
     }
 
-    /* testSetBuyFee_GivenValidFee()
-        └── Given an initialized funding manager contract
-            ├── When a non-admin tries to update the buy fee
-            │   └── Then the transaction should revert with unauthorized error
-            └── When admin updates the buy fee to a valid value
-                ├── Then the transaction should succeed
-                └── Then the new buy fee should be set correctly
+    /* Test buy fee update authorization and validation
+        ├── Given an initialized funding manager and valid fee value
+        │   ├── When non-admin calls setBuyFee
+        │   │   └── Then reverts with unauthorized error
+        │   └── When admin calls setBuyFee
+        │       └── Then buyFee state and getter return new value
     */
-    function testSetBuyFee_GivenValidFee(uint256 newBuyFee) public {
-        // Given
+    function testExternalSetBuyFee_succeedsGivenAdminAndValidFee(uint256 newBuyFee) public {
+        // Bound fee to valid range
         newBuyFee = bound(newBuyFee, 0, MAX_BUY_FEE);
         
-        // When/Then - Non-admin cannot update fee
+        // Verify non-admin cannot set fee
         vm.prank(user);
-        vm.expectRevert(); // Should revert with unauthorized error
+        vm.expectRevert();
         fundingManager.setBuyFee(newBuyFee);
         
-        // When - Admin updates fee
+        // Update fee as admin
         vm.prank(admin);
         fundingManager.setBuyFee(newBuyFee);
         
-        // Then - Fee should be updated correctly
-        // Verify through direct state variable access
+        // Verify fee updated in state
         assertEq(
             BondingCurveBase_v1(address(fundingManager)).buyFee(),
             newBuyFee,
             "Buy fee state variable not updated correctly"
         );
         
-        // Verify through getter function
+        // Verify fee getter
         assertEq(
             fundingManager.getBuyFee(),
             newBuyFee,
@@ -637,36 +636,34 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testSetSellFee_GivenValidFee()
-        └── Given an initialized funding manager contract
-            ├── When a non-admin tries to update the sell fee
-            │   └── Then the transaction should revert with unauthorized error
-            └── When admin updates the sell fee to a valid value
-                ├── Then the transaction should succeed
-                └── Then the new sell fee should be set correctly
+    /* Test sell fee update authorization and validation
+        ├── Given an initialized funding manager and valid fee value
+        │   ├── When non-admin calls setSellFee
+        │   │   └── Then reverts with unauthorized error
+        │   └── When admin calls setSellFee
+        │       └── Then sellFee state and getter return new value 
     */
-    function testSetSellFee_GivenValidFee(uint256 newSellFee) public {
-        // Given
+    function testExternalSetSellFee_succeedsGivenAdminAndValidFee(uint256 newSellFee) public {
+        // Bound fee to valid range
         newSellFee = bound(newSellFee, 0, MAX_SELL_FEE);
         
-        // When/Then - Non-admin cannot update fee
+        // Verify non-admin cannot set fee
         vm.prank(user);
-        vm.expectRevert(); // Should revert with unauthorized error
+        vm.expectRevert();
         fundingManager.setSellFee(newSellFee);
         
-        // When - Admin updates fee
+        // Update fee as admin
         vm.prank(admin);
         fundingManager.setSellFee(newSellFee);
         
-        // Then - Fee should be updated correctly
-        // Verify through direct state variable access
+        // Verify fee updated in state
         assertEq(
             RedeemingBondingCurveBase_v1(address(fundingManager)).sellFee(),
             newSellFee,
             "Sell fee state variable not updated correctly"
         );
         
-        // Verify through getter function
+        // Verify fee getter
         assertEq(
             fundingManager.getSellFee(),
             newSellFee,
@@ -674,26 +671,24 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* testFuzz_FeeUpdatePermissions()
-        └── Given an initialized funding manager contract with default fees
-            ├── When a whitelisted user tries to update fees
-            │   ├── Then setBuyFee should revert
-            │   └── Then setSellFee should revert
-            ├── When a regular user tries to update fees
-            │   ├── Then setBuyFee should revert
-            │   └── Then setSellFee should revert
-            └── When admin updates fees
-                ├── Then setBuyFee should succeed
-                │   └── And new buy fee should be set correctly
-                └── Then setSellFee should succeed
-                    └── And new sell fee should be set correctly
+    /* Test fee update permissions for different roles
+        ├── Given initialized funding manager and valid fee values
+        │   ├── When whitelisted user calls setBuyFee and setSellFee
+        │   │   └── Then both calls revert with unauthorized error
+        │   ├── When regular user calls setBuyFee and setSellFee  
+        │   │   └── Then both calls revert with unauthorized error
+        │   └── When admin calls setBuyFee and setSellFee
+        │       └── Then fees are updated successfully
     */
-    function testFuzz_FeeUpdatePermissions(uint256 newBuyFee, uint256 newSellFee) public {
+    function testExternalSetFees_succeedsOnlyForAdmin(
+        uint256 newBuyFee,
+        uint256 newSellFee
+    ) public {
         // Bound fees to valid ranges
         newBuyFee = bound(newBuyFee, 0, MAX_BUY_FEE);
         newSellFee = bound(newSellFee, 0, MAX_SELL_FEE);
         
-        // Test whitelisted user (should fail)
+        // Verify whitelisted user cannot set fees
         vm.startPrank(whitelisted);
         vm.expectRevert();
         fundingManager.setBuyFee(newBuyFee);
@@ -701,7 +696,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setSellFee(newSellFee);
         vm.stopPrank();
         
-        // Test regular user (should fail)
+        // Verify regular user cannot set fees
         vm.startPrank(user);
         vm.expectRevert();
         fundingManager.setBuyFee(newBuyFee);
@@ -709,10 +704,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.setSellFee(newSellFee);
         vm.stopPrank();
         
-        // Test admin (should succeed)
+        // Verify admin can set fees
         vm.startPrank(admin);
         
-        // Set and verify buy fee
         fundingManager.setBuyFee(newBuyFee);
         assertEq(
             fundingManager.getBuyFee(),
@@ -720,7 +714,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Admin should be able to update buy fee"
         );
         
-        // Set and verify sell fee
         fundingManager.setSellFee(newSellFee);
         assertEq(
             fundingManager.getSellFee(),
@@ -731,30 +724,25 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.stopPrank();
     }
 
-    /* testFuzz_SequentialFeeUpdates()
-        └── Given an initialized funding manager contract
-            ├── When admin updates buy fee multiple times with fuzzed values
-            │   ├── Then first update should set fee to fee1
-            │   ├── Then second update should set fee to fee2
-            │   └── Then third update should set fee to fee3
-            └── When admin updates sell fee multiple times with fuzzed values
-                ├── Then first update should set fee to fee1
-                ├── Then second update should set fee to fee2
-                └── Then third update should set fee to fee3
+    /* Test sequential fee updates validation
+        ├── Given initialized funding manager and admin role
+        │   ├── When admin performs three sequential buy fee updates
+        │   │   └── Then getBuyFee returns the latest set value after each update
+        │   └── When admin performs three sequential sell fee updates
+        │       └── Then getSellFee returns the latest set value after each update
     */
-    function testFuzz_SequentialFeeUpdates(
+    function testExternalSetFees_succeedsWithSequentialUpdates(
         uint256 fee1,
         uint256 fee2,
         uint256 fee3
     ) public {
-        // Bound all fees to valid ranges
+        vm.startPrank(admin);
+
+        // Sequential buy fee updates
         fee1 = bound(fee1, 0, MAX_BUY_FEE);
         fee2 = bound(fee2, 0, MAX_BUY_FEE);
         fee3 = bound(fee3, 0, MAX_BUY_FEE);
         
-        vm.startPrank(admin);
-        
-        // First update
         fundingManager.setBuyFee(fee1);
         assertEq(
             fundingManager.getBuyFee(),
@@ -762,7 +750,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Buy fee not updated correctly in first update"
         );
         
-        // Second update
         fundingManager.setBuyFee(fee2);
         assertEq(
             fundingManager.getBuyFee(),
@@ -770,7 +757,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Buy fee not updated correctly in second update"
         );
         
-        // Third update
         fundingManager.setBuyFee(fee3);
         assertEq(
             fundingManager.getBuyFee(),
@@ -778,12 +764,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Buy fee not updated correctly in third update"
         );
         
-        // Repeat for sell fees
+        // Sequential sell fee updates
         fee1 = bound(fee1, 0, MAX_SELL_FEE);
         fee2 = bound(fee2, 0, MAX_SELL_FEE);
         fee3 = bound(fee3, 0, MAX_SELL_FEE);
         
-        // First update
         fundingManager.setSellFee(fee1);
         assertEq(
             fundingManager.getSellFee(),
@@ -791,7 +776,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Sell fee not updated correctly in first update"
         );
         
-        // Second update
         fundingManager.setSellFee(fee2);
         assertEq(
             fundingManager.getSellFee(),
@@ -799,7 +783,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Sell fee not updated correctly in second update"
         );
         
-        // Third update
         fundingManager.setSellFee(fee3);
         assertEq(
             fundingManager.getSellFee(),

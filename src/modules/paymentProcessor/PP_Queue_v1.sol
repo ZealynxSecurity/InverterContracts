@@ -100,7 +100,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Modifiers
 
-    /// @dev    Checks that the client is calling for itself.
+    /// @dev    Checks that the calling client is valid.
     modifier clientIsValid(address client_) {
         _ensureValidClient(client_);
         _;

@@ -99,7 +99,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	redemptionTime_ Time of redemption.
     /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
-        bytes32 indexed orderId_,
+        uint indexed orderId_,
         address indexed seller_,
         address indexed receiver_,
         uint sellAmount_,

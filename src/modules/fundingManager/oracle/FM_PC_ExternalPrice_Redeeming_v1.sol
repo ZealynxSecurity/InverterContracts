@@ -456,16 +456,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Calculate redemption amount.
         uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
 
-        // Generate new order ID by hashing this contract address and the next
-        // order id.
-        bytes32 orderId = keccak256(abi.encodePacked(_orderId++, address(this)));
-
         bytes32 flags;
         bytes32[] memory data;
 
         {
             bytes32[] memory paymentParameters = new bytes32[](1);
-            paymentParameters[0] = bytes32(_orderId);
+            paymentParameters[0] = bytes32(++_orderId);
 
             (flags, data) = _assemblePaymentConfig(paymentParameters);
         }
@@ -490,7 +486,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Emit event with all order details.
         emit RedemptionOrderCreated(
-            orderId,
+            _orderId,
             _msgSender(),
             receiver_,
             depositAmount_,

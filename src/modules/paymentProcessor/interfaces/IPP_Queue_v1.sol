@@ -218,10 +218,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @notice	Gets the size of the queue.
     /// @param  client_ Address of the client whose queue size to get.
     /// @return	size_ Current queue size.
-    function getQueueSize(address client_)
-        external
-        view
-        returns (uint size_);
+    function getQueueSize(address client_) external view returns (uint size_);
 
     /// @notice	Gets total number of orders created.
     /// @return	total_ Total number of orders.

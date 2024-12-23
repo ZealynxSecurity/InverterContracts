@@ -177,11 +177,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueSize(address client_)
-        external
-        view
-        returns (uint size_)
-    {
+    function getQueueSize(address client_) external view returns (uint size_) {
         size_ = _queue[client_].length();
     }
 
@@ -256,7 +252,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
         // Validate payment receiver, amount and queue ID.
-        isValid_ = _validPaymentOrder(order_);
+        isValid_ = _validPaymentReceiver(order_.recipient)
+            && _validTotalAmount(order_.amount) && _validQueueId(queueId_)
+            && _validPaymentToken(order_.paymentToken);
     }
 
     /// @inheritdoc IPP_Queue_v1
@@ -418,9 +416,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         IERC20PaymentClientBase_v1.PaymentOrder memory order_,
         address client_
     ) internal returns (uint queueId_) {
-        if (!_validPaymentReceiver(order_.recipient) ||
-            !_validTotalAmount(order_.amount) ||
-            !_validTokenBalance(order_.paymentToken, client_, order_.amount)) {
+        if (
+            !_validPaymentReceiver(order_.recipient)
+                || !_validTotalAmount(order_.amount)
+                || !_validTokenBalance(order_.paymentToken, client_, order_.amount)
+        ) {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
@@ -535,7 +535,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    Validate uint total amount input.
     /// @param  amount_ Amount to validate.
     /// @return valid_ True if uint is valid.
-    function _validTotalAmount(uint amount_) internal pure returns (bool valid_) {
+    function _validTotalAmount(uint amount_)
+        internal
+        pure
+        returns (bool valid_)
+    {
         return amount_ != 0;
     }
 

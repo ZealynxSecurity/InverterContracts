@@ -73,7 +73,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param	flags_ Processing flags for the order.
     /// @param	timestamp_ Time when the order was created.
     event PaymentOrderQueued(
-        uint indexed orderId_,
+        bytes32 indexed orderId_,
         address indexed recipient_,
         address indexed token_,
         address client_,
@@ -87,7 +87,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param	state_ New state of the payment order.
     /// @param  client_ Address of the client that owns the order.
     event PaymentOrderStateChanged(
-        uint indexed orderId_,
+        bytes32 indexed orderId_,
         RedemptionState indexed state_,
         address indexed client_
     );
@@ -100,17 +100,11 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     ///             2: in cliff,
     ///             3: expired.
     /// @param   currentTime_ Current block timestamp.
-    /// @param   startTime_ Start time of the order.
-    /// @param   cliffEnd_ End of cliff period.
-    /// @param   endTime_ End time of the order.
     event PaymentOrderTimingSkip(
         uint indexed orderId_,
         address indexed client_,
         uint8 reason_,
-        uint currentTime_,
-        uint startTime_,
-        uint cliffEnd_,
-        uint endTime_
+        uint currentTime_
     );
 
     /// @notice  Emitted when the payment queue is executed.

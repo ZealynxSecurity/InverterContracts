@@ -75,7 +75,6 @@ contract PP_Queue_ManualExecution_v1 is
         external
         virtual
         override(PP_Queue_v1, IPaymentProcessor_v1)
-        onlyModuleRole(QUEUE_OPERATOR_ROLE)
         clientIsValid(address(client_))
     {
         // Collect outstanding orders and their total token amount.
@@ -91,10 +90,10 @@ contract PP_Queue_ManualExecution_v1 is
     }
 
     /// @inheritdoc IPP_Queue_ManualExecution_v1
-    function executePaymentQueue()
+    function executePaymentQueue(IERC20PaymentClientBase_v1 client_)
         external
-        onlyModuleRole(QUEUE_OPERATOR_ROLE)
+        clientIsValid(address(client_))
     {
-        _executePaymentQueue(_msgSender());
+        _executePaymentQueue(address(client_));
     }
 }

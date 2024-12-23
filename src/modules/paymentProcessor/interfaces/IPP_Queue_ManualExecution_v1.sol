@@ -3,6 +3,8 @@ pragma solidity ^0.8.0;
 
 // Internal
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
+import {IERC20PaymentClientBase_v1} from
+    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 
 /**
  * @title   Manual Execution Queue Based Payment Processor
@@ -36,7 +38,6 @@ interface IPP_Queue_ManualExecution_v1 is IPP_Queue_v1 {
     // Functions
 
     /// @notice  Executes all pending payment orders in the queue.
-    /// @dev     This function processes all pending orders in the queue. It
-    ///          requires the QUEUE_OPERATOR_ROLE.
-    function executePaymentQueue() external;
+    /// @dev     This function processes all pending orders in the queue.
+    function executePaymentQueue(IERC20PaymentClientBase_v1 paymentClient) external;
 }

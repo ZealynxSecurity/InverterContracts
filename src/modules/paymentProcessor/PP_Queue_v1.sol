@@ -82,7 +82,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     mapping(
         address client
             => mapping(
-                address token => mapping(address receiver => uint amount)
+                address token
+                    => mapping(address receiver => uint unclaimableAmount)
             )
     ) private _unclaimableAmountsForRecipient;
 

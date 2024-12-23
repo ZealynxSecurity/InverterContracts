@@ -256,8 +256,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
         // Validate payment receiver, amount and queue ID.
-        isValid_ = _validPaymentReceiver(order_.recipient)
-            && _validTotalAmount(order_.amount) && _validQueueId(queueId_);
+        isValid_ = _validPaymentOrder(order_);
     }
 
     /// @inheritdoc IPP_Queue_v1

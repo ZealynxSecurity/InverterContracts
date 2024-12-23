@@ -276,7 +276,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         QueuedOrder storage order = _orders[orderId_];
 
-        // Check if order can be cancelled
+        // Check if the order has an invalid state.
         if (order.state != RedemptionState.PROCESSING) {
             revert Module__PP_Queue_InvalidState();
         }

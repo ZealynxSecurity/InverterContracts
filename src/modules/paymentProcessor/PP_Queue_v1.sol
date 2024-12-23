@@ -74,11 +74,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    Flag position in the flags byte.
     uint8 private constant FLAG_ORDER_ID = 0;
 
-    /// @dev    Timing skip reasons.
-    uint8 private constant SKIP_NOT_STARTED = 1;
-    uint8 private constant SKIP_IN_CLIFF = 2;
-    uint8 private constant SKIP_EXPIRED = 3;
-
     // -------------------------------------------------------------------------
     // Storage
 

@@ -226,9 +226,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address token_,
         address paymentReceiver_
-    ) public view
-        returns (uint amount_)
-    {
+    ) public view returns (uint amount_) {
         amount_ =
             _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
     }
@@ -240,9 +238,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address receiver_
     ) external {
         if (unclaimable(client_, token_, receiver_) == 0) {
-            revert Module__PaymentProcessor__NothingToClaim(
-                client_, receiver_
-            );
+            revert Module__PaymentProcessor__NothingToClaim(client_, receiver_);
         }
 
         _claimPreviouslyUnclaimable(client_, token_, receiver_);
@@ -473,11 +469,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  client_ Client address.
     /// @param  amount_ Amount to check.
     /// @return valid_ True if balance and allowance are sufficient.
-    function _validTokenBalance(
-        address token_,
-        address client_,
-        uint amount_
-    ) internal view
+    function _validTokenBalance(address token_, address client_, uint amount_)
+        internal
+        view
         returns (bool valid_)
     {
         IERC20 token = IERC20(token_);
@@ -536,12 +530,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     {
         // Check if orderID flag is set (bit 0)
         bool hasOrderId = uint(flags_) & (1 << FLAG_ORDER_ID) != 0;
-        
+
         // If flag is set and data is provided, use that ID
         if (hasOrderId && data_.length > FLAG_ORDER_ID) {
             queueId_ = uint(data_[FLAG_ORDER_ID]);
         }
-        
+
         // If no valid ID provided, generate new one
         if (queueId_ == 0) {
             queueId_ = _nextOrderId + 1;

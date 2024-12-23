@@ -262,7 +262,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         // Validate payment receiver, amount and queue ID.
         isValid_ = _validPaymentReceiver(order_.recipient)
-            && _validTotal(order_.amount) && _validQueueId(queueId_);
+            && _validTotalAmount(order_.amount) && _validQueueId(queueId_);
     }
 
     /// @inheritdoc IPP_Queue_v1
@@ -423,27 +423,29 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _addPaymentOrderToQueue(
         IERC20PaymentClientBase_v1.PaymentOrder memory order_,
         address client_
-    ) internal returns (uint queueId) {
-        if (!_validPaymentOrder(order_)) {
+    ) internal returns (uint queueId_) {
+        if (!_validPaymentReceiver(order_.recipient) ||
+            !_validTotalAmount(order_.amount) ||
+            !_validTokenBalance(order_.paymentToken, client_, order_.amount)) {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
-        queueId = _getPaymentQueueId(order_.flags, order_.data);
+        queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
         // Create new order
-        _orders[queueId] = QueuedOrder({
+        _orders[queueId_] = QueuedOrder({
             order: order_,
             state: RedemptionState.PROCESSING,
-            orderId: queueId,
+            orderId: queueId_,
             timestamp: block.timestamp,
             client: client_
         });
 
         // Add to linked list
-        _queue[client_].addId(queueId);
+        _queue[client_].addId(queueId_);
 
         emit PaymentOrderQueued(
-            queueId,
+            queueId_,
             order_.recipient,
             client_,
             order_.paymentToken,
@@ -539,7 +541,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    Validate uint total amount input.
     /// @param  amount_ Amount to validate.
     /// @return valid_ True if uint is valid.
-    function _validTotal(uint amount_) internal pure returns (bool valid_) {
+    function _validTotalAmount(uint amount_) internal pure returns (bool valid_) {
         return amount_ != 0;
     }
 
@@ -592,13 +594,18 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             revert Module__PP_Queue_InvalidRecipient(order_.order.recipient);
         }
 
+        // Validate amount
+        if (!_validTotalAmount(order_.order.amount)) {
+            revert Module__PP_Queue_InvalidAmount(order_.order.amount);
+        }
+
         // Validate payment token
         if (!_validPaymentToken(order_.order.paymentToken)) {
             revert Module__PP_Queue_InvalidToken(order_.order.paymentToken);
         }
 
         // Validate amount
-        if (!_validTotal(order_.order.amount)) {
+        if (!_validTotalAmount(order_.order.amount)) {
             revert Module__PP_Queue_InvalidAmount(order_.order.amount);
         }
 

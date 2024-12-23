@@ -286,43 +286,38 @@ contract PP_Queue_V1_Test is ModuleTest {
     }
 
 
-function testFuzz_AddPaymentOrder_Succeeds(
-    address recipient,
-    uint256 amount
-) public {
-    // Validaciones típicas de fuzz
-    vm.assume(recipient != address(0));
-    vm.assume(recipient != address(this));
-    vm.assume(recipient != address(queue));
-    vm.assume(amount > 0 && amount < 1e30); // Límite arbitrario
+    function testFuzz_AddPaymentOrder_Succeeds(
+        address recipient,
+        uint256 amount
+    ) public {
+        vm.assume(recipient != address(0));
+        vm.assume(recipient != address(this));
+        vm.assume(recipient != address(queue));
+        vm.assume(amount > 0 && amount < 1e30); // Límite arbitrario
 
-    // Prepara balances y allowance
-    deal(address(_token), admin, amount);
-    _token.approve(address(queue), amount);
-    _authorizer.setIsAuthorized(address(queue), true);
-    paymentClient.setIsAuthorized(address(queue), true);
+        deal(address(_token), admin, amount);
+        _token.approve(address(queue), amount);
+        _authorizer.setIsAuthorized(address(queue), true);
+        paymentClient.setIsAuthorized(address(queue), true);
 
-    // Arma la orden
-    IERC20PaymentClientBase_v1.PaymentOrder memory order = IERC20PaymentClientBase_v1.PaymentOrder({
-        recipient: recipient,
-        paymentToken: address(_token),
-        amount: amount,
-        originChainId: block.chainid,
-        targetChainId: block.chainid,
-        flags: bytes32(0),
-        data: new bytes32[](0)
-    });
-    assertEq(queue.getQueueSize(address(this)), 0);
+        IERC20PaymentClientBase_v1.PaymentOrder memory order = IERC20PaymentClientBase_v1.PaymentOrder({
+            recipient: recipient,
+            paymentToken: address(_token),
+            amount: amount,
+            originChainId: block.chainid,
+            targetChainId: block.chainid,
+            flags: bytes32(0),
+            data: new bytes32[](0)
+        });
+        assertEq(queue.getQueueSize(address(this)), 0);
 
-    // Llamamos la exposed function
-    uint newId = queue.exposed_addPaymentOrderToQueue(order, address(this));
+        uint newId = queue.exposed_addPaymentOrderToQueue(order, address(this));
 
-    // Verificamos que se guardó
-    IPP_Queue_v1.QueuedOrder memory qOrder = queue.getOrder(newId);
-    assertEq(qOrder.order_.recipient, recipient, "Recipient mismatch");
-    assertEq(qOrder.order_.amount, amount, "Amount mismatch");
-    assertEq(uint(qOrder.state_), uint(IPP_Queue_v1.RedemptionState.PROCESSING), "State mismatch");
-}
+        IPP_Queue_v1.QueuedOrder memory qOrder = queue.getOrder(newId);
+        assertEq(qOrder.order_.recipient, recipient, "Recipient mismatch");
+        assertEq(qOrder.order_.amount, amount, "Amount mismatch");
+        assertEq(uint(qOrder.state_), uint(IPP_Queue_v1.RedemptionState.PROCESSING), "State mismatch");
+    }
 
     function testFuzz_QueueOperations(
         address recipient,

@@ -79,7 +79,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice Tracks all payments that could not be made to the
     ///         paymentReceiver.
-    /// @dev    client => token => receiver => unclaimable amount.
     mapping(
         address client
             => mapping(

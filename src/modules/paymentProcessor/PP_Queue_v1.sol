@@ -73,9 +73,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @dev    Flag positions in the flags byte.
     uint8 private constant FLAG_ORDER_ID = 0;
-    uint8 private constant FLAG_START_TIME = 1;
-    uint8 private constant FLAG_CLIFF_PERIOD = 2;
-    uint8 private constant FLAG_END_TIME = 3;
 
     /// @dev    Timing skip reasons.
     uint8 private constant SKIP_NOT_STARTED = 1;
@@ -120,6 +117,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    Checks that the client is calling for itself.
     modifier clientIsValid(address client_) {
         _ensureValidClient(client_);
+        _;
+    }
+
+    /// @dev    Checks that the caller is an active module.
+    modifier onlyModule() {
+        if (!orchestrator().isModule(_msgSender())) {
+            revert Module__PaymentProcessor__OnlyCallableByModule();
+        }
         _;
     }
 
@@ -225,6 +230,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function processPayments(IERC20PaymentClientBase_v1 client_)
         external
         virtual
+        onlyModule
         clientIsValid(address(client_))
     {
         // Collect outstanding orders and their total token amount.
@@ -280,51 +286,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         IERC20PaymentClientBase_v1.PaymentOrder memory order_
     ) external view returns (bool isValid_) {
         // Extract queue ID from order data.
-        (uint queueId_,,,) = _getPaymentQueueDetails(order_.flags, order_.data);
+        (uint queueId_) = _getPaymentQueueDetails(order_.flags, order_.data);
 
         // Validate payment receiver, amount and queue ID.
         isValid_ = _validPaymentReceiver(order_.recipient)
             && _validTotal(order_.amount) && _validQueueId(queueId_);
     }
 
-    /// @inheritdoc IPP_Queue_v1
-    function addPaymentOrderToQueue(
-        address client_,
-        address token_,
-        address receiver_,
-        uint amount_,
-        bytes calldata data_
-    ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) returns (uint orderId_) {
-        bytes32[] memory decodedData = new bytes32[](data_.length / 32);
-        assembly {
-            calldatacopy(
-                add(decodedData, 32),
-                add(data_.offset, 32),
-                mul(mload(decodedData), 32)
-            )
-        }
-
-        // Check token balance and allowance.
-        if (!_validTokenBalance(token_, client_, amount_)) {
-            revert Module__PP_Queue_QueueOperationFailed(client_);
-        }
-
-        // Create payment order.
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: receiver_,
-            paymentToken: token_,
-            amount: amount_,
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: 0,
-            data: decodedData
-        });
-
-        // Add to queue.
-        orderId_ = _addPaymentOrderToQueue(order, client_);
-    }
-
+   
     /// @inheritdoc IPP_Queue_v1
     function cancelPaymentOrderThroughQueueId(uint orderId_)
         external
@@ -362,15 +331,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         success_ = true;
     }
 
-    /// @inheritdoc IPP_Queue_v1
-    function processNextOrder(address client_)
-        external
-        onlyModuleRole(QUEUE_OPERATOR_ROLE)
-        returns (bool success_)
-    {
-        success_ = _processNextOrder(client_);
-    }
-
     // -------------------------------------------------------------------------
     // Internal
 
@@ -391,19 +351,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Skip if order is not in PROCESSING state.
         if (order.state != RedemptionState.PROCESSING) {
             _removeFromQueue(firstId);
-            return false;
-        }
-
-        // Extract timing parameters.
-        (
-            , // queueId not needed here.
-            uint startTime,
-            uint cliffPeriod,
-            uint endTime
-        ) = _getPaymentQueueDetails(order.order.flags, order.order.data);
-
-        // Check timing constraints
-        if (!_validPaymentTiming(firstId, startTime, cliffPeriod, endTime)) {
             return false;
         }
 
@@ -479,8 +426,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @notice	Executes all pending orders in the queue.
-    function _executePaymentQueue(address client_) internal {
-        _ensureValidClient(client_);
+    function _executePaymentQueue(address client_)
+        internal
+        clientIsValid(client_)
+    {
         uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
         if (firstId == LinkedIdList._SENTINEL) {
             revert Module__PP_Queue_EmptyQueue();
@@ -510,21 +459,22 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
+        bytes32 queueId = _getPaymentQueueDetails(order_.flags, order_.data);
+
         // Create new order
-        orderId_ = _nextOrderId++;
-        _orders[orderId_] = QueuedOrder({
+        _orders[queueId] = QueuedOrder({
             order: order_,
             state: RedemptionState.PROCESSING,
-            orderId: orderId_,
+            orderId: queueId,
             timestamp: block.timestamp,
             client: client_
         });
 
         // Add to linked list
-        _queue[client_].addId(orderId_);
+        _queue[client_].addId(queueId);
 
         emit PaymentOrderQueued(
-            orderId_,
+            queueId,
             order_.recipient,
             client_,
             order_.paymentToken,
@@ -602,115 +552,19 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  flags_ The payment order flags.
     /// @param  data_ Additional payment order data.
     /// @return queueId_ The queue ID from the data.
-    /// @return startTime_ Start time if specified.
-    /// @return cliffPeriod_ Cliff period if specified.
-    /// @return endTime_ End time if specified.
     function _getPaymentQueueDetails(bytes32 flags_, bytes32[] memory data_)
         internal
         pure
-        returns (
-            uint queueId_,
-            uint startTime_,
-            uint cliffPeriod_,
-            uint endTime_
-        )
+        returns (bytes32 queueId_)
     {
-        uint dataIndex = 0;
-
         // Check if orderID flag is set (bit 0)
-        if (uint(flags_) & (1 << FLAG_ORDER_ID) != 0) {
-            if (dataIndex < data_.length) {
-                queueId_ = uint(data_[dataIndex++]);
+        bool hasOrderId = uint(flags_) & (1 << FLAG_ORDER_ID) != 0;
+        if (hasOrderId) {
+            if (data_.length > FLAG_ORDER_ID) {
+                // bounds check
+                queueId_ = data_[FLAG_ORDER_ID];
             }
         }
-
-        // Check if start time flag is set (bit 1)
-        if (uint(flags_) & (1 << FLAG_START_TIME) != 0) {
-            if (dataIndex < data_.length) {
-                startTime_ = uint(data_[dataIndex++]);
-            }
-        }
-
-        // Check if cliff period flag is set (bit 2)
-        if (uint(flags_) & (1 << FLAG_CLIFF_PERIOD) != 0) {
-            if (dataIndex < data_.length) {
-                cliffPeriod_ = uint(data_[dataIndex++]);
-            }
-        }
-
-        // Check if end time flag is set (bit 3)
-        if (uint(flags_) & (1 << FLAG_END_TIME) != 0) {
-            if (dataIndex < data_.length) {
-                endTime_ = uint(data_[dataIndex]);
-            }
-        }
-    }
-
-    /// @dev    Validates if a payment order can be processed based on
-    /// its timing constraints.
-    /// @param  orderId_ ID of the order being validated.
-    /// @param  startTime_ Start time of the order.
-    /// @param  cliffPeriod_ Cliff period of the order.
-    /// @param  endTime_ End time of the order.
-    /// @return valid_ True if the order can be processed.
-    function _validPaymentTiming(
-        uint orderId_,
-        uint startTime_,
-        uint cliffPeriod_,
-        uint endTime_
-    ) internal returns (bool valid_) {
-        uint currentTime = block.timestamp;
-
-        // If no timing constraints (all zeros), order is valid.
-        if (startTime_ == 0 && cliffPeriod_ == 0 && endTime_ == 0) {
-            return true;
-        }
-
-        uint cliffEnd = startTime_ + cliffPeriod_;
-
-        // Check if order has started.
-        if (startTime_ > 0 && currentTime < startTime_) {
-            emit PaymentOrderTimingSkip(
-                orderId_,
-                _orders[orderId_].client,
-                SKIP_NOT_STARTED,
-                currentTime,
-                startTime_,
-                cliffEnd,
-                endTime_
-            );
-            return false;
-        }
-
-        // Check if cliff period has passed.
-        if (cliffPeriod_ > 0 && currentTime < cliffEnd) {
-            emit PaymentOrderTimingSkip(
-                orderId_,
-                _orders[orderId_].client,
-                SKIP_IN_CLIFF,
-                currentTime,
-                startTime_,
-                cliffEnd,
-                endTime_
-            );
-            return false;
-        }
-
-        // Check if order hasn't expired.
-        if (endTime_ > 0 && currentTime > endTime_) {
-            emit PaymentOrderTimingSkip(
-                orderId_,
-                _orders[orderId_].client,
-                SKIP_EXPIRED,
-                currentTime,
-                startTime_,
-                cliffEnd,
-                endTime_
-            );
-            return false;
-        }
-
-        return true;
     }
 
     /// @dev    Validate uint total amount input.
@@ -874,35 +728,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             // orderID must be non-zero.
             if (uint(data_[dataIndex++]) == 0) {
                 revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
-            }
-        }
-
-        // Check start time flag (bit 1).
-        if (flagsValue & (1 << FLAG_START_TIME) != 0) {
-            // start time must be in the future or 0.
-            uint startTime = uint(data_[dataIndex++]);
-            if (startTime != 0 && startTime < block.timestamp) {
-                revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
-            }
-        }
-
-        // Check cliff period flag (bit 2).
-        if (flagsValue & (1 << FLAG_CLIFF_PERIOD) != 0) {
-            dataIndex++; // cliff period can be any value.
-        }
-
-        // Check end time flag (bit 3).
-        if (flagsValue & (1 << FLAG_END_TIME) != 0) {
-            // end time must be after start time if both are specified.
-            if (flagsValue & (1 << FLAG_START_TIME) != 0) {
-                uint endTime = uint(data_[dataIndex]);
-                // start time is second element if present.
-                uint startTime = uint(data_[1]);
-                if (endTime <= startTime) {
-                    revert Module__PP_Queue_InvalidFlagsOrData(
-                        flags_, data_.length
-                    );
-                }
             }
         }
     }

@@ -137,7 +137,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     {
         if (!_orderExists(orderId_)) {
             revert Module__PP_Queue_InvalidOrderId(
-                _orders[orderId_].client, orderId_
+                _orders[orderId_].client_, orderId_
             );
         }
         order_ = _orders[orderId_];
@@ -270,14 +270,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Validate queue ID.
         if (!_orderExists(orderId_)) {
             revert Module__PP_Queue_InvalidOrderId(
-                _orders[orderId_].client, orderId_
+                _orders[orderId_].client_, orderId_
             );
         }
 
         QueuedOrder storage order = _orders[orderId_];
 
         // Check if the order has an invalid state.
-        if (order.state != RedemptionState.PROCESSING) {
+        if (order.state_ != RedemptionState.PROCESSING) {
             revert Module__PP_Queue_InvalidState();
         }
 
@@ -285,11 +285,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         _updateOrderState(orderId_, RedemptionState.CANCELLED);
 
         // Add amount to unclaimable.
-        _setUnclaimableAmount(
+        _addToUnclaimableAmount(
             _msgSender(),
-            order.order.paymentToken,
-            order.order.recipient,
-            order.order.amount
+            order.order_.paymentToken,
+            order.order_.recipient,
+            order.order_.amount
         );
 
         // Remove from queue if present.
@@ -322,7 +322,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[firstId];
 
         // Skip if order is not in PROCESSING state.
-        if (order.state != RedemptionState.PROCESSING) {
+        if (order.state_ != RedemptionState.PROCESSING) {
             _removeFromQueue(firstId);
             return false;
         }
@@ -330,7 +330,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Check token balance and allowance.
         if (
             !_validTokenBalance(
-                order.order.paymentToken, order.client, order.order.amount
+                order.order_.paymentToken, order.client_, order.order_.amount
             )
         ) {
             _updateOrderState(firstId, RedemptionState.CANCELLED);
@@ -349,46 +349,46 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         returns (bool success_)
     {
         // Process payment.
-        (bool success, bytes memory data) = order_.order.paymentToken.call(
+        (bool success, bytes memory data) = order_.order_.paymentToken.call(
             abi.encodeWithSelector(
-                IERC20(order_.order.paymentToken).transferFrom.selector,
-                order_.client,
-                order_.order.recipient,
-                order_.order.amount
+                IERC20(order_.order_.paymentToken).transferFrom.selector,
+                order_.client_,
+                order_.order_.recipient,
+                order_.order_.amount
             )
         );
 
         // If transfer was successful.
         if (
             success && (data.length == 0 || abi.decode(data, (bool)))
-                && order_.order.paymentToken.code.length != 0
+                && order_.order_.paymentToken.code.length != 0
         ) {
             _updateOrderState(orderId_, RedemptionState.COMPLETED);
             _removeFromQueue(orderId_);
 
             // Notify client about successful payment.
-            IERC20PaymentClientBase_v1(order_.client).amountPaid(
-                order_.order.paymentToken, order_.order.amount
+            IERC20PaymentClientBase_v1(order_.client_).amountPaid(
+                order_.order_.paymentToken, order_.order_.amount
             );
 
             emit TokensReleased(
-                order_.order.recipient,
-                order_.order.paymentToken,
-                order_.order.amount
+                order_.order_.recipient,
+                order_.order_.paymentToken,
+                order_.order_.amount
             );
 
             return true;
         } else {
             // Store as unclaimable and update state.
-            _unclaimableAmountsForRecipient[order_.client][order_
-                .order
-                .paymentToken][order_.order.recipient] += order_.order.amount;
+            _unclaimableAmountsForRecipient[order_.client_][order_
+                .order_
+                .paymentToken][order_.order_.recipient] += order_.order_.amount;
 
             emit UnclaimableAmountAdded(
-                order_.client,
-                order_.order.paymentToken,
-                order_.order.recipient,
-                order_.order.amount
+                order_.client_,
+                order_.order_.paymentToken,
+                order_.order_.recipient,
+                order_.order_.amount
             );
 
             _updateOrderState(orderId_, RedemptionState.CANCELLED);
@@ -438,11 +438,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         // Create new order.
         _orders[queueId_] = QueuedOrder({
-            order: order_,
-            state: RedemptionState.PROCESSING,
-            orderId: queueId_,
-            timestamp: block.timestamp,
-            client: client_
+            order_: order_,
+            state_: RedemptionState.PROCESSING,
+            orderId_: queueId_,
+            timestamp_: block.timestamp,
+            client_: client_
         });
 
         // Add to linked list.
@@ -463,7 +463,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param	orderId_ ID of the order to remove.
     function _removeFromQueue(uint orderId_) internal {
         require(orderId_ != 0, "Invalid order ID.");
-        address client_ = _orders[orderId_].client;
+        address client_ = _orders[orderId_].client_;
         uint prevId = _queue[client_].getPreviousId(orderId_);
         _queue[client_].removeId(prevId, orderId_);
     }
@@ -600,34 +600,34 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         returns (bool valid_)
     {
         // Validate recipient.
-        if (!_validPaymentReceiver(order_.order.recipient)) {
-            revert Module__PP_Queue_InvalidRecipient(order_.order.recipient);
+        if (!_validPaymentReceiver(order_.order_.recipient)) {
+            revert Module__PP_Queue_InvalidRecipient(order_.order_.recipient);
         }
 
         // Validate amount.
-        if (!_validTotalAmount(order_.order.amount)) {
-            revert Module__PP_Queue_InvalidAmount(order_.order.amount);
+        if (!_validTotalAmount(order_.order_.amount)) {
+            revert Module__PP_Queue_InvalidAmount(order_.order_.amount);
         }
 
         // Validate payment token.
-        if (!_validPaymentToken(order_.order.paymentToken)) {
-            revert Module__PP_Queue_InvalidToken(order_.order.paymentToken);
+        if (!_validPaymentToken(order_.order_.paymentToken)) {
+            revert Module__PP_Queue_InvalidToken(order_.order_.paymentToken);
         }
 
         // Validate chain IDs.
         if (
-            order_.order.originChainId != block.chainid
-                || order_.order.targetChainId != block.chainid
+            order_.order_.originChainId != block.chainid
+                || order_.order_.targetChainId != block.chainid
         ) {
             revert Module__PP_Queue_InvalidChainId(
-                order_.order.originChainId,
-                order_.order.targetChainId,
+                order_.order_.originChainId,
+                order_.order_.targetChainId,
                 block.chainid
             );
         }
 
         // Validate flags and data consistency.
-        _validateFlagsAndData(order_.order.flags, order_.order.data);
+        _validateFlagsAndData(order_.order_.flags, order_.order_.data);
 
         return true;
     }
@@ -674,9 +674,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         internal
     {
         QueuedOrder storage order = _orders[orderId_];
-        _validStateTransition(orderId_, order.state, state_);
-        order.state = state_;
-        emit PaymentOrderStateChanged(orderId_, state_, order.client);
+        _validStateTransition(orderId_, order.state_, state_);
+        order.state_ = state_;
+        emit PaymentOrderStateChanged(orderId_, state_, order.client_);
     }
 
     /// @notice Validates flags and corresponding data array.
@@ -724,18 +724,18 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
     }
 
-    /// @notice Sets the unclaimable amount for a specific payment.
+    /// @notice Adds to the unclaimable amount for a specific payment.
     /// @param  client_ The client address.
     /// @param  token_ The token address.
     /// @param  receiver_ The receiver address.
-    /// @param  amount_ The amount to set.
-    function _setUnclaimableAmount(
+    /// @param  amount_ The amount to add.
+    function _addToUnclaimableAmount(
         address client_,
         address token_,
         address receiver_,
         uint amount_
     ) internal {
-        _unclaimableAmountsForRecipient[client_][token_][receiver_] = amount_;
+        _unclaimableAmountsForRecipient[client_][token_][receiver_] += amount_;
     }
 
     /// @notice Checks if an order exists.

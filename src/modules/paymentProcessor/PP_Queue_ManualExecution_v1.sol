@@ -76,6 +76,7 @@ contract PP_Queue_ManualExecution_v1 is
         virtual
         override(PP_Queue_v1, IPaymentProcessor_v1)
         clientIsValid(address(client_))
+        onlyModule
     {
         // Collect outstanding orders and their total token amount.
         IERC20PaymentClientBase_v1.PaymentOrder[] memory orders;

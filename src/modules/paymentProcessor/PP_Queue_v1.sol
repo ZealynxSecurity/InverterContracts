@@ -528,19 +528,23 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice Gets payment queue ID from flags and data.
     /// @param  flags_ The payment order flags.
     /// @param  data_ Additional payment order data.
-    /// @return queueId_ The queue ID from the data.
+    /// @return queueId_ The queue ID from the data or a newly generated one.
     function _getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
         internal
-        pure
+        view
         returns (uint queueId_)
     {
         // Check if orderID flag is set (bit 0)
         bool hasOrderId = uint(flags_) & (1 << FLAG_ORDER_ID) != 0;
-        if (hasOrderId) {
-            if (data_.length > FLAG_ORDER_ID) {
-                // bounds check
-                queueId_ = uint(data_[FLAG_ORDER_ID]);
-            }
+        
+        // If flag is set and data is provided, use that ID
+        if (hasOrderId && data_.length > FLAG_ORDER_ID) {
+            queueId_ = uint(data_[FLAG_ORDER_ID]);
+        }
+        
+        // If no valid ID provided, generate new one
+        if (queueId_ == 0) {
+            queueId_ = _nextOrderId + 1;
         }
     }
 

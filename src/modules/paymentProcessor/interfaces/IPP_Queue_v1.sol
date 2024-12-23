@@ -4,7 +4,7 @@ pragma solidity ^0.8.0;
 // Internal
 import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
 import {IERC20PaymentClientBase_v1} from
-    "../../logicModule/interfaces/IERC20PaymentClientBase_v1.sol";
+    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 
 /**
  * @title   Queue Based Payment Processor
@@ -136,7 +136,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  client_ Address of the client whose queue failed.
     error Module__PP_Queue_QueueOperationFailed(address client_);
 
-    /// @notice	Caller not authorized for operation.
+    /// @notice Only callable by a valid client.
     error Module__PP_Queue_OnlyCallableByClient();
 
     /// @notice	Invalid configuration parameters provided.
@@ -223,6 +223,11 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @notice	Gets total number of orders created.
     /// @return	total_ Total number of orders.
     function getTotalOrders() external view returns (uint total_);
+
+    /// @notice  Gets the role identifier for queue operations.
+    /// @dev     Role for queue operations.
+    /// @return  role_ The queue operator role identifier.
+    function getQueueOperatorRole() external pure returns (bytes32 role_);
 
     /// @notice	Cancels a payment order by its queue ID.
     /// @param	orderId_ The ID of the order to cancel.

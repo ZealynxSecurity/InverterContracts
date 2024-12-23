@@ -68,10 +68,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Constants
 
-    /// @dev    Role for queue operations.
-    bytes32 public constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR";
-
-    /// @dev    Flag position in the flags byte.
+    /// @notice    Flag position in the flags byte.
     uint8 private constant FLAG_ORDER_ID = 0;
 
     // -------------------------------------------------------------------------
@@ -186,6 +183,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         total_ = _nextOrderId;
     }
 
+    /// @inheritdoc IPP_Queue_v1
+    function getQueueOperatorRole() external pure returns (bytes32 role_) {
+        role_ = _queueOperatorRole();
+    }
+
     //--------------------------------------------------------------------------
     // Public (Mutating)
 
@@ -220,28 +222,30 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPaymentProcessor_v1
-    function unclaimable(address client, address token, address paymentReceiver)
-        public
-        view
+    function unclaimable(
+        address client_,
+        address token_,
+        address paymentReceiver_
+    ) public view
         returns (uint amount_)
     {
         amount_ =
-            _unclaimableAmountsForRecipient[client][token][paymentReceiver];
+            _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
     }
 
     /// @inheritdoc IPaymentProcessor_v1
     function claimPreviouslyUnclaimable(
-        address client,
-        address token,
-        address receiver
+        address client_,
+        address token_,
+        address receiver_
     ) external {
-        if (unclaimable(client, token, _msgSender()) == 0) {
+        if (unclaimable(client_, token_, receiver_) == 0) {
             revert Module__PaymentProcessor__NothingToClaim(
-                client, _msgSender()
+                client_, receiver_
             );
         }
 
-        _claimPreviouslyUnclaimable(client, token, receiver);
+        _claimPreviouslyUnclaimable(client_, token_, receiver_);
     }
 
     /// @inheritdoc IPaymentProcessor_v1
@@ -260,7 +264,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @inheritdoc IPP_Queue_v1
     function cancelPaymentOrderThroughQueueId(uint orderId_)
         external
-        onlyModuleRole(QUEUE_OPERATOR_ROLE)
+        onlyModuleRole(_queueOperatorRole())
         returns (bool success_)
     {
         // Validate queue ID.
@@ -296,6 +300,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     // -------------------------------------------------------------------------
     // Internal
+
+    /// @notice Gets the queue operator role identifier.
+    /// @return role_ The queue operator role identifier.
+    function _queueOperatorRole() internal pure returns (bytes32 role_) {
+        role_ = keccak256("QUEUE_OPERATOR");
+    }
 
     ///	@notice	Processes the next payment order in the queue.
     ///	@return	success_ True if a payment was processed.
@@ -463,9 +473,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  client_ Client address.
     /// @param  amount_ Amount to check.
     /// @return valid_ True if balance and allowance are sufficient.
-    function _validTokenBalance(address token_, address client_, uint amount_)
-        internal
-        view
+    function _validTokenBalance(
+        address token_,
+        address client_,
+        uint amount_
+    ) internal view
         returns (bool valid_)
     {
         IERC20 token = IERC20(token_);
@@ -475,32 +487,32 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice	Used to claim the unclaimable amount of a particular
     /// paymentReceiver for a given payment client.
-    /// @param	client Address of the payment client.
-    /// @param	token Address of the payment token.
-    /// @param	paymentReceiver Address of the paymentReceiver for which
+    /// @param	client_ Address of the payment client.
+    /// @param	token_ Address of the payment token.
+    /// @param	paymentReceiver_ Address of the paymentReceiver for which
     /// the unclaimable amount will be claimed.
     function _claimPreviouslyUnclaimable(
-        address client,
-        address token,
-        address paymentReceiver
+        address client_,
+        address token_,
+        address paymentReceiver_
     ) internal {
         // Copy value over.
         uint amount =
-            _unclaimableAmountsForRecipient[client][token][_msgSender()];
+            _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
         // Delete the field.
-        delete _unclaimableAmountsForRecipient[client][token][_msgSender()];
+        delete _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
 
         // Make sure to let paymentClient know that amount doesnt have
         // to be stored anymore.
-        IERC20PaymentClientBase_v1(client).amountPaid(token, amount);
+        IERC20PaymentClientBase_v1(client_).amountPaid(token_, amount);
 
         // Call has to succeed otherwise no state change.
-        IERC20(token).safeTransferFrom(client, paymentReceiver, amount);
+        IERC20(token_).safeTransferFrom(client_, paymentReceiver_, amount);
 
-        emit TokensReleased(paymentReceiver, address(token), amount);
+        emit TokensReleased(paymentReceiver_, address(token_), amount);
     }
 
-    /// @dev    Validates if a queue ID is valid.
+    /// @notice Validates if a queue ID is valid.
     /// @param  queueId_ The queue ID to validate.
     /// @return isValid_ True if the queue ID is valid.
     function _validQueueId(uint queueId_)
@@ -513,7 +525,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         return queueId_ > 0 && queueId_ <= _nextOrderId;
     }
 
-    /// @dev    Gets payment queue ID from flags and data.
+    /// @notice Gets payment queue ID from flags and data.
     /// @param  flags_ The payment order flags.
     /// @param  data_ Additional payment order data.
     /// @return queueId_ The queue ID from the data.
@@ -532,7 +544,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
     }
 
-    /// @dev    Validate uint total amount input.
+    /// @notice Validate total input amount.
     /// @param  amount_ Amount to validate.
     /// @return valid_ True if uint is valid.
     function _validTotalAmount(uint amount_)
@@ -543,7 +555,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         return amount_ != 0;
     }
 
-    /// @dev    Validate whether the address is a valid payment receiver.
+    /// @notice Validate whether the address is a valid payment receiver.
     /// @param  receiver_ Address to validate.
     /// @return validPaymentReceiver_ True if address is valid.
     function _validPaymentReceiver(address receiver_)
@@ -559,7 +571,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         );
     }
 
-    /// @dev    Validates a payment token.
+    /// @notice Validates a payment token.
     /// @param  token_ Token address to validate.
     /// @return valid_ True if token is valid.
     function _validPaymentToken(address token_)
@@ -579,7 +591,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
     }
 
-    /// @dev    Validates a payment order.
+    /// @notice Validates a payment order.
     /// @param  order_ The order to validate.
     /// @return valid_ True if the order is valid.
     function _validPaymentOrder(QueuedOrder memory order_)
@@ -587,27 +599,27 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool valid_)
     {
-        // Validate recipient
+        // Validate recipient.
         if (!_validPaymentReceiver(order_.order.recipient)) {
             revert Module__PP_Queue_InvalidRecipient(order_.order.recipient);
         }
 
-        // Validate amount
+        // Validate amount.
         if (!_validTotalAmount(order_.order.amount)) {
             revert Module__PP_Queue_InvalidAmount(order_.order.amount);
         }
 
-        // Validate payment token
+        // Validate payment token.
         if (!_validPaymentToken(order_.order.paymentToken)) {
             revert Module__PP_Queue_InvalidToken(order_.order.paymentToken);
         }
 
-        // Validate amount
+        // Validate amount.
         if (!_validTotalAmount(order_.order.amount)) {
             revert Module__PP_Queue_InvalidAmount(order_.order.amount);
         }
 
-        // Validate chain IDs
+        // Validate chain IDs.
         if (
             order_.order.originChainId != block.chainid
                 || order_.order.targetChainId != block.chainid
@@ -619,13 +631,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             );
         }
 
-        // Validate flags and data consistency
+        // Validate flags and data consistency.
         _validateFlagsAndData(order_.order.flags, order_.order.data);
 
         return true;
     }
 
-    /// @dev    Validates a state transition.
+    /// @notice Validates a state transition.
     /// @param  orderId_ ID of the order.
     /// @param  currentState_ Current state of the order.
     /// @param  newState_ New state to transition to.
@@ -660,7 +672,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         return true;
     }
 
-    /// @dev    Updates the state of a payment order.
+    /// @notice Updates the state of a payment order.
     /// @param  orderId_ ID of the order to update.
     /// @param  state_ New state of the order.
     function _updateOrderState(uint orderId_, RedemptionState state_)
@@ -672,7 +684,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         emit PaymentOrderStateChanged(orderId_, state_, order.client);
     }
 
-    /// @dev    Validates flags and corresponding data array.
+    /// @notice Validates flags and corresponding data array.
     /// @param  flags_ The flags to validate.
     /// @param  data_ The data array to validate.
     function _validateFlagsAndData(bytes32 flags_, bytes32[] memory data_)
@@ -706,7 +718,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
     }
 
-    /// @dev    Internal function to check whether the client is valid.
+    /// @notice Internal function to check whether the client is valid.
     /// @param  client_ Address to validate.
     function _ensureValidClient(address client_) internal view {
         if (client_ == address(0)) {
@@ -717,7 +729,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
     }
 
-    /// @dev    Sets the unclaimable amount for a specific payment.
+    /// @notice Sets the unclaimable amount for a specific payment.
     /// @param  client_ The client address.
     /// @param  token_ The token address.
     /// @param  receiver_ The receiver address.
@@ -731,7 +743,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         _unclaimableAmountsForRecipient[client_][token_][receiver_] = amount_;
     }
 
-    /// @dev    Checks if an order exists.
+    /// @notice Checks if an order exists.
     /// @param  orderId_ ID of the order to check.
     /// @return exists_ True if the order exists.
     function _orderExists(uint orderId_) internal view returns (bool exists_) {

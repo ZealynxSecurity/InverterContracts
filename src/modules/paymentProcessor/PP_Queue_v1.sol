@@ -281,10 +281,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             revert Module__PP_Queue_InvalidState();
         }
 
-        // Update order state and emit event
+        // Update order state and emit event.
         _updateOrderState(orderId_, RedemptionState.CANCELLED);
 
-        // Add amount to unclaimable
+        // Add amount to unclaimable.
         _setUnclaimableAmount(
             _msgSender(),
             order.order.paymentToken,
@@ -292,7 +292,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             order.order.amount
         );
 
-        // Remove from queue if present
+        // Remove from queue if present.
         _removeFromQueue(orderId_);
 
         success_ = true;
@@ -436,7 +436,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
-        // Create new order
+        // Create new order.
         _orders[queueId_] = QueuedOrder({
             order: order_,
             state: RedemptionState.PROCESSING,
@@ -445,7 +445,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             client: client_
         });
 
-        // Add to linked list
+        // Add to linked list.
         _queue[client_].addId(queueId_);
 
         emit PaymentOrderQueued(
@@ -468,7 +468,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         _queue[client_].removeId(prevId, orderId_);
     }
 
-    /// @dev    Validates token balance and allowance for a payment.
+    /// @notice Validates token balance and allowance for a payment.
     /// @param  token_ Token to check.
     /// @param  client_ Client address.
     /// @param  amount_ Amount to check.
@@ -486,11 +486,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @notice	Used to claim the unclaimable amount of a particular
-    /// paymentReceiver for a given payment client.
+    ///         paymentReceiver for a given payment client.
     /// @param	client_ Address of the payment client.
     /// @param	token_ Address of the payment token.
     /// @param	paymentReceiver_ Address of the paymentReceiver for which
-    /// the unclaimable amount will be claimed.
+    ///         the unclaimable amount will be claimed.
     function _claimPreviouslyUnclaimable(
         address client_,
         address token_,
@@ -612,11 +612,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Validate payment token.
         if (!_validPaymentToken(order_.order.paymentToken)) {
             revert Module__PP_Queue_InvalidToken(order_.order.paymentToken);
-        }
-
-        // Validate amount.
-        if (!_validTotalAmount(order_.order.amount)) {
-            revert Module__PP_Queue_InvalidAmount(order_.order.amount);
         }
 
         // Validate chain IDs.

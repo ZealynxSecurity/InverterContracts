@@ -48,17 +48,17 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     // Structs
 
     /// @notice	Queued payment order information.
-    /// @param	order Original payment order from client.
-    /// @param	state Current state of the payment order.
-    /// @param	orderId Unique identifier of the payment order.
-    /// @param	timestamp Creation timestamp of the payment order.
-    /// @param  client Address of the client paying for the order.
+    /// @param	order_ Original payment order from client.
+    /// @param	state_ Current state of the payment order.
+    /// @param	orderId_ Unique identifier of the payment order.
+    /// @param	timestamp_ Creation timestamp of the payment order.
+    /// @param  client_ Address of the client paying for the order.
     struct QueuedOrder {
-        IERC20PaymentClientBase_v1.PaymentOrder order;
-        RedemptionState state;
-        uint orderId;
-        uint timestamp;
-        address client;
+        IERC20PaymentClientBase_v1.PaymentOrder order_;
+        RedemptionState state_;
+        uint orderId_;
+        uint timestamp_;
+        address client_;
     }
 
     // -------------------------------------------------------------------------

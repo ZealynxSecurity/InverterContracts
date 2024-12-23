@@ -94,6 +94,7 @@ contract PP_Queue_ManualExecution_v1 is
     function executePaymentQueue(IERC20PaymentClientBase_v1 client_)
         external
         clientIsValid(address(client_))
+        onlyModule
     {
         _executePaymentQueue(address(client_));
     }

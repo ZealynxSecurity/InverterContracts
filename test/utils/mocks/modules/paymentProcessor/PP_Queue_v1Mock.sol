@@ -49,7 +49,7 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
     }
 
     // Función para exponer _validQueueId
-    function exposed_validQueueId(uint queueId) external view returns (bool) {
-        return _validQueueId(queueId);
+    function exposed_validQueueId(uint queueId, address client_) external view returns (bool) {
+        return _validQueueId(queueId, client_);
     }
 }

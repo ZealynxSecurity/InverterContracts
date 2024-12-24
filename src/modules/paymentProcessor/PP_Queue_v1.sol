@@ -14,7 +14,6 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-import "forge-std/console.sol";
 
 /**
  * @title   Queue Based Payment Processor
@@ -43,6 +42,7 @@ import "forge-std/console.sol";
  *
  * @author  Zealynx Security
  */
+
 contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Libraries
@@ -78,6 +78,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice Queue of payment orders per client.
     mapping(address client => LinkedIdList.List queue) private _queue;
 
+    /// @notice Payment orders.
+    mapping(uint orderId => QueuedOrder order) private _orders;
+
+    /// @notice Current order ID per client.
+    mapping(address client => uint currentOrderId) private _currentOrderId;
+
     /// @notice Tracks all payments that could not be made to the
     ///         paymentReceiver.
     mapping(
@@ -87,13 +93,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                     => mapping(address receiver => uint unclaimableAmount)
             )
     ) private _unclaimableAmountsForRecipient;
-
-    /// @notice Tracks payment orders by their ID.
-    /// @dev    orderId => order details.
-    mapping(uint orderId => QueuedOrder order) private _orders;
-
-    /// @dev    Next order ID to be assigned.
-    uint private _nextOrderId;
 
     /// @dev    Gap for possible future upgrades.
     uint[50] private __gap;
@@ -131,15 +130,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // Public (Getters)
 
     /// @inheritdoc IPP_Queue_v1
-    function getOrder(uint orderId_)
+    function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
         external
         view
         returns (QueuedOrder memory order_)
     {
-        if (!_orderExists(orderId_)) {
-            revert Module__PP_Queue_InvalidOrderId(
-                _orders[orderId_].client_, orderId_
-            );
+        if (!_orderExists(orderId_, client_)) {
+            revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
         }
         order_ = _orders[orderId_];
     }
@@ -175,13 +172,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueSize(address client_) external view returns (uint size_) {
+    function getQueueSizeForClient(address client_)
+        external
+        view
+        returns (uint size_)
+    {
         size_ = _queue[client_].length();
-    }
-
-    /// @inheritdoc IPP_Queue_v1
-    function getTotalOrders() external view returns (uint total_) {
-        total_ = _nextOrderId;
     }
 
     /// @inheritdoc IPP_Queue_v1
@@ -254,21 +250,19 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         // Validate payment receiver, amount and queue ID.
         isValid_ = _validPaymentReceiver(order_.recipient)
-            && _validTotalAmount(order_.amount) && _validQueueId(queueId_)
+            && _validTotalAmount(order_.amount)
+            && _validQueueId(queueId_, address(msg.sender))
             && _validPaymentToken(order_.paymentToken);
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function cancelPaymentOrderThroughQueueId(uint orderId_)
-        external
-        onlyModuleRole(_queueOperatorRole())
-        returns (bool success_)
-    {
+    function cancelPaymentOrderThroughQueueId(
+        uint orderId_,
+        IERC20PaymentClientBase_v1 client_
+    ) external onlyModuleRole(_queueOperatorRole()) returns (bool success_) {
         // Validate queue ID.
-        if (!_orderExists(orderId_)) {
-            revert Module__PP_Queue_InvalidOrderId(
-                _orders[orderId_].client_, orderId_
-            );
+        if (!_orderExists(orderId_, client_)) {
+            revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
         }
 
         QueuedOrder storage order = _orders[orderId_];
@@ -432,8 +426,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
+        if (queueId_ == 0) {
+            queueId_ = ++_currentOrderId[client_];
+        }
         
-        // Create new order.
+        // Create new order
         _orders[queueId_] = QueuedOrder({
             order_: order_,
             state_: RedemptionState.PROCESSING,
@@ -441,9 +438,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             timestamp_: block.timestamp,
             client_: client_
         });
-        console.log("queueId_", queueId_);
 
-        // Add to linked list.
+        // Add to linked list
         _queue[client_].addId(queueId_);
 
         emit PaymentOrderQueued(
@@ -510,15 +506,16 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice Validates if a queue ID is valid.
     /// @param  queueId_ The queue ID to validate.
+    /// @param  client_ The client address.
     /// @return isValid_ True if the queue ID is valid.
-    function _validQueueId(uint queueId_)
+    function _validQueueId(uint queueId_, address client_)
         internal
         view
         returns (bool isValid_)
     {
         // Queue ID must be less than or equal to total orders
         // and greater than 0 (we start from 1).
-        return queueId_ > 0 && queueId_ <= _nextOrderId;
+        return queueId_ > 0 && queueId_ <= _currentOrderId[client_];
     }
 
     /// @notice Gets payment queue ID from flags and data.
@@ -527,7 +524,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @return queueId_ The queue ID from the data or a newly generated one.
     function _getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
         internal
-        view
+        pure
         returns (uint queueId_)
     {
         // Check if orderID flag is set (bit 0)
@@ -536,11 +533,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // If flag is set and data is provided, use that ID
         if (hasOrderId && data_.length > FLAG_ORDER_ID) {
             queueId_ = uint(data_[FLAG_ORDER_ID]);
-        }
-
-        // If no valid ID provided, generate new one
-        if (queueId_ == 0) {
-            queueId_ = _nextOrderId + 1;
         }
     }
 
@@ -740,10 +732,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice Checks if an order exists.
     /// @param  orderId_ ID of the order to check.
+    /// @param  client_ Address of the client.
     /// @return exists_ True if the order exists.
-    function _orderExists(uint orderId_) internal view returns (bool exists_) {
-        console.log("orderId_", orderId_);
-        console.log("_nextOrderId", _nextOrderId);
-        return orderId_ <= _nextOrderId;
+    function _orderExists(uint orderId_, IERC20PaymentClientBase_v1 client_)
+        internal
+        view
+        returns (bool exists_)
+    {
+        return orderId_ <= _currentOrderId[address(client_)];
     }
 }

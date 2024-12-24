@@ -42,6 +42,7 @@ import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
  *
  * @author  Zealynx Security
  */
+
 contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Libraries
@@ -250,7 +251,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Validate payment receiver, amount and queue ID.
         isValid_ = _validPaymentReceiver(order_.recipient)
             && _validTotalAmount(order_.amount)
-            && _validQueueId(queueId_, address(client_))
+            && _validQueueId(queueId_, address(msg.sender))
             && _validPaymentToken(order_.paymentToken);
     }
 
@@ -425,8 +426,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-
-        // Create new order.
+        if (queueId_ == 0) {
+            queueId_ = ++_currentOrderId[client_];
+        }
+        
+        // Create new order
         _orders[queueId_] = QueuedOrder({
             order_: order_,
             state_: RedemptionState.PROCESSING,
@@ -435,12 +439,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             client_: client_
         });
 
-        // Update current order ID if this is a new highest ID
-        if (queueId_ > _currentOrderId[address(client_)]) {
-            _currentOrderId[client_] = queueId_;
-        }
-
-        // Add to linked list.
+        // Add to linked list
         _queue[client_].addId(queueId_);
 
         emit PaymentOrderQueued(
@@ -740,6 +739,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool exists_)
     {
-        return orderId_ <= _currentOrderId[client_];
+        return orderId_ <= _currentOrderId[address(client_)];
     }
 }

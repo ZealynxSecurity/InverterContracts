@@ -191,8 +191,9 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     /// @notice	Retrieves a payment order by its ID.
     /// @param  orderId_ The ID of the payment order.
+    /// @param  client_ The client associated with the order.
     /// @return	order_ The payment order data.
-    function getOrder(uint orderId_)
+    function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
         external
         view
         returns (QueuedOrder memory order_);
@@ -215,14 +216,10 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @return	tail_ Current queue tail position.
     function getQueueTail(address client_) external view returns (uint tail_);
 
-    /// @notice	Gets the size of the queue.
+    /// @notice	Gets the size of the queue for specific client.
     /// @param  client_ Address of the client whose queue size to get.
     /// @return	size_ Current queue size.
-    function getQueueSize(address client_) external view returns (uint size_);
-
-    /// @notice	Gets total number of orders created.
-    /// @return	total_ Total number of orders.
-    function getTotalOrders() external view returns (uint total_);
+    function getQueueSizeForClient(address client_) external view returns (uint size_);
 
     /// @notice  Gets the role identifier for queue operations.
     /// @dev     Role for queue operations.
@@ -231,8 +228,9 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     /// @notice	Cancels a payment order by its queue ID.
     /// @param	orderId_ The ID of the order to cancel.
+    /// @param	client_ The client associated with the order.
     /// @return	success_ True if cancellation was successful.
-    function cancelPaymentOrderThroughQueueId(uint orderId_)
+    function cancelPaymentOrderThroughQueueId(uint orderId_, IERC20PaymentClientBase_v1 client_)
         external
         returns (bool success_);
 }

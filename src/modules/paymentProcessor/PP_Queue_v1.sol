@@ -14,6 +14,9 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+import "forge-std/console.sol";
+import "forge-std/console2.sol";
+
 
 /**
  * @title   Queue Based Payment Processor
@@ -204,8 +207,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         for (uint i; i < orderLength; ++i) {
             // Add order to order queue
             _addPaymentOrderToQueue(orders[i], address(client_));
+
+        console.log("orders.length", orders.length);
+        // console2.log("orders[i]", orders[i]);
         }
         // Execute Order Queue.
+        console.log("ordersid", _currentOrderId[address(client_)]);
         _executePaymentQueue(address(client_));
     }
 
@@ -394,10 +401,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         internal
         clientIsValid(client_)
     {
-        uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
-        if (firstId == LinkedIdList._SENTINEL) {
-            revert Module__PP_Queue_EmptyQueue();
-        }
+        console.log("LinkedIdList._SENTINEL)", LinkedIdList._SENTINEL);
+        // uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
+        uint firstId = _queue[client_].getNextId(_currentOrderId[address(client_)]);
+        console.log("firstId", firstId);
+        // if (firstId == LinkedIdList._SENTINEL) {
+        //     revert Module__PP_Queue_EmptyQueue();
+        // }
 
         uint processedCount;
         while (firstId != LinkedIdList._SENTINEL && _processNextOrder(client_))

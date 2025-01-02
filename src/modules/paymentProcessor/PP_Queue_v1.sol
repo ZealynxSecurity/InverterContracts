@@ -150,6 +150,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (uint[] memory queue_)
     {
+        // If queue is empty, return empty array.
+        if (_queue[client_].length() == 0) {
+            return new uint[](0);
+        }
+
         uint[] memory queue = new uint[](_queue[client_].length());
         uint index_;
 
@@ -402,12 +407,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         clientIsValid(client_)
     {
         console.log("LinkedIdList._SENTINEL)", LinkedIdList._SENTINEL);
-        // uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
-        uint firstId = _queue[client_].getNextId(_currentOrderId[address(client_)]);
+        uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
         console.log("firstId", firstId);
-        // if (firstId == LinkedIdList._SENTINEL) {
-        //     revert Module__PP_Queue_EmptyQueue();
-        // }
+        if (firstId == LinkedIdList._SENTINEL) {
+            revert Module__PP_Queue_EmptyQueue();
+        }
 
         uint processedCount;
         while (firstId != LinkedIdList._SENTINEL && _processNextOrder(client_))
@@ -448,6 +452,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             timestamp_: block.timestamp,
             client_: client_
         });
+
+        // Initialize the queue if it's the first order
+        if (_queue[client_].length() == 0) {
+            _queue[client_].init();
+        }
 
         // Add to linked list
         _queue[client_].addId(queueId_);

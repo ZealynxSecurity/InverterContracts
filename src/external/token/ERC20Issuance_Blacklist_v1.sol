@@ -105,7 +105,7 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
-    function isBlacklistManager(address account_) public view returns (bool) {
+    function isBlacklistManager(address account_) external view returns (bool) {
         return _isBlacklistManager[account_];
     }
 
@@ -128,9 +128,6 @@ contract ERC20Issuance_Blacklist_v1 is
         public
         onlyBlacklistManager
     {
-        if (account_ == address(0)) {
-            revert ERC20Issuance_Blacklist_ZeroAddress();
-        }
         if (isBlacklisted(account_)) {
             _blacklist[account_] = false;
             emit RemovedFromBlacklist(account_);
@@ -140,7 +137,6 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @inheritdoc IERC20Issuance_Blacklist_v1
     function addToBlacklistBatched(address[] memory accounts_)
         external
-        onlyBlacklistManager
     {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
@@ -156,7 +152,6 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklistBatched(address[] memory accounts_)
         external
-        onlyBlacklistManager
     {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {

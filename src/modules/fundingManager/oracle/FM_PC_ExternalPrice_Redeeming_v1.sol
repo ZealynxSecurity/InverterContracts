@@ -459,12 +459,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
 
-        // Calculate redemption amount.
-        uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
+        // collateralRedeemAmount_ is already calculated from netDeposit (post-issuance fee)
+        uint redemptionAmount_ = collateralRedeemAmount_;
 
         // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
-            recipient: _msgSender(),
+            recipient: receiver_,
             paymentToken: address(token()),
             amount: collateralRedeemAmount_,
             start: block.timestamp,
@@ -555,16 +555,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Cache Collateral Token.
         IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
 
-        // Require that enough collateral token is held to be redeemable.
-        if (
-            (collateralRedeemAmount + projectCollateralFeeCollected)
-                > collateralToken.balanceOf(address(this))
-        ) {
-            revert
-                Module__RedeemingBondingCurveBase__InsufficientCollateralForRedemption(
-            );
-        }
-
         // Get net amount, protocol and project fee amounts.
         (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
         _calculateNetAndSplitFees(
@@ -585,9 +575,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         if (collateralRedeemAmount < _minAmountOut) {
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }
-
-        // Use virtual function to handle collateral tokens.
-        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
 
         // Create and emit the order.
         _createAndEmitOrder(

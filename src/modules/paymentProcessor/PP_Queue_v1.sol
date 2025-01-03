@@ -82,7 +82,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     mapping(address client => LinkedIdList.List queue) private _queue;
 
     /// @notice Payment orders.
-    mapping(uint orderId => QueuedOrder order) private _orders;
+    mapping(uint orderId => QueuedOrder order) internal _orders;
 
     /// @notice Current order ID per client.
     mapping(address client => uint currentOrderId) private _currentOrderId;
@@ -464,8 +464,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         emit PaymentOrderQueued(
             queueId_,
             order_.recipient,
-            client_,
             order_.paymentToken,
+            client_,
             order_.amount,
             uint(order_.flags),
             block.timestamp

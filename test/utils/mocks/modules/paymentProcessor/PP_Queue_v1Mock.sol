@@ -71,4 +71,29 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
     {
         _updateOrderState(orderId_, state_);
     }
+
+    function exposed_processNextOrder(address client_)
+        external
+        returns (bool)
+    {
+        return _processNextOrder(client_);
+    }
+
+    function exposed_executePaymentTransfer(uint orderId_)
+        external
+        returns (bool)
+    {
+        return _executePaymentTransfer(orderId_, _orders[orderId_]);
+    }
+
+    function exposed_executePaymentQueue(address client_) external {
+        _executePaymentQueue(client_);
+    }
+
+    function exposed_orderExists(
+        uint orderId_,
+        IERC20PaymentClientBase_v1 client_
+    ) external view returns (bool) {
+        return _orderExists(orderId_, client_);
+    }
 }

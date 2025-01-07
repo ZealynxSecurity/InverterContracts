@@ -467,9 +467,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             recipient: receiver_,
             paymentToken: address(token()),
             amount: collateralRedeemAmount_,
-            start: block.timestamp,
-            cliff: 0,
-            end: block.timestamp
+            originChainId: block.chainid,
+            targetChainId: block.chainid,
+            flags: bytes32(0),
+            data: new bytes32[](0)
         });
         _addPaymentOrder(order);
 

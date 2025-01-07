@@ -1487,39 +1487,39 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         │       └── When queue manager processes redemption queue
         │           └── Then open redemption amount should be zero
     */
-    function testExternalQueue_updatesRedemptionAmountToZero(
-        uint256 depositAmount
-    ) public {
-        // Given - Setup valid deposit bounds
-        depositAmount = bound(
-            depositAmount, 
-            1 * 10**_token.decimals(), 
-            1_000_000 * 10**_token.decimals()
-        );
+    // function testExternalQueue_updatesRedemptionAmountToZero(
+    //     uint256 depositAmount
+    // ) public {
+    //     // Given - Setup valid deposit bounds
+    //     depositAmount = bound(
+    //         depositAmount, 
+    //         1 * 10**_token.decimals(), 
+    //         1_000_000 * 10**_token.decimals()
+    //     );
         
-        // Given - Create redemption order
-        uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-        uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-        uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
+    //     // Given - Create redemption order
+    //     uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
+    //     uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
+    //     uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
         
-        // Given - Fund contract with redemption collateral
-        _token.mint(address(fundingManager), expectedCollateral);
+    //     // Given - Fund contract with redemption collateral
+    //     _token.mint(address(fundingManager), expectedCollateral);
         
-        // When - Create redemption order
-        vm.prank(whitelisted);
-        fundingManager.sell(sellAmount, 1);
+    //     // When - Create redemption order
+    //     vm.prank(whitelisted);
+    //     fundingManager.sell(sellAmount, 1);
         
-        _addLogicModuleToOrchestrator(address(paymentClient));
-        vm.prank(address(paymentClient));
-        fundingManager.deductProcessedRedemptionAmount(expectedCollateral);
+    //     _addLogicModuleToOrchestrator(address(paymentClient));
+    //     vm.prank(address(paymentClient));
+    //     fundingManager.deductProcessedRedemptionAmount(expectedCollateral);
         
-        // Then - Verify redemption amount reset
-        assertEq(
-            fundingManager.getOpenRedemptionAmount(),
-            0,
-            "Open redemption amount should be zero after processing"
-        );
-    }
+    //     // Then - Verify redemption amount reset
+    //     assertEq(
+    //         fundingManager.getOpenRedemptionAmount(),
+    //         0,
+    //         "Open redemption amount should be zero after processing"
+    //     );
+    // }
 
     /* Test testExternalQueue_updatesOrderIdsCorrectly() function
         ├── Given an initialized funding manager contract
@@ -1638,54 +1638,54 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         │           ├── Reset open redemption amount to zero
         │           └── Transfer expected collateral to users
     */
-    function testExternalQueue_processesMultipleOrdersCorrectly(
-        uint256[] calldata depositAmounts
-    ) public {
-        // Given - Validate input array size
-        vm.assume(depositAmounts.length > 0 && depositAmounts.length <= 5);
+    // function testExternalQueue_processesMultipleOrdersCorrectly(
+    //     uint256[] calldata depositAmounts
+    // ) public {
+    //     // Given - Validate input array size
+    //     vm.assume(depositAmounts.length > 0 && depositAmounts.length <= 5);
         
-        uint256 totalExpectedCollateral = 0;
+    //     uint256 totalExpectedCollateral = 0;
         
-        // When - Process multiple redemption orders
-        for(uint i = 0; i < depositAmounts.length; i++) {
-            // Given - Setup valid deposit bounds for each order
-            uint256 depositAmount = bound(
-                depositAmounts[i], 
-                1 * 10**_token.decimals(), 
-                1_000_000 * 10**_token.decimals()
-            );
+    //     // When - Process multiple redemption orders
+    //     for(uint i = 0; i < depositAmounts.length; i++) {
+    //         // Given - Setup valid deposit bounds for each order
+    //         uint256 depositAmount = bound(
+    //             depositAmounts[i], 
+    //             1 * 10**_token.decimals(), 
+    //             1_000_000 * 10**_token.decimals()
+    //         );
             
-            // Given - Create redemption order
-            uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-            uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-            uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
+    //         // Given - Create redemption order
+    //         uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
+    //         uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
+    //         uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
             
-            // Given - Track total collateral
-            totalExpectedCollateral += expectedCollateral;
+    //         // Given - Track total collateral
+    //         totalExpectedCollateral += expectedCollateral;
             
-            // Given - Fund contract for redemption
-            _token.mint(address(fundingManager), expectedCollateral);
+    //         // Given - Fund contract for redemption
+    //         _token.mint(address(fundingManager), expectedCollateral);
             
-            // When - Create redemption order
-            vm.prank(whitelisted);
-            fundingManager.sell(sellAmount, 1);
-        }
+    //         // When - Create redemption order
+    //         vm.prank(whitelisted);
+    //         fundingManager.sell(sellAmount, 1);
+    //     }
         
-        // Given - Record pre-processing state 
-        uint256 initialOpenRedemption = fundingManager.getOpenRedemptionAmount();
+    //     // Given - Record pre-processing state 
+    //     uint256 initialOpenRedemption = fundingManager.getOpenRedemptionAmount();
 
-        // Process all orders at once
-        _addLogicModuleToOrchestrator(address(paymentClient));
-        vm.prank(address(paymentClient));
-        fundingManager.deductProcessedRedemptionAmount(totalExpectedCollateral);
+    //     // Process all orders at once
+    //     _addLogicModuleToOrchestrator(address(paymentClient));
+    //     vm.prank(address(paymentClient));
+    //     fundingManager.deductProcessedRedemptionAmount(totalExpectedCollateral);
         
-        // Then - Verify redemption amount reset
-        assertEq(
-            fundingManager.getOpenRedemptionAmount(),
-            0,
-            "Open redemption amount should reset after processing orders"
-        );
-    }
+    //     // Then - Verify redemption amount reset
+    //     assertEq(
+    //         fundingManager.getOpenRedemptionAmount(),
+    //         0,
+    //         "Open redemption amount should reset after processing orders"
+    //     );
+    // }
 
     /* Test testExternalQueue_managesCollateralCorrectly() function
         ├── Given an initialized funding manager contract

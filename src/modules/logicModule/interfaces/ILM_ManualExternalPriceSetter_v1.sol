@@ -32,13 +32,11 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
 
     /// @notice	Emitted when an issuance price is set.
     /// @param	price_ The price that was set.
-    /// @param	timestamp_ The timestamp when the price was updated.
-    event IssuancePriceSet(uint indexed price_, uint indexed timestamp_);
+    event IssuancePriceSet(uint indexed price_);
 
     /// @notice	Emitted when a redemption price is set.
     /// @param	price_ The price that was set.
-    /// @param	timestamp_ The timestamp when the price was updated.
-    event RedemptionPriceSet(uint indexed price_, uint indexed timestamp_);
+    event RedemptionPriceSet(uint indexed price_);
 
     // -------------------------------------------------------------------------
 
@@ -66,4 +64,15 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     ///         1500000000000000000.
     /// @param	price_ The price to set.
     function setRedemptionPrice(uint price_) external;
+
+    /// @notice	Sets both issuance and redemption prices atomically.
+    /// @dev    Both prices must be non-zero. The issuancePrice_ should be in
+    ///         collateral token decimals and redemptionPrice_ in issuance token
+    ///         decimals.
+    /// @param	issuancePrice_ The issuance price to set.
+    /// @param	redemptionPrice_ The redemption price to set.
+    function setIssuanceAndRedemptionPrice(
+        uint issuancePrice_,
+        uint redemptionPrice_
+    ) external;
 }

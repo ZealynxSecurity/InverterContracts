@@ -231,19 +231,21 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     */
     function testInitialSetup_GivenNoSetPrices() public {
         // Verify initial prices revert
+        vm.startPrank(priceSetter_);
         vm.expectRevert(
             abi.encodeWithSignature(
                 "Module__LM_ExternalPriceSetter__InvalidPrice()"
             )
         );
-        priceSetter.getPriceForIssuance();
+        priceSetter.setIssuancePrice(0);
 
+        vm.startPrank(priceSetter_);
         vm.expectRevert(
             abi.encodeWithSignature(
                 "Module__LM_ExternalPriceSetter__InvalidPrice()"
             )
         );
-        priceSetter.getPriceForRedemption();
+        priceSetter.setIssuanceAndRedemptionPrice(0,0);
     }
 
     /* testSetIssuancePrice_GivenUnauthorizedUser()

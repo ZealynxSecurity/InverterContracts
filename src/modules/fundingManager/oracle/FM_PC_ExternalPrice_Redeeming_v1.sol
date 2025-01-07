@@ -351,14 +351,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function deductProcessedRedemptionAmount(uint processedRedemptionAmount_)
-        external
-        onlyPaymentClient
-    {
-        _deductFromOpenRedemptionAmount(processedRedemptionAmount_);
-    }
-
     /// @inheritdoc IRedeemingBondingCurveBase_v1
     function setSellFee(uint fee_)
         public
@@ -465,14 +457,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _orderId = _nextOrderId++;
 
         // Update open redemption amount.
-        _addToOpenRedemptionAmount(collateralRedeemAmount_);
+        _openRedemptionAmount += collateralRedeemAmount_;
 
-        // Calculate redemption amount.
-        uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
+        // collateralRedeemAmount_ is already calculated from netDeposit (post-issuance fee)
+        uint redemptionAmount_ = collateralRedeemAmount_;
 
         // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
-            recipient: _msgSender(),
+            recipient: receiver_,
             paymentToken: address(token()),
             amount: collateralRedeemAmount_,
             start: block.timestamp,
@@ -578,25 +570,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             _projectFeeCollected(projectFeeAmount);
         }
 
-        // Require that enough collateral tokens are held to cover the project
-        // collateral fee.
-        if (
-            projectCollateralFeeCollected
-                > collateralToken.balanceOf(address(this))
-        ) {
-            revert
-                Module__RedeemingBondingCurveBase__InsufficientCollateralForProjectFee(
-            );
-        }
-
         // Revert when the redeem amount is lower than minimum amount the user
         // expects.
         if (collateralRedeemAmount < _minAmountOut) {
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }
-
-        // Use virtual function to handle collateral tokens.
-        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
 
         // Create and emit the order.
         _createAndEmitOrder(
@@ -639,12 +617,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // First convert deposit amount to required decimals.
         uint normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
-            depositAmount_, _collateralTokenDecimals, _issuanceTokenDecimals
+            depositAmount_,
+            IERC20Metadata(address(token())).decimals(),
+            IERC20Metadata(address(issuanceToken)).decimals()
         );
 
         // Then calculate the token amount using the normalized amount.
-        mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_
-            / (10 ** _issuanceTokenDecimals);
+        mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_;
     }
 
     /// @param  depositAmount_ The amount being redeemed.
@@ -660,8 +639,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Convert redeem amount to collateral decimals.
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
-            tokenAmount_, _issuanceTokenDecimals, _collateralTokenDecimals
-        ) / (10 ** _collateralTokenDecimals);
+            tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals
+        );
     }
 
     /// @dev    Sets the issuance token.
@@ -706,27 +685,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             );
         }
         _projectTreasury = projectTreasury_;
-    }
-
-    /// @notice Deducts the amount of redeemed tokens from the open redemption
-    ///         amount.
-    /// @param  processedRedemptionAmount_ The amount of redemption tokens that
-    ///         were processed.
-    function _deductFromOpenRedemptionAmount(uint processedRedemptionAmount_)
-        internal
-    {
-        _openRedemptionAmount -= processedRedemptionAmount_;
-        emit RedemptionAmountUpdated(_openRedemptionAmount, block.timestamp);
-    }
-
-    /// @notice Adds the amount of redeemed tokens to the open redemption
-    ///         amount.
-    /// @param  addedOpenRedemptionAmount_ The amount of redeemed tokens to add.
-    function _addToOpenRedemptionAmount(uint addedOpenRedemptionAmount_)
-        internal
-    {
-        _openRedemptionAmount += addedOpenRedemptionAmount_;
-        emit RedemptionAmountUpdated(_openRedemptionAmount, block.timestamp);
     }
 
     /// @inheritdoc BondingCurveBase_v1

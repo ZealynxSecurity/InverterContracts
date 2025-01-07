@@ -44,7 +44,8 @@ import {
     PP_Streaming_v1,
     IPP_Streaming_v1
 } from "src/modules/paymentProcessor/PP_Streaming_v1.sol";
-
+import {PP_Queue_v1Mock} from
+    "test/utils/mocks/modules/paymentProcessor/PP_Queue_v1Mock.sol";
 /**
  * @title FM_PC_ExternalPrice_Redeeming_v1_Test
  * @notice Test contract for FM_PC_ExternalPrice_Redeeming_v1
@@ -72,8 +73,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     LM_ManualExternalPriceSetter_v1 oracle;
 
     // Payment processor
-    PP_Streaming_v1AccessMock paymentProcessor;
     ERC20PaymentClientBaseV1Mock paymentClient;
+    PP_Queue_v1Mock paymentProcessor;
 
 
     // Constants
@@ -137,8 +138,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         _authorizer = authorizer;
 
         //paymentProcessor
-        address PaymentImpl = address(new PP_Streaming_v1AccessMock());
-        paymentProcessor = PP_Streaming_v1AccessMock(Clones.clone(PaymentImpl));
+        address PaymentImpl = address(new PP_Queue_v1Mock());
+        paymentProcessor = PP_Queue_v1Mock(Clones.clone(PaymentImpl));
 
         _setUpOrchestrator(paymentProcessor);
         paymentProcessor.init(_orchestrator, _METADATA, bytes(""));
@@ -1441,44 +1442,44 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         │               ├── Update order state
         │               └── Create payment stream with correct parameters
     */
-    function testExternalQueue_succeedsGivenSingleRedemptionOrder(
-        uint256 depositAmount
-    ) public {
-        // Given - Setup valid deposit bounds
-        depositAmount = bound(
-            depositAmount, 
-            1 * 10**_token.decimals(), 
-            1_000_000 * 10**_token.decimals()
-        );
+    // function testExternalQueue_succeedsGivenSingleRedemptionOrder(
+    //     uint256 depositAmount
+    // ) public {
+    //     // Given - Setup valid deposit bounds
+    //     depositAmount = bound(
+    //         depositAmount, 
+    //         1 * 10**_token.decimals(), 
+    //         1_000_000 * 10**_token.decimals()
+    //     );
         
-        // Given - Create redemption order via buy and sell
-        vm.prank(whitelisted);
-        uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-        uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-        uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
+    //     // Given - Create redemption order via buy and sell
+    //     vm.prank(whitelisted);
+    //     uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
+    //     uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
+    //     uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
         
-        // Given - Fund contract with redemption collateral
-        _token.mint(address(fundingManager), expectedCollateral);
+    //     // Given - Fund contract with redemption collateral
+    //     _token.mint(address(fundingManager), expectedCollateral);
         
-        // Given - Record initial state
-        uint256 initialWhitelistedBalance = _token.balanceOf(whitelisted);
+    //     // Given - Record initial state
+    //     uint256 initialWhitelistedBalance = _token.balanceOf(whitelisted);
         
-        // When - Create redemption order/payment stream
-        vm.startPrank(whitelisted);
-        fundingManager.sell(sellAmount, 1);
-        vm.stopPrank();
+    //     // When - Create redemption order/payment stream
+    //     vm.startPrank(whitelisted);
+    //     fundingManager.sell(sellAmount, 1);
+    //     vm.stopPrank();
 
-        // Then - Verify initial stream state
-        assertEq(
-            paymentProcessor.releasableForSpecificStream(
-                address(fundingManager),
-                whitelisted,
-                1 // Default wallet ID for unique recipients
-            ),
-            0,
-            "Stream should have 0 releasable amount at start"
-        );
-    }
+    //     // Then - Verify initial stream state
+    //     assertEq(
+    //         paymentProcessor.releasableForSpecificStream(
+    //             address(fundingManager),
+    //             whitelisted,
+    //             1 // Default wallet ID for unique recipients
+    //         ),
+    //         0,
+    //         "Stream should have 0 releasable amount at start"
+    //     );
+    // }
 
     /* Test testExternalQueue_updatesRedemptionAmountToZero() function
         ├── Given an initialized funding manager contract

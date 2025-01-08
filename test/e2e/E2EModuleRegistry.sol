@@ -34,6 +34,18 @@ import {
     InverterBeacon_v1,
     IInverterBeacon_v1
 } from "src/proxies/InverterBeacon_v1.sol";
+//@audit => new
+// PaymentProcesor
+import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
+import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
+
+// Fundiong Manager
+import {FM_PC_ExternalPrice_Redeeming_v1} from "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
+import {IFM_PC_ExternalPrice_Redeeming_v1} from "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+
+// Oracle
+import {LM_ManualExternalPriceSetter_v1} from "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
+import {ILM_ManualExternalPriceSetter_v1} from "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
 
 contract E2EModuleRegistry is Test {
     // General Storage and QOL-constants
@@ -69,6 +81,125 @@ contract E2EModuleRegistry is Test {
     // Followed by the  setUpModule() function.
     // This config can be copied to the setup function of each specific E2ETest contract and modified accordingly
     //--------------------------------------------------------------------------
+
+    //@audit => new
+    //--------------------------------------------------------------------------
+    // NEW IMPLEMENTATIONS
+    //--------------------------------------------------------------------------
+    
+    //////////////////////////////
+    // Payment Processor
+    //////////////////////////////
+    PP_Queue_v1 queue;
+    InverterBeacon_v1 streamingPaymentProcessorQueueBeacon;
+
+
+    IModule_v1.Metadata paymentProcessorMetadata = IModule_v1.Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/payment-processor",
+        "PP_Queue_v1"
+    );
+    function setUpPaymentProcessor() internal {
+        // Deploy module implementations.
+        queue = new PP_Queue_v1();
+
+        // Deploy module beacons.
+        streamingPaymentProcessorQueueBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            paymentProcessorMetadata.majorVersion,
+            address(queue),
+            paymentProcessorMetadata.minorVersion,
+            paymentProcessorMetadata.patchVersion
+        );
+
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            paymentProcessorMetadata,
+            IInverterBeacon_v1(streamingPaymentProcessorQueueBeacon)
+        );
+    }
+
+    //////////////////////////////
+    // Oracle
+    //////////////////////////////
+
+    IModule_v1.Metadata oracleMetadata = IModule_v1.Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/oracle",
+        "LM_ManualExternalPriceSetter_v1"
+    );
+
+    InverterBeacon_v1 oracleBeacon;
+    LM_ManualExternalPriceSetter_v1 oracle;
+
+
+    function setUpOracle() internal {
+        oracle = new LM_ManualExternalPriceSetter_v1();
+
+        oracleBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            oracleMetadata.majorVersion,
+            address(oracle),
+            oracleMetadata.minorVersion,
+            oracleMetadata.patchVersion
+        );
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            oracleMetadata,
+            IInverterBeacon_v1(oracleBeacon)
+        );
+
+    }
+
+
+    //////////////////////////////
+    // Funding Managers
+    //////////////////////////////
+
+    IModule_v1.Metadata fundingManagerMetadata = IModule_v1.Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/funding-manager",
+        "FM_PC_ExternalPrice_Redeeming_v1"
+    );
+
+    InverterBeacon_v1 fundingManagerBeacon;
+    FM_PC_ExternalPrice_Redeeming_v1 fundingManagerExternal;
+
+    function setUpFundingManager() internal {
+        // Create issuance token
+        // issuanceToken = new ERC20Issuance_v1(
+        //     NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this)
+        // );
+        fundingManagerExternal = new FM_PC_ExternalPrice_Redeeming_v1();
+
+        fundingManagerBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            fundingManagerMetadata.majorVersion,
+            address(fundingManagerExternal),
+            fundingManagerMetadata.minorVersion,
+            fundingManagerMetadata.patchVersion
+        );
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            fundingManagerMetadata,
+            IInverterBeacon_v1(fundingManagerBeacon)
+        );
+    }
+
+    // @audit => fisig
+
 
     //--------------------------------------------------------------------------
     // Funding Managers

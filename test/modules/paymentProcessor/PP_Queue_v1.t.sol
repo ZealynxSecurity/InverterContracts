@@ -46,7 +46,6 @@ import "forge-std/console.sol";
 
 // Internal
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
-import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 
 contract PP_Queue_v1 is ModuleTest {
     // SuT

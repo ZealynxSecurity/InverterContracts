@@ -153,9 +153,11 @@ contract LM_ManualExternalPriceSetter_v1 is
         }
 
         // Normalize and set both prices atomically
-        _issuancePrice = _normalizePrice(issuancePrice_, _collateralTokenDecimals);
-        _redemptionPrice = _normalizePrice(redemptionPrice_, _issuanceTokenDecimals);
-        
+        _issuancePrice =
+            _normalizePrice(issuancePrice_, _collateralTokenDecimals);
+        _redemptionPrice =
+            _normalizePrice(redemptionPrice_, _issuanceTokenDecimals);
+
         // Emit events
         emit IssuancePriceSet(issuancePrice_);
         emit RedemptionPriceSet(redemptionPrice_);

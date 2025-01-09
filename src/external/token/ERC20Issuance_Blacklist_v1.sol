@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
@@ -106,7 +105,11 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
-    function isBlacklistManager(address account_) external view returns (bool) {
+    function isBlacklistManager(address account_)
+        external
+        view
+        returns (bool)
+    {
         return _isBlacklistManager[account_];
     }
 
@@ -136,9 +139,7 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklistBatched(address[] memory accounts_)
-        external
-    {
+    function addToBlacklistBatched(address[] memory accounts_) external {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(
@@ -151,9 +152,7 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function removeFromBlacklistBatched(address[] memory accounts_)
-        external
-    {
+    function removeFromBlacklistBatched(address[] memory accounts_) external {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(

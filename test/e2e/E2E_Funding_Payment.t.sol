@@ -86,15 +86,14 @@ contract E2E_Funding_Payment is E2ETest {
         //      moduleConfigurations[2]  => PaymentProcessor
         //      moduleConfigurations[3:] => Additional Logic Modules
 
+        // First create issuance token
+        issuanceToken = new ERC20Issuance_v1(
+            NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this)
+        );
 
         // Additional Logic Modules
         setUpOracle();
-        moduleConfigurations.push(
-            IOrchestratorFactory_v1.ModuleConfig(
-                oracleMetadata, abi.encode(address(token), address(issuanceToken))
-            )
-        );
-
+        
         // FundingManager
         setUpFundingManager();
         bytes memory configData = abi.encode(
@@ -127,12 +126,58 @@ contract E2E_Funding_Payment is E2ETest {
                 paymentProcessorMetadata, bytes("")
             )
         );
+
+        // Finally add the oracle configuration
+        moduleConfigurations.push(
+            IOrchestratorFactory_v1.ModuleConfig(
+                oracleMetadata, abi.encode(address(token), address(issuanceToken))
+            )
+        );
     }
 
+    function test_e2e_SimpleBuy() public {
+        // Create orchestrator with all modules
+        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig = IOrchestratorFactory_v1.WorkflowConfig({
+            independentUpdates: false,
+            independentUpdateAdmin: address(0)
+        });
+        IOrchestrator_v1 orchestrator = _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
 
-    function test_e2e_RoleAuthorizer() public {
+        // Get module instances from orchestrator
+                // LM_ManualExternalPriceSetter_v1 oracle = LM_ManualExternalPriceSetter_v1(address(orchestrator.logicModule()[0]));
+        FM_PC_ExternalPrice_Redeeming_v1 fundingManager = FM_PC_ExternalPrice_Redeeming_v1(address(orchestrator.fundingManager()));
+        
+        // Get oracle from logic modules (it's the last module in the array)
+        address[] memory modules = orchestrator.listModules();
+        LM_ManualExternalPriceSetter_v1 oracle = LM_ManualExternalPriceSetter_v1(modules[modules.length - 1]);
 
-        assert(true);
+        // Set initial price in oracle (1:1 ratio)
+        uint256 initialPrice = 1 * 10**INTERNAL_DECIMALS;
+        vm.startPrank(admin);
+        oracle.setIssuancePrice(initialPrice);
+        console.log("x");
+        oracle.setRedemptionPrice(initialPrice);
+        vm.stopPrank();
+
+        // Give minting rights to funding manager
+        issuanceToken.setMinter(address(fundingManager), true);
+
+        // Prepare buy amount
+        uint256 buyAmount = 100 * 10**DECIMALS; // 100 tokens
+        token.mint(whitelisted, buyAmount);
+
+        // Execute buy
+        uint256 expectedIssuance = fundingManager.calculatePurchaseReturn(buyAmount);
+        vm.startPrank(whitelisted);
+        token.approve(address(fundingManager), buyAmount);
+        fundingManager.buy(buyAmount, expectedIssuance);
+        vm.stopPrank();
+
+        // Verify buy operation
+        assertEq(
+            issuanceToken.balanceOf(whitelisted),
+            expectedIssuance,
+            "User should receive correct issuance amount"
+        );
     }
-
 }

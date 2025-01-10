@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.23;
 
-import {ERC20Issuance_Blacklist_v1} from "@ex/token/ERC20Issuance_blacklist_v1.sol";
+import {ERC20Issuance_Blacklist_v1} from
+    "@ex/token/ERC20Issuance_blacklist_v1.sol";
 
 /**
  * @title ERC20Issuance_Blacklist_v1_Exposed
@@ -12,7 +13,7 @@ contract ERC20Issuance_Blacklist_v1_Exposed is ERC20Issuance_Blacklist_v1 {
         string memory name_,
         string memory symbol_,
         uint8 decimals_,
-        uint256 initialSupply_,
+        uint initialSupply_,
         address initialAdmin_,
         address initialBlacklistManager_
     )
@@ -32,11 +33,7 @@ contract ERC20Issuance_Blacklist_v1_Exposed is ERC20Issuance_Blacklist_v1 {
      * @param to_ Address tokens are transferred to
      * @param amount_ Amount of tokens transferred
      */
-    function exposed_update(
-        address from_,
-        address to_,
-        uint256 amount_
-    ) public {
+    function exposed_update(address from_, address to_, uint amount_) public {
         _update(from_, to_, amount_);
     }
 
@@ -45,7 +42,9 @@ contract ERC20Issuance_Blacklist_v1_Exposed is ERC20Issuance_Blacklist_v1 {
      * @param account_ Address to set privileges for
      * @param privileges_ Whether to grant or revoke privileges
      */
-    function exposed_setBlacklistManager(address account_, bool privileges_) public {
+    function exposed_setBlacklistManager(address account_, bool privileges_)
+        public
+    {
         _setBlacklistManager(account_, privileges_);
     }
 }

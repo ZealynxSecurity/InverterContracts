@@ -23,15 +23,11 @@ import {BondingCurveBase_v1} from
 import {RedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/abstracts/RedeemingBondingCurveBase_v1.sol";
 import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-<<<<<<< HEAD
 import {LM_ManualExternalPriceSetter_v1} from
     "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
 import {OraclePrice_Mock} from
     "test/utils/mocks/modules/logicModules/OraclePrice_Mock.sol";
 
-=======
-import {LM_ManualExternalPriceSetter_v1} from "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
->>>>>>> c3d3d7cd (refactor:changed file structure)
 import {
     IERC20PaymentClientBase_v1,
     ERC20PaymentClientBaseV1Mock,
@@ -43,10 +39,6 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 import {RedeemingBondingCurveBaseV1Mock} from
     "test/modules/fundingManager/bondingCurve/utils/mocks/RedeemingBondingCurveBaseV1Mock.sol";
-<<<<<<< HEAD
-=======
-import {BancorFormula} from "@fm/bondingCurve/formulas/BancorFormula.sol";
->>>>>>> c3d3d7cd (refactor:changed file structure)
 
 /**
  * @title FM_PC_ExternalPrice_Redeeming_v1_Test

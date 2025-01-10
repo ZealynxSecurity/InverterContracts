@@ -119,16 +119,26 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
+    /// @notice Internal function to set the issuance price
+    /// @param price_ The price to set
+    function _setIssuancePrice(uint price_) internal {
+        _issuancePrice = _setAndValidatePrice(price_, _collateralTokenDecimals);
+        emit IssuancePriceSet(price_);
+    }
+
+    /// @notice Internal function to set the redemption price
+    /// @param price_ The price to set
+    function _setRedemptionPrice(uint price_) internal {
+        _redemptionPrice = _setAndValidatePrice(price_, _issuanceTokenDecimals);
+        emit RedemptionPriceSet(price_);
+    }
+
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
-
-        // Normalize price to internal decimal precision
-        _issuancePrice = _normalizePrice(price_, _collateralTokenDecimals);
-        emit IssuancePriceSet(price_);
+        _setIssuancePrice(price_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -136,11 +146,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
-
-        // Normalize price to internal decimal precision.
-        _redemptionPrice = _normalizePrice(price_, _issuanceTokenDecimals);
-        emit RedemptionPriceSet(price_);
+        _setRedemptionPrice(price_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -221,6 +227,19 @@ contract LM_ManualExternalPriceSetter_v1 is
         } else {
             return price_ / (10 ** (INTERNAL_DECIMALS - tokenDecimals_));
         }
+    }
+
+    /// @notice Internal function to set and validate the price
+    /// @param price_ The price to set
+    /// @param tokenDecimals_ The decimals of the token the price is
+    ///         denominated in.
+    /// @return The normalized price with INTERNAL_DECIMALS precision.
+    function _setAndValidatePrice(uint price_, uint8 tokenDecimals_)
+        internal
+        returns (uint)
+    {
+        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
+        return _normalizePrice(price_, tokenDecimals_);
     }
 
     /// @dev    Storage gap for upgradeable contracts.

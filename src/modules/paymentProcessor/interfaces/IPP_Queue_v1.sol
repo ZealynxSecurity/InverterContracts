@@ -219,7 +219,10 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @notice	Gets the size of the queue for specific client.
     /// @param  client_ Address of the client whose queue size to get.
     /// @return	size_ Current queue size.
-    function getQueueSizeForClient(address client_) external view returns (uint size_);
+    function getQueueSizeForClient(address client_)
+        external
+        view
+        returns (uint size_);
 
     /// @notice  Gets the role identifier for queue operations.
     /// @dev     Role for queue operations.
@@ -230,7 +233,8 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param	orderId_ The ID of the order to cancel.
     /// @param	client_ The client associated with the order.
     /// @return	success_ True if cancellation was successful.
-    function cancelPaymentOrderThroughQueueId(uint orderId_, IERC20PaymentClientBase_v1 client_)
-        external
-        returns (bool success_);
+    function cancelPaymentOrderThroughQueueId(
+        uint orderId_,
+        IERC20PaymentClientBase_v1 client_
+    ) external returns (bool success_);
 }

@@ -9,30 +9,30 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
  *      instead of reverting. This is used to test error handling in the payment processor.
  */
 contract NonStandardTokenMock is IERC20 {
-    mapping(address => uint256) private _balances;
-    mapping(address => mapping(address => uint256)) private _allowances;
-    uint256 private _totalSupply;
+    mapping(address => uint) private _balances;
+    mapping(address => mapping(address => uint)) private _allowances;
+    uint private _totalSupply;
     address private _failTransferTo;
 
     function setFailTransferTo(address recipient) external {
         _failTransferTo = recipient;
     }
 
-    function mint(address account, uint256 amount) external {
+    function mint(address account, uint amount) external {
         _totalSupply += amount;
         _balances[account] += amount;
         emit Transfer(address(0), account, amount);
     }
 
-    function totalSupply() external view returns (uint256) {
+    function totalSupply() external view returns (uint) {
         return _totalSupply;
     }
 
-    function balanceOf(address account) external view returns (uint256) {
+    function balanceOf(address account) external view returns (uint) {
         return _balances[account];
     }
 
-    function transfer(address to, uint256 amount) external returns (bool) {
+    function transfer(address to, uint amount) external returns (bool) {
         if (to == _failTransferTo) {
             return false;
         }
@@ -45,21 +45,29 @@ contract NonStandardTokenMock is IERC20 {
         return true;
     }
 
-    function allowance(address owner, address spender) external view returns (uint256) {
+    function allowance(address owner, address spender)
+        external
+        view
+        returns (uint)
+    {
         return _allowances[owner][spender];
     }
 
-    function approve(address spender, uint256 amount) external returns (bool) {
+    function approve(address spender, uint amount) external returns (bool) {
         _allowances[msg.sender][spender] = amount;
         emit Approval(msg.sender, spender, amount);
         return true;
     }
 
-    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+    function transferFrom(address from, address to, uint amount)
+        external
+        returns (bool)
+    {
         if (to == _failTransferTo) {
             return false;
         }
-        if (_balances[from] < amount || _allowances[from][msg.sender] < amount) {
+        if (_balances[from] < amount || _allowances[from][msg.sender] < amount)
+        {
             return false;
         }
         _balances[from] -= amount;

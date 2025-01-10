@@ -578,7 +578,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+            _receiver, _depositAmount, collateralRedeemAmount, protocolFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);

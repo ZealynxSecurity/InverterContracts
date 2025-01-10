@@ -5,7 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {
     ERC20Issuance_Blacklist_v1,
     IERC20Issuance_Blacklist_v1
-} from "@ex/token/ERC20Issuance_blacklist_v1.sol";
+} from "@ex/token/ERC20Issuance_Blacklist_v1.sol";
 import {ERC20Issuance_Blacklist_v1_Exposed} from
     "test/external/ERC20Issuance_blacklist_v1_exposed.sol";
 

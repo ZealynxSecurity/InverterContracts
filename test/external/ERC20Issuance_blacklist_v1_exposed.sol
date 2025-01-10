@@ -2,7 +2,7 @@
 pragma solidity 0.8.23;
 
 import {ERC20Issuance_Blacklist_v1} from
-    "@ex/token/ERC20Issuance_blacklist_v1.sol";
+    "@ex/token/ERC20Issuance_Blacklist_v1.sol";
 
 /**
  * @title ERC20Issuance_Blacklist_v1_Exposed

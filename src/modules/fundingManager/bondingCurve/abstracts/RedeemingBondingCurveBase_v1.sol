@@ -200,6 +200,7 @@ abstract contract RedeemingBondingCurveBase_v1 is
         uint _minAmountOut
     )
         internal
+        virtual
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);

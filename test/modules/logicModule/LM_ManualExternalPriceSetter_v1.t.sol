@@ -42,6 +42,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     string constant TOKEN_NAME = "MOCK USDC";
     string constant TOKEN_SYMBOL = "M-USDC";
 
+
     // Module Constants
     uint constant MAJOR_VERSION = 1;
     uint constant MINOR_VERSION = 0;
@@ -59,7 +60,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         user = makeAddr("user");
 
         vm.startPrank(admin);
-
+  
         // Create mock tokens with different decimals
         inputToken = new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, 6); // Like USDC
         outputToken = _token; // Like most ERC20s

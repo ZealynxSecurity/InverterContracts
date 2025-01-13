@@ -8,15 +8,7 @@ import {LM_ManualExternalPriceSetter_v1_Exposed} from
     "test/modules/logicModule/LM_ManualExternalPriceSetter_v1_exposed.sol";
 import {ILM_ManualExternalPriceSetter_v1} from
     "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
-<<<<<<< HEAD
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
-=======
-import {IOrchestrator_v1} from
-    "src/orchestrator/interfaces/IOrchestrator_v1.sol";
-import {IModule_v1} from "src/modules/base/IModule_v1.sol";
-import {MockERC20} from
-    "test/modules/fundingManager/oracle/utils/mocks/MockERC20.sol";
->>>>>>> c3d3d7cd (refactor:changed file structure)
 import {ERC20Mock} from "test/utils/mocks/ERC20Mock.sol";
 import {AuthorizerV1Mock} from "test/utils/mocks/modules/AuthorizerV1Mock.sol";
 import {Clones} from "@oz/proxy/Clones.sol";
@@ -42,19 +34,14 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     address priceSetter_;
     address user;
 
-<<<<<<< HEAD
     ERC20Decimals_Mock inputToken;
     ERC20Mock outputToken;
 
-=======
->>>>>>> c3d3d7cd (refactor:changed file structure)
     bytes32 constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
     uint8 constant INTERNAL_DECIMALS = 18;
     string constant TOKEN_NAME = "MOCK USDC";
     string constant TOKEN_SYMBOL = "M-USDC";
 
-    MockERC20 inputToken;
-    MockERC20 outputToken;
 
     // Module Constants
     uint constant MAJOR_VERSION = 1;
@@ -75,15 +62,8 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.startPrank(admin);
   
         // Create mock tokens with different decimals
-<<<<<<< HEAD
         inputToken = new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, 6); // Like USDC
         outputToken = _token; // Like most ERC20s
-=======
-        inputToken = new MockERC20(6); // Like USDC
-        outputToken = new MockERC20(18); // Like most ERC20s
-
-
->>>>>>> c3d3d7cd (refactor:changed file structure)
 
         // Setup price setter
         address impl = address(new LM_ManualExternalPriceSetter_v1_Exposed());

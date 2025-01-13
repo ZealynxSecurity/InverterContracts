@@ -2,18 +2,12 @@
 pragma solidity 0.8.23;
 
 import {Test} from "forge-std/Test.sol";
-<<<<<<< HEAD:test/external/ERC20Issuance_blacklist_v1.t.sol
 import {
     ERC20Issuance_Blacklist_v1,
     IERC20Issuance_Blacklist_v1
 } from "@ex/token/ERC20Issuance_Blacklist_v1.sol";
 import {ERC20Issuance_Blacklist_v1_Exposed} from
     "test/external/ERC20Issuance_blacklist_v1_exposed.sol";
-=======
-import {ERC20Issuance_Blacklist_v1} from "@ex/token/ERC20Issuance_blacklist_v1.sol";
-import {ERC20Issuance_Blacklist_v1_Exposed} from "test/modules/fundingManager/oracle/utils/mocks/ERC20Issuance_blacklist_v1_exposed.sol";
-import {IERC20Issuance_Blacklist_v1} from "@ex/token/interfaces/IERC20Issuance_blacklist_v1.sol";
->>>>>>> c3d3d7cd (refactor:changed file structure):test/modules/fundingManager/token/ERC20Issuance_blacklist_v1.t.sol
 
 /**
  * @title ERC20Issuance_Blacklist_v1_Test

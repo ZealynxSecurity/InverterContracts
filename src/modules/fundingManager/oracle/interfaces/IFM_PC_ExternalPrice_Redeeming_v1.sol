@@ -120,10 +120,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @return	amount_ The total amount of open redemptions.
     function getOpenRedemptionAmount() external view returns (uint amount_);
 
-    /// @notice	Gets the next available order ID.
-    /// @return	orderId_ The next order ID.
-    function getNextOrderId() external view returns (uint orderId_);
-
     /// @notice	Gets the current order ID.
     /// @return	orderId_ The current order ID.
     function getOrderId() external view returns (uint orderId_);

@@ -71,12 +71,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This role should be granted to trusted price feeders only.
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
-    /// @notice Number of decimal places used for internal price
-    ///         representation
-    /// @dev    All prices are normalized to this precision for consistent
-    ///         calculations regardless of input/output token decimals.
-    uint8 private constant INTERNAL_DECIMALS = 18;
-
     // -------------------------------------------------------------------------
     // State Variables
 
@@ -92,9 +86,8 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This is the token used to pay/buy with.
     uint8 private _collateralTokenDecimals;
 
-    /// @notice Decimals of the issuance token (e.g., ISS with 18 decimals).
-    /// @dev    This is the token being bought/sold.
-    uint8 private _issuanceTokenDecimals;
+    /// @dev    Storage gap for upgradeable contracts.
+    uint[50] private __gap;
 
     // -------------------------------------------------------------------------
     // Initialization
@@ -107,13 +100,11 @@ contract LM_ManualExternalPriceSetter_v1 is
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata_);
 
-        // Decode collateral and issuance token addresses from configData_.
-        (address collateralToken, address issuanceToken) =
-            abi.decode(configData_, (address, address));
+        // Decode collateral token address from configData_.
+        (address collateralToken) = abi.decode(configData_, (address));
 
         // Store token decimals for price normalization.
         _collateralTokenDecimals = IERC20Metadata(collateralToken).decimals();
-        _issuanceTokenDecimals = IERC20Metadata(issuanceToken).decimals();
     }
 
     // -------------------------------------------------------------------------
@@ -127,8 +118,8 @@ contract LM_ManualExternalPriceSetter_v1 is
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
 
         // Normalize price to internal decimal precision
-        _issuancePrice = _normalizePrice(price_, _collateralTokenDecimals);
-        emit IssuancePriceSet(price_);
+        _issuancePrice = price_;
+        emit IssuancePriceSet(price_, block.timestamp);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -139,26 +130,8 @@ contract LM_ManualExternalPriceSetter_v1 is
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
 
         // Normalize price to internal decimal precision.
-        _redemptionPrice = _normalizePrice(price_, _issuanceTokenDecimals);
-        emit RedemptionPriceSet(price_);
-    }
-
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    function setIssuanceAndRedemptionPrice(
-        uint issuancePrice_,
-        uint redemptionPrice_
-    ) external onlyModuleRole(PRICE_SETTER_ROLE) {
-        if (issuancePrice_ == 0 || redemptionPrice_ == 0) {
-            revert Module__LM_ExternalPriceSetter__InvalidPrice();
-        }
-
-        // Normalize and set both prices atomically
-        _issuancePrice = _normalizePrice(issuancePrice_, _collateralTokenDecimals);
-        _redemptionPrice = _normalizePrice(redemptionPrice_, _issuanceTokenDecimals);
-        
-        // Emit events
-        emit IssuancePriceSet(issuancePrice_);
-        emit RedemptionPriceSet(redemptionPrice_);
+        _redemptionPrice = price_;
+        emit RedemptionPriceSet(price_, block.timestamp);
     }
 
     /// @notice Gets current price for token issuance (buying tokens).
@@ -168,7 +141,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     ///         1 ISS).
     function getPriceForIssuance() external view returns (uint) {
         // Convert from internal precision to output token precision.
-        return _denormalizePrice(_issuancePrice, _issuanceTokenDecimals);
+        return _issuancePrice;
     }
 
     /// @notice Gets current price for token redemption (selling tokens).
@@ -178,47 +151,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     ///         received for 1 ISS).
     function getPriceForRedemption() external view returns (uint) {
         // Convert from internal precision to output token precision.
-        return _denormalizePrice(_redemptionPrice, _issuanceTokenDecimals);
-    }
-
-    //--------------------------------------------------------------------------
-    // Internal Functions
-
-    /// @notice Normalizes a price from token decimals to internal decimals.
-    /// @param  price_ The price to normalize.
-    /// @param  tokenDecimals_ The decimals of the token the price is
-    ///         denominated in.
-    /// @return The normalized price with INTERNAL_DECIMALS precision.
-    function _normalizePrice(uint price_, uint8 tokenDecimals_)
-        internal
-        pure
-        returns (uint)
-    {
-        if (tokenDecimals_ == INTERNAL_DECIMALS) return price_;
-
-        if (tokenDecimals_ > INTERNAL_DECIMALS) {
-            return price_ / (10 ** (tokenDecimals_ - INTERNAL_DECIMALS));
-        } else {
-            return price_ * (10 ** (INTERNAL_DECIMALS - tokenDecimals_));
-        }
-    }
-
-    /// @notice Denormalizes a price from internal decimals to token decimals.
-    /// @param  price_ The price to denormalize.
-    /// @param  tokenDecimals_ The target token decimals.
-    /// @return The denormalized price with tokenDecimals_ precision.
-    function _denormalizePrice(uint price_, uint8 tokenDecimals_)
-        internal
-        pure
-        returns (uint)
-    {
-        if (tokenDecimals_ == INTERNAL_DECIMALS) return price_;
-
-        if (tokenDecimals_ > INTERNAL_DECIMALS) {
-            return price_ * (10 ** (tokenDecimals_ - INTERNAL_DECIMALS));
-        } else {
-            return price_ / (10 ** (INTERNAL_DECIMALS - tokenDecimals_));
-        }
+        return _redemptionPrice;
     }
 
     /// @dev    Storage gap for upgradeable contracts.

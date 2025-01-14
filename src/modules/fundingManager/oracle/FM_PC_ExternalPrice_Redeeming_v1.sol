@@ -132,10 +132,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Unique identifier for the current order being processed.
     uint private _orderId;
 
-    /// @notice Counter for generating unique order IDs.
-    /// @dev    Keeps track of the next available order ID to ensure uniqueness.
-    uint private _nextOrderId;
-
     /// @notice Total amount of collateral tokens currently in redemption
     ///         process.
     /// @dev    Tracks the sum of all pending redemption orders.
@@ -255,11 +251,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function getOpenRedemptionAmount() external view returns (uint amount_) {
         return _openRedemptionAmount;
-    }
-
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getNextOrderId() external view returns (uint orderId_) {
-        return _nextOrderId;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -454,7 +445,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint issuanceFeeAmount_
     ) internal {
         // Generate new order ID.
-        _orderId = _nextOrderId++;
+        _orderId = _orderId++;
 
         // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
@@ -578,7 +569,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+            _receiver, _depositAmount, collateralRedeemAmount, projectFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);

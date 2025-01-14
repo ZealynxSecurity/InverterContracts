@@ -218,7 +218,6 @@ contract FM_BC_Bancor_Redeeming_VirtualSupply_v1 is
         virtual
         override(BondingCurveBase_v1)
         validReceiver(_receiver)
-        buyingIsEnabled
     {
         (uint amountIssued, uint collateralFeeAmount) =
             _buyOrder(_receiver, _depositAmount, _minAmountOut);

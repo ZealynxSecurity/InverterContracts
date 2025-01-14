@@ -74,10 +74,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // State Variables
 
-    /// @notice The price for issuing tokens (normalized to
-    ///         INTERNAL_DECIMALS).
-    uint private _issuancePrice;
-
     /// @notice The price for redeeming tokens (normalized to
     ///         INTERNAL_DECIMALS).
     uint private _redemptionPrice;

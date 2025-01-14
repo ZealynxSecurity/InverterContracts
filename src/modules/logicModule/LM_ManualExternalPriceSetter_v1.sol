@@ -71,7 +71,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This role should be granted to trusted price feeders only.
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
-
     // -------------------------------------------------------------------------
     // State Variables
 
@@ -85,10 +84,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This is the token used to pay/buy with.
     uint8 private _collateralTokenDecimals;
 
-    /// @notice Decimals of the issuance token (e.g., ISS with 18 decimals).
-    /// @dev    This is the token being bought/sold.
-    uint8 private _issuanceTokenDecimals;
-
     // -------------------------------------------------------------------------
     // Initialization
 
@@ -100,18 +95,15 @@ contract LM_ManualExternalPriceSetter_v1 is
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata_);
 
-        // Decode collateral and issuance token addresses from configData_.
-        (address collateralToken, address issuanceToken) =
-            abi.decode(configData_, (address, address));
+        // Decode collateral token address from configData_.
+        (address collateralToken) = abi.decode(configData_, (address));
 
         // Store token decimals for price normalization.
         _collateralTokenDecimals = IERC20Metadata(collateralToken).decimals();
-        _issuanceTokenDecimals = IERC20Metadata(issuanceToken).decimals();
     }
 
     // -------------------------------------------------------------------------
     // External Functions
-
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setIssuancePrice(uint price_)

@@ -948,7 +948,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.assume(nonWhitelisted != admin);
         vm.assume(nonWhitelisted != address(this));
 
-        roleId = _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
+        roleId =
+            _authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
         // Prepare buy conditions with a fixed amount
         uint minAmount = 1 * 10 ** _token.decimals();
         uint maxAmount = 1_000_000 * 10 ** _token.decimals();
@@ -1077,7 +1078,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Given - Setup buying conditions
         fundingManager.grantModuleRole(WHITELIST_ROLE, buyer);
-        
+
         // Given - Mint tokens and approve
         _token.mint(buyer, buyAmount);
         vm.startPrank(buyer);
@@ -1093,7 +1094,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Given - Calculate expected tokens and store initial balances
         uint expectedTokens = _calculateExpectedIssuance(buyAmount);
         uint buyerBalanceBefore = _token.balanceOf(buyer);
-        uint projectTreasuryBalanceBefore = _token.balanceOf(fundingManager.getProjectTreasury());
+        uint projectTreasuryBalanceBefore =
+            _token.balanceOf(fundingManager.getProjectTreasury());
         uint buyerIssuedTokensBefore = issuanceToken.balanceOf(buyer);
 
         // When - Buy tokens with max amount

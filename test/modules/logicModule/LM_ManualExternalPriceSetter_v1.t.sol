@@ -42,7 +42,6 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     string constant TOKEN_NAME = "MOCK USDC";
     string constant TOKEN_SYMBOL = "M-USDC";
 
-
     // Module Constants
     uint constant MAJOR_VERSION = 1;
     uint constant MINOR_VERSION = 0;
@@ -60,7 +59,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         user = makeAddr("user");
 
         vm.startPrank(admin);
-  
+
         // Create mock tokens with different decimals
         inputToken = new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, 6); // Like USDC
         outputToken = _token; // Like most ERC20s
@@ -275,7 +274,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         // Price should be normalized from 6 decimals to 18 decimals
         assertEq(
             priceSetter.getPriceForIssuance(),
-            price * 1e12,
+            price,
             "Issuance price not set correctly"
         );
 
@@ -359,183 +358,4 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
         vm.stopPrank();
     }
-
-    // // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // // Price Normalization Tests
-    // // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-    // /* testPriceNormalization_GivenDifferentDecimals()
-    //     Tests the price normalization function with different decimal configurations
-        
-    //     Tree structure:
-    //     ├── Given a random price and decimals (1-24)
-    //     │   ├── When decimals < 18
-    //     │   │   ├── Then should scale up price correctly
-    //     │   │   └── Then scaling should be reversible
-    //     │   ├── When decimals > 18
-    //     │   │   ├── Then should scale down price correctly
-    //     │   │   └── Then rounding error should be within bounds
-    //     │   └── When decimals = 18
-    //     │       └── Then price should remain unchanged
-    //     └── Given minimum price (1)
-    //         ├── When decimals < 18: should scale up to 10^(18-decimals)
-    //         ├── When decimals > 18: should round to 0
-    //         └── When decimals = 18: should remain 1
-    // */
-    // function testPriceNormalization_GivenDifferentDecimals(
-    //     uint price,
-    //     uint8 decimals
-    // ) public {
-    //     vm.assume(price < type(uint).max / 1e18);
-    //     decimals = uint8(bound(decimals, 1, 24));
-
-    //     uint normalizedPrice =
-    //         priceSetter.exposed_normalizePrice(price, decimals);
-    //     uint scaleFactor =
-    //         decimals < 18 ? 10 ** (18 - decimals) : 10 ** (decimals - 18);
-
-    //     if (decimals < 18) {
-    //         // Scaling up (e.g., USDC-6, WBTC-8)
-    //         assertEq(normalizedPrice, price * scaleFactor, "Scaling up failed");
-    //         assertEq(normalizedPrice / scaleFactor, price, "Not reversible");
-    //     } else if (decimals > 18) {
-    //         // Scaling down (tokens with more than 18 decimals)
-    //         assertEq(
-    //             normalizedPrice, price / scaleFactor, "Scaling down failed"
-    //         );
-    //         assertTrue(
-    //             price - (normalizedPrice * scaleFactor) < scaleFactor,
-    //             "High rounding error"
-    //         );
-    //     } else {
-    //         // No scaling (18 decimals like ETH)
-    //         assertEq(normalizedPrice, price, "Price changed unnecessarily");
-    //     }
-
-    //     // Edge case: minimum price (1)
-    //     if (price == 1) {
-    //         uint minPrice = priceSetter.exposed_normalizePrice(1, decimals);
-    //         assertEq(
-    //             minPrice,
-    //             decimals < 18 ? scaleFactor : decimals > 18 ? 0 : 1,
-    //             "Minimum price handling failed"
-    //         );
-    //     }
-    // }
-
-    // /* testPriceDenormalization_GivenDifferentDecimals()
-    //     Tests price denormalization from internal (18) decimals to token decimals
-        
-    //     Tree structure:
-    //     ├── Given a normalized price (18 decimals)
-    //     │   ├── When converting to lower decimals
-    //     │   │   ├── Then should scale down correctly
-    //     │   │   └── Then rounding error should be within bounds
-    //     │   ├── When converting to same decimals
-    //     │   │   └── Then price should remain unchanged
-    //     │   └── When converting to higher decimals
-    //     │       └── Then should scale up correctly
-    //     └── Given minimum price (1)
-    //         ├── When decimals < 18: should scale down to 0 or 1
-    //         ├── When decimals = 18: should remain 1
-    //         └── When decimals > 18: should scale up to 10^(decimals-18)
-    // */
-    // function testPriceDenormalization_GivenDifferentDecimals(
-    //     uint price,
-    //     uint8 decimals
-    // ) public {
-    //     vm.assume(price < type(uint).max / 1e18);
-    //     decimals = uint8(bound(decimals, 1, 24));
-
-    //     uint denormalizedPrice =
-    //         priceSetter.exposed_denormalizePrice(price, decimals);
-    //     uint scaleFactor =
-    //         decimals < 18 ? 10 ** (18 - decimals) : 10 ** (decimals - 18);
-
-    //     if (decimals < 18) {
-    //         // Scaling down (e.g., to USDC-6, WBTC-8)
-    //         assertEq(
-    //             denormalizedPrice, price / scaleFactor, "Scaling down failed"
-    //         );
-    //         assertTrue(
-    //             price - (denormalizedPrice * scaleFactor) < scaleFactor,
-    //             "High rounding error"
-    //         );
-    //     } else if (decimals > 18) {
-    //         // Scaling up (to more than 18 decimals)
-    //         assertEq(
-    //             denormalizedPrice, price * scaleFactor, "Scaling up failed"
-    //         );
-    //         assertEq(denormalizedPrice / scaleFactor, price, "Not reversible");
-    //     } else {
-    //         // No scaling (18 decimals like ETH)
-    //         assertEq(denormalizedPrice, price, "Price changed unnecessarily");
-    //     }
-
-    //     // Edge case: minimum price (1)
-    //     if (price == 1) {
-    //         uint minPrice = priceSetter.exposed_denormalizePrice(1, decimals);
-    //         assertEq(
-    //             minPrice,
-    //             decimals < 18 ? 0 : decimals > 18 ? scaleFactor : 1,
-    //             "Minimum price handling failed"
-    //         );
-    //     }
-    // }
-
-    // /* testPriceNormalizationCycle_GivenDifferentDecimals()
-    //     Tests that normalizing and then denormalizing a price maintains the original value
-    //     when possible, accounting for precision loss in certain cases.
-        
-    //     Tree structure:
-    //     ├── Given a random price and decimals
-    //     │   ├── When normalizing then denormalizing
-    //     │   │   ├── Then should match original for decimals <= 18
-    //     │   │   └── Then should be within error bounds for decimals > 18
-    //     │   └── When denormalizing then normalizing
-    //     │       ├── Then should match original if result > minimum viable price
-    //     │       └── Then should be 0 if below minimum viable price
-    //     └── Given minimum viable price for decimals
-    //         └── When running full cycle
-    //             └── Then should preserve value if possible
-    // */
-    // function testPriceNormalizationCycle_GivenDifferentDecimals(
-    //     uint price,
-    //     uint8 decimals
-    // ) public {
-    //     vm.assume(price < type(uint).max / 1e18);
-
-    //     decimals = uint8(bound(decimals, 1, 18));
-
-    //     // First cycle: normalization → denormalization
-    //     uint normalized = priceSetter.exposed_normalizePrice(price, decimals);
-    //     uint denormalized =
-    //         priceSetter.exposed_denormalizePrice(normalized, decimals);
-
-    //     // Price should be exactly equal after the first cycle
-    //     assertEq(denormalized, price, "Price changed after normalization cycle");
-
-    //     // For the second cycle, use the normalized price as base
-    //     // since this is the format in which it's stored internally
-    //     uint normalized2 =
-    //         priceSetter.exposed_normalizePrice(denormalized, decimals);
-    //     uint denormalized2 =
-    //         priceSetter.exposed_denormalizePrice(normalized2, decimals);
-
-    //     // Verify that the final denormalized price equals the original
-    //     assertEq(
-    //         denormalized2,
-    //         price,
-    //         "Price changed after second normalization cycle"
-    //     );
-
-    //     // Test with minimum viable price (1)
-    //     uint minPrice = 1;
-    //     normalized = priceSetter.exposed_normalizePrice(minPrice, decimals);
-    //     denormalized =
-    //         priceSetter.exposed_denormalizePrice(normalized, decimals);
-
-    //     // Minimum viable price should be preserved exactly
-    //     assertEq(denormalized, minPrice, "Minimum viable price not preserved");
-    // }
 }

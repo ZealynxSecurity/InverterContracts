@@ -489,7 +489,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             issuanceFeeAmount_,
             redemptionAmount_,
             address(token()),
-            block.timestamp,
             RedemptionState.PROCESSING
         );
 

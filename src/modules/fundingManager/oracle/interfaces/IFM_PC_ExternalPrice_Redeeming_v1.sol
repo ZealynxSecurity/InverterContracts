@@ -109,7 +109,6 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         uint feeAmount_,
         uint redemptionAmount_,
         address collateralToken_,
-        uint redemptionTime_,
         RedemptionState state_
     );
 

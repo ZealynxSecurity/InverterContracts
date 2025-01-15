@@ -113,6 +113,8 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state_
     );
 
+    event RedemptionAmountUpdated(uint _openRedemptionAmount);
+
     // -------------------------------------------------------------------------
     // View Functions
 

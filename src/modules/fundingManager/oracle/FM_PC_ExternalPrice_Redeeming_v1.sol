@@ -722,7 +722,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         internal
     {
         _openRedemptionAmount -= processedRedemptionAmount_;
-        emit RedemptionAmountUpdated(_openRedemptionAmount, block.timestamp);
+        emit RedemptionAmountUpdated(_openRedemptionAmount);
     }
 
     /// @notice Adds the amount of redeemed tokens to the open redemption
@@ -732,7 +732,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         internal
     {
         _openRedemptionAmount += addedOpenRedemptionAmount_;
-        emit RedemptionAmountUpdated(_openRedemptionAmount, block.timestamp);
+        emit RedemptionAmountUpdated(_openRedemptionAmount);
     }
 
     /// @inheritdoc BondingCurveBase_v1

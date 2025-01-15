@@ -116,7 +116,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
         // Normalize price to internal decimal precision
         _issuancePrice = price_;
-        emit IssuancePriceSet(price_, block.timestamp);
+        emit IssuancePriceSet(price_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -128,7 +128,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
         // Normalize price to internal decimal precision.
         _redemptionPrice = price_;
-        emit RedemptionPriceSet(price_, block.timestamp);
+        emit RedemptionPriceSet(price_);
     }
 
     /// @notice Gets current price for token issuance (buying tokens).

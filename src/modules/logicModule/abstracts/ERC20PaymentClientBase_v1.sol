@@ -106,11 +106,7 @@ abstract contract ERC20PaymentClientBase_v1 is
         internal
         onlyInitializing
     {
-        uint amountOfFlags = flags_.length;
-        if (amountOfFlags > type(uint8).max) {
-            revert Module__ERC20PaymentClientBase_v1__FlagAmountTooHigh();
-        }
-        _setFlags(uint8(flags_.length), flags_);
+        _setFlags(flags_);
     }
 
     /// @dev	Adds a new {PaymentOrder} to the list of outstanding orders.
@@ -149,28 +145,23 @@ abstract contract ERC20PaymentClientBase_v1 is
     }
 
     /// @dev    Sets the flags for the PaymentOrders.
-    /// @param  flagCount_ The number of flags.
     /// @param  flags_ The flags, represented as an array of uint8 containing
     ///         the flag IDs between 0 and 255.
-    function _setFlags(uint8 flagCount_, uint8[] memory flags_)
-        internal
-        virtual
-    {
-        if (flagCount_ != flags_.length) {
-            revert
-                Module__ERC20PaymentClientBase__MismatchBetweenFlagCountAndArrayLength(
-                flagCount_, flags_.length
-            );
+    function _setFlags(uint8[] memory flags_) internal virtual {
+        uint amountOfFlags = flags_.length;
+
+        if (amountOfFlags > type(uint8).max) {
+            revert Module__ERC20PaymentClientBase_v1__FlagAmountTooHigh();
         }
 
-        _flagCount = flagCount_;
+        _flagCount = uint8(amountOfFlags);
 
         _flags = 0;
-        for (uint8 i = 0; i < flagCount_; i++) {
+        for (uint8 i = 0; i < amountOfFlags; i++) {
             _flags |= bytes32((1 << flags_[i]));
         }
 
-        emit FlagsSet(flagCount_, _flags);
+        emit FlagsSet(_flagCount, _flags);
     }
 
     //--------------------------------------------------------------------------

@@ -487,7 +487,7 @@ contract ERC20PaymentClientBaseV1Test is ModuleTest {
             flags[i] = uint8(i);
         }
 
-        paymentClient.exposed_setFlags(flagCount_, flags);
+        paymentClient.exposed_setFlags(flags);
 
         assertEq(paymentClient.getFlagCount(), flagCount_);
         assertEq(

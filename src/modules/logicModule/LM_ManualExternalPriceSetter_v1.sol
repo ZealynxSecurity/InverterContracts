@@ -86,9 +86,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This is the token used to pay/buy with.
     uint8 private _collateralTokenDecimals;
 
-    /// @dev    Storage gap for upgradeable contracts.
-    uint[50] private __gap;
-
     // -------------------------------------------------------------------------
     // Initialization
 

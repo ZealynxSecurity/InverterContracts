@@ -95,9 +95,9 @@ contract LM_PC_PaymentRouter_v1 is
 
         {
             bytes32[] memory paymentParameters = new bytes32[](3);
-            paymentParameters[0] = bytes32(start);
+            paymentParameters[0] = bytes32(start == 0 ? block.timestamp : start);
             paymentParameters[1] = bytes32(cliff);
-            paymentParameters[2] = bytes32(end);
+            paymentParameters[2] = bytes32(end == 0 ? block.timestamp : end);
 
             (flags, data) = _assemblePaymentConfig(paymentParameters);
         }

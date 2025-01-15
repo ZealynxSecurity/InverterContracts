@@ -218,6 +218,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Set direct operations only flag.
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
+
+        // Set the flags for the PaymentOrders
+        // The Module will use 1 flag
+        uint8[] memory flags = new uint8[](1);
+        // The module only uses the OrderId, which is flag_ID 0 (see IERC20PaymentClientBase_v1)
+        flags[0] = 0;
+
+        __ERC20PaymentClientBase_v1_init(flags);
     }
 
     // -------------------------------------------------------------------------
@@ -453,7 +461,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint issuanceFeeAmount_
     ) internal {
         // Generate new order ID.
-        _orderId = _orderId++;
+        _orderId = ++_orderId;
 
         // Update open redemption amount.
         _addToOpenRedemptionAmount(collateralRedeemAmount_);
@@ -461,14 +469,24 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // collateralRedeemAmount_ is already calculated from netDeposit (post-issuance fee)
         uint redemptionAmount_ = collateralRedeemAmount_;
 
+        bytes32 flags;
+        bytes32[] memory data;
+
+        {
+            bytes32[] memory paymentParameters = new bytes32[](1);
+            paymentParameters[0] = bytes32(_orderId);
+
+            (flags, data) = _assemblePaymentConfig(paymentParameters);
+        }
         // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
             recipient: receiver_,
             paymentToken: address(token()),
             amount: collateralRedeemAmount_,
-            start: block.timestamp,
-            cliff: 0,
-            end: block.timestamp
+            originChainId: block.chainid,
+            targetChainId: block.chainid,
+            flags: flags,
+            data: data
         });
         _addPaymentOrder(order);
 

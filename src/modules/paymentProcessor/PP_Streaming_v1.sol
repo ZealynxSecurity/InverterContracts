@@ -101,13 +101,14 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     ///         client => paymentReceiver => arrayOfStreamIdsWithPendingPayment(uint[]).
     mapping(address => mapping(address => uint[])) private activeStreams;
 
-    /// @dev    Default start, cliff and end times for new payment orders.
-    uint private defaultStart;
-    uint private defaultCliff;
-    uint private defaultEnd;
+    /// @dev    The flags that this PaymentProcessor uses
+    bytes32 internal constant processor_flags =
+        0x000000000000000000000000000000000000000000000000000000000000000e; // 1110
+    /// @dev    The default values for those flags, in ascending order: start, cliff, end
+    uint[3] private defaultValues;
 
     /// @dev	Storage gap for future upgrades.
-    uint[47] private __gap;
+    uint[46] private __gap;
 
     //--------------------------------------------------------------------------
     // Modifiers
@@ -433,8 +434,16 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
         _setDefaultTimes(newStart_, newCliff_, newEnd_);
     }
 
-    function getStreamingDefaults() public view returns (uint, uint, uint) {
-        return (defaultStart, defaultCliff, defaultEnd);
+    function getStreamingDefaults()
+        public
+        view
+        returns (uint defaultStart_, uint defaultCliff_, uint defaultEnd_)
+    {
+        return (defaultValues[0], defaultValues[1], defaultValues[2]);
+    }
+
+    function getProcessorFlags() public view returns (bytes32 flags_) {
+        return processor_flags;
     }
 
     //--------------------------------------------------------------------------
@@ -948,23 +957,48 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
         );
     }
 
-    function _getStreamingDetails(bytes32 flags, bytes32[] memory data)
-        internal
-        view
-        returns (uint start, uint cliff, uint end)
-    {
-        uint dataIdx = 0;
+    function _getStreamingDetails(
+        bytes32 order_flags,
+        bytes32[] memory order_data
+    ) internal view returns (uint start_, uint cliff_, uint end_) {
+        uint[3] memory return_data;
 
-        bool hasStart = (uint(flags) & (1 << 1)) != 0;
-        start = hasStart ? uint(data[dataIdx]) : defaultStart;
-        if (hasStart) dataIdx += 1;
+        uint8 position_in_order_data = 0;
+        uint8 position_in_return_data = 0;
 
-        bool hasCliff = (uint(flags) & (1 << 2)) != 0;
-        cliff = hasCliff ? uint(data[dataIdx]) : defaultCliff;
-        if (hasCliff) dataIdx += 1;
+        for (uint i = 0; i < 256; i++) {
+            if (position_in_return_data == return_data.length) {
+                // we have either:
+                // - reached the end of the order_data array
+                // - already checked for all the values this PaymentProcessor will need
+                //      ==> exit loop
+                break;
+            }
 
-        bool hasEnd = (uint(flags) & (1 << 3)) != 0;
-        end = hasEnd ? uint(data[dataIdx]) : defaultEnd;
+            //uint order_bit = (uint(order_flags) & (1 << i));
+            bool order_bit = (uint(order_flags) & (1 << i)) != 0;
+            //uint processor_bit = (uint(processor_flags) & (1 << i));
+            bool processor_bit = (uint(processor_flags) & (1 << i)) != 0;
+            if (order_bit == true && processor_bit == false) {
+                // the PaymentProcessor does not use that value -> skip that data slot in the order
+                position_in_order_data++;
+            }
+            if (order_bit == false && processor_bit == true) {
+                // the PaymentProcessor needs the value, but the order does not supply it -> use default value
+                return_data[position_in_return_data] =
+                    uint(defaultValues[position_in_return_data]);
+                position_in_return_data++;
+            }
+            if (order_bit == true && processor_bit == true) {
+                // the PaymentProcessor needs the value, and the order supplies it -> use the value from the order
+                return_data[position_in_return_data] =
+                    uint(order_data[position_in_order_data]);
+                position_in_order_data++;
+                position_in_return_data++;
+            }
+        }
+
+        return (return_data[0], return_data[1], return_data[2]);
     }
 
     /// @dev    Sets the default start time, cliff and end times for new
@@ -976,9 +1010,9 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
         internal
     {
         if (_validTimes(newStart_, newCliff_, newEnd_)) {
-            defaultStart = newStart_;
-            defaultCliff = newCliff_;
-            defaultEnd = newEnd_;
+            defaultValues[0] = newStart_;
+            defaultValues[1] = newCliff_;
+            defaultValues[2] = newEnd_;
         } else {
             revert Module__PP_Streaming__InvalidDefaultTimes(
                 newStart_, newCliff_, newEnd_

@@ -1947,11 +1947,16 @@ contract PP_StreamingV1Test is ModuleTest {
     function test__getStreamingDetails(bytes32 flags, bytes32[] memory data)
         public
     {
+        bool hasOrderId = false; // the processor doesn't use this, but it could be part of recieved data
         bool hasStart = false;
         bool hasCliff = false;
         bool hasEnd = false;
 
         uint8 numOnes = 0;
+        if ((uint(flags) & (1 << 0)) != 0) {
+            hasOrderId = true;
+            numOnes++;
+        }
         if ((uint(flags) & (1 << 1)) != 0) {
             hasStart = true;
             numOnes++;
@@ -1979,6 +1984,7 @@ contract PP_StreamingV1Test is ModuleTest {
             paymentProcessor.exposed_getStreamingDetails(flags, data);
 
         uint idx = 0;
+        if (hasOrderId) idx++; // if there was an orderId, we start comparing results one index further
         assertEq(start, hasStart ? uint(data[idx]) : defaultStart);
         if (hasStart) idx++;
         assertEq(cliff, hasCliff ? uint(data[idx]) : defaultCliff);
@@ -2030,6 +2036,11 @@ contract PP_StreamingV1Test is ModuleTest {
         paymentProcessor.setStreamingDefaults(
             defaultStart, defaultCliff, defaultEnd
         );
+    }
+
+    function test_getProcessorFlags() public {
+        bytes32 flags = paymentProcessor.getProcessorFlags();
+        assertEq(flags, _START_END_CLIFF_FLAG);
     }
 
     //--------------------------------------------------------------------------

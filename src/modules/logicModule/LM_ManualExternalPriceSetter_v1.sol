@@ -131,6 +131,19 @@ contract LM_ManualExternalPriceSetter_v1 is
         emit RedemptionPriceSet(price_);
     }
 
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function setIssuanceAndRedemptionPrice(
+        uint issuancePrice_,
+        uint redemptionPrice_
+    ) external onlyModuleRole(PRICE_SETTER_ROLE) {
+        if (issuancePrice_ == 0 || redemptionPrice_ == 0) {
+            revert Module__LM_ExternalPriceSetter__InvalidPrice();
+        }
+
+        _issuancePrice = issuancePrice_;
+        _redemptionPrice = redemptionPrice_;
+    }
+
     /// @notice Gets current price for token issuance (buying tokens).
     /// @return price_ Current price in 18 decimals (collateral tokens per 1
     ///         issuance token).

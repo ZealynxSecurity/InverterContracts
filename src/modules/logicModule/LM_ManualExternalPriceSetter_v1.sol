@@ -74,12 +74,10 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // State Variables
 
-    /// @notice The price for issuing tokens (normalized to
-    ///         INTERNAL_DECIMALS).
+    /// @notice The price for issuing tokens (in collateral token decimals)
     uint private _issuancePrice;
 
-    /// @notice The price for redeeming tokens (normalized to
-    ///         INTERNAL_DECIMALS).
+    /// @notice The price for redeeming tokens (in collateral token decimals)
     uint private _redemptionPrice;
 
     /// @notice Decimals of the collateral token (e.g., USDC with 6 decimals).
@@ -112,11 +110,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
-
-        // Normalize price to internal decimal precision
-        _issuancePrice = price_;
-        emit IssuancePriceSet(price_);
+        _setIssuancePrice(price_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -124,11 +118,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
-
-        // Normalize price to internal decimal precision.
-        _redemptionPrice = price_;
-        emit RedemptionPriceSet(price_);
+        _setRedemptionPrice(price_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -136,12 +126,9 @@ contract LM_ManualExternalPriceSetter_v1 is
         uint issuancePrice_,
         uint redemptionPrice_
     ) external onlyModuleRole(PRICE_SETTER_ROLE) {
-        if (issuancePrice_ == 0 || redemptionPrice_ == 0) {
-            revert Module__LM_ExternalPriceSetter__InvalidPrice();
-        }
-
-        _issuancePrice = issuancePrice_;
-        _redemptionPrice = redemptionPrice_;
+        // Set both prices atomically
+        _setIssuancePrice(issuancePrice_);
+        _setRedemptionPrice(redemptionPrice_);
     }
 
     /// @notice Gets current price for token issuance (buying tokens).
@@ -150,7 +137,6 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for
     ///         1 ISS).
     function getPriceForIssuance() external view returns (uint) {
-        // Convert from internal precision to output token precision.
         return _issuancePrice;
     }
 
@@ -160,8 +146,26 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC
     ///         received for 1 ISS).
     function getPriceForRedemption() external view returns (uint) {
-        // Convert from internal precision to output token precision.
         return _redemptionPrice;
+    }
+
+    //--------------------------------------------------------------------------
+    // Internal Functions
+
+    /// @notice Internal function to set the issuance price
+    /// @param price_ The price to set
+    function _setIssuancePrice(uint price_) internal {
+        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
+        _issuancePrice = price_;
+        emit IssuancePriceSet(price_);
+    }
+
+    /// @notice Internal function to set the redemption price
+    /// @param price_ The price to set
+    function _setRedemptionPrice(uint price_) internal {
+        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
+        _redemptionPrice = price_;
+        emit RedemptionPriceSet(price_);
     }
 
     /// @dev    Storage gap for upgradeable contracts.

@@ -350,14 +350,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         emit TransferOrchestratorToken(to_, amount_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function deductProcessedRedemptionAmount(uint processedRedemptionAmount_)
-        external
-        onlyPaymentClient
-    {
-        _deductFromOpenRedemptionAmount(processedRedemptionAmount_);
-    }
-
     /// @inheritdoc IRedeemingBondingCurveBase_v1
     function setSellFee(uint fee_)
         public
@@ -464,7 +456,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _orderId = ++_orderId;
 
         // Update open redemption amount.
-        _addToOpenRedemptionAmount(collateralRedeemAmount_);
+        _openRedemptionAmount += collateralRedeemAmount_;
 
         // collateralRedeemAmount_ is already calculated from netDeposit (post-issuance fee)
         uint redemptionAmount_ = collateralRedeemAmount_;
@@ -587,17 +579,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             _projectFeeCollected(projectFeeAmount);
         }
 
-        // Require that enough collateral tokens are held to cover the project
-        // collateral fee.
-        if (
-            projectCollateralFeeCollected
-                > collateralToken.balanceOf(address(this))
-        ) {
-            revert
-                Module__RedeemingBondingCurveBase__InsufficientCollateralForProjectFee(
-            );
-        }
-
         // Revert when the redeem amount is lower than minimum amount the user
         // expects.
         if (collateralRedeemAmount < _minAmountOut) {
@@ -645,12 +626,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         // First convert deposit amount to required decimals.
         uint normalizedAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
-            depositAmount_, _collateralTokenDecimals, _issuanceTokenDecimals
+            depositAmount_,
+            IERC20Metadata(address(token())).decimals(),
+            IERC20Metadata(address(issuanceToken)).decimals()
         );
 
         // Then calculate the token amount using the normalized amount.
-        mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_
-            / (10 ** _issuanceTokenDecimals);
+        mintAmount_ = _oracle.getPriceForIssuance() * normalizedAmount_;
     }
 
     /// @param  depositAmount_ The amount being redeemed.
@@ -666,8 +648,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Convert redeem amount to collateral decimals.
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
-            tokenAmount_, _issuanceTokenDecimals, _collateralTokenDecimals
-        ) / (10 ** _collateralTokenDecimals);
+            tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals
+        );
     }
 
     /// @dev    Sets the issuance token.

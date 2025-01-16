@@ -105,12 +105,25 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
+    // Add a private helper function
+    function _validateAndSetPrice(uint price_, bool isIssuance_) private {
+        if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
+
+        if (isIssuance_) {
+            _issuancePrice = price_;
+            emit IssuancePriceSet(price_);
+        } else {
+            _redemptionPrice = price_;
+            emit RedemptionPriceSet(price_);
+        }
+    }
+
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setIssuancePrice(uint price_)
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        _setIssuancePrice(price_);
+        _validateAndSetPrice(price_, true);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -118,7 +131,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         external
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
-        _setRedemptionPrice(price_);
+        _validateAndSetPrice(price_, false);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
@@ -126,9 +139,8 @@ contract LM_ManualExternalPriceSetter_v1 is
         uint issuancePrice_,
         uint redemptionPrice_
     ) external onlyModuleRole(PRICE_SETTER_ROLE) {
-        // Set both prices atomically
-        _setIssuancePrice(issuancePrice_);
-        _setRedemptionPrice(redemptionPrice_);
+        _validateAndSetPrice(issuancePrice_, true);
+        _validateAndSetPrice(redemptionPrice_, false);
     }
 
     /// @notice Gets current price for token issuance (buying tokens).

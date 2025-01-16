@@ -4,10 +4,10 @@ pragma solidity 0.8.23;
 import {Test, console} from "forge-std/Test.sol"; // @todo remove
 import {LM_ManualExternalPriceSetter_v1} from
     "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {LM_ManualExternalPriceSetter_v1_Exposed} from
-    "test/modules/logicModule/LM_ManualExternalPriceSetter_v1_exposed.sol";
 import {ILM_ManualExternalPriceSetter_v1} from
     "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
+import {LM_ManualExternalPriceSetter_v1} from
+    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 import {ERC20Mock} from "test/utils/mocks/ERC20Mock.sol";
 import {AuthorizerV1Mock} from "test/utils/mocks/modules/AuthorizerV1Mock.sol";
@@ -28,7 +28,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     // Storage
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-    LM_ManualExternalPriceSetter_v1_Exposed priceSetter;
+    LM_ManualExternalPriceSetter_v1 priceSetter;
 
     address admin;
     address priceSetter_;
@@ -65,9 +65,8 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         outputToken = _token; // Like most ERC20s
 
         // Setup price setter
-        address impl = address(new LM_ManualExternalPriceSetter_v1_Exposed());
-        priceSetter =
-            LM_ManualExternalPriceSetter_v1_Exposed(Clones.clone(impl));
+        address impl = address(new LM_ManualExternalPriceSetter_v1());
+        priceSetter = LM_ManualExternalPriceSetter_v1(Clones.clone(impl));
 
         bytes memory configData =
             abi.encode(address(inputToken), address(outputToken));

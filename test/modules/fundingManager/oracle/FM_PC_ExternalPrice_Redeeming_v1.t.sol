@@ -7,8 +7,6 @@ import {IERC20Metadata} from
 import {IERC20Errors} from
     "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
-import {FM_PC_ExternalPrice_Redeeming_v1_Exposed} from
-    "test/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1_Exposed.sol";
 import {IFM_PC_ExternalPrice_Redeeming_v1} from
     "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 import {IModule_v1} from "src/modules/base/IModule_v1.sol";
@@ -27,7 +25,8 @@ import {LM_ManualExternalPriceSetter_v1} from
     "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
 import {OraclePrice_Mock} from
     "test/utils/mocks/modules/logicModules/OraclePrice_Mock.sol";
-
+import {FM_PC_ExternalPrice_Redeeming_v1} from
+    "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
 import {
     IERC20PaymentClientBase_v1,
     ERC20PaymentClientBaseV1Mock,
@@ -49,7 +48,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     // Storage
     // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
-    FM_PC_ExternalPrice_Redeeming_v1_Exposed fundingManager;
+    FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
     // RedeemingBondingCurveBaseV1Mock bondingCurveFundingManager;
 
     // Test addresses
@@ -141,9 +140,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // Setup funding manager
-        impl = address(new FM_PC_ExternalPrice_Redeeming_v1_Exposed());
-        fundingManager =
-            FM_PC_ExternalPrice_Redeeming_v1_Exposed(Clones.clone(impl));
+        impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
+        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(Clones.clone(impl));
         _setUpOrchestrator(fundingManager);
 
         // Initialize the funding manager
@@ -306,7 +304,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             DIRECT_OPERATIONS_ONLY // direct operations only flag
         );
 
-        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1_Exposed());
+        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
         address newFundingManager = address(new ERC1967Proxy(impl, ""));
 
         vm.expectRevert(
@@ -318,7 +316,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 MAX_BUY_FEE
             )
         );
-        FM_PC_ExternalPrice_Redeeming_v1_Exposed(newFundingManager).init(
+        FM_PC_ExternalPrice_Redeeming_v1(newFundingManager).init(
             _orchestrator, _METADATA, invalidConfigData
         );
     }
@@ -341,7 +339,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             DIRECT_OPERATIONS_ONLY // direct operations only flag
         );
 
-        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1_Exposed());
+        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
         address newFundingManager = address(new ERC1967Proxy(impl, ""));
 
         vm.expectRevert(
@@ -353,7 +351,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 MAX_SELL_FEE
             )
         );
-        FM_PC_ExternalPrice_Redeeming_v1_Exposed(newFundingManager).init(
+        FM_PC_ExternalPrice_Redeeming_v1(newFundingManager).init(
             _orchestrator, _METADATA, invalidConfigData
         );
     }
@@ -425,9 +423,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         address invalidOracle = makeAddr("InvalidOracleMock");
 
         // Deploy new funding manager
-        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1_Exposed());
-        FM_PC_ExternalPrice_Redeeming_v1_Exposed invalidOracleFM =
-            FM_PC_ExternalPrice_Redeeming_v1_Exposed(Clones.clone(impl));
+        address impl = address(new FM_PC_ExternalPrice_Redeeming_v1());
+        FM_PC_ExternalPrice_Redeeming_v1 invalidOracleFM =
+            FM_PC_ExternalPrice_Redeeming_v1(Clones.clone(impl));
 
         // Prepare config with invalid oracle
         bytes memory configData = abi.encode(
@@ -1473,264 +1471,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test testExternalQueue_succeedsGivenSingleRedemptionOrder() function
-        ├── Given an initialized funding manager contract
-        │   ├── And a single redemption order exists
-        │   ├── And sufficient collateral is available
-        │   └── And caller has queue manager role
-        │       └── When queue manager processes redemption queue
-        │           └── Then it should:
-        │               ├── Process order correctly 
-        │               ├── Update order state
-        │               └── Create payment stream with correct parameters
-    */
-    // @audit => Need payment processor (PP_Queue_v1)
-    // function testExternalQueue_succeedsGivenSingleRedemptionOrder(
-    //     uint depositAmount
-    // ) public {
-    //     // Given - Setup valid deposit bounds
-    //     depositAmount = bound(
-    //         depositAmount,
-    //         1 * 10 ** _token.decimals(),
-    //         1_000_000 * 10 ** _token.decimals()
-    //     );
-
-    //     // Given - Create redemption order via buy and sell
-    //     vm.prank(whitelisted);
-    //     uint issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-    //     uint sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-    //     uint expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-    //     // Given - Fund contract with redemption collateral
-    //     _token.mint(address(fundingManager), expectedCollateral);
-
-    //     // Given - Record initial state
-    //     uint initialWhitelistedBalance = _token.balanceOf(whitelisted);
-
-    //     // When - Create redemption order/payment stream
-    //     // vm.startPrank(whitelisted);
-    //     fundingManager.sell(sellAmount, 1);
-    //     vm.stopPrank();
-
-    //     // Then - Verify initial stream state
-    //     assertEq(
-    //         paymentProcessor.releasableForSpecificStream(
-    //             address(fundingManager),
-    //             whitelisted,
-    //             1 // Default wallet ID for unique recipients
-    //         ),
-    //         0,
-    //         "Stream should have 0 releasable amount at start"
-    //     );
-    // }
-
-    /* Test testExternalQueue_updatesRedemptionAmountToZero() function
-        ├── Given an initialized funding manager contract
-        │   ├── And a redemption order exists
-        │   └── And sufficient collateral is available
-        │       └── When queue manager processes redemption queue
-        │           └── Then open redemption amount should be zero
-    */
-    // function testExternalQueue_updatesRedemptionAmountToZero(
-    //     uint256 depositAmount
-    // ) public {
-    //     // Given - Setup valid deposit bounds
-    //     depositAmount = bound(
-    //         depositAmount,
-    //         1 * 10**_token.decimals(),
-    //         1_000_000 * 10**_token.decimals()
-    //     );
-
-    //     // Given - Create redemption order
-    //     uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-    //     uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-    //     uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-    //     // Given - Fund contract with redemption collateral
-    //     _token.mint(address(fundingManager), expectedCollateral);
-
-    //     // When - Create redemption order
-    //     vm.prank(whitelisted);
-    //     fundingManager.sell(sellAmount, 1);
-
-    //     _addLogicModuleToOrchestrator(address(paymentClient));
-    //     vm.prank(address(paymentClient));
-    //     fundingManager.deductProcessedRedemptionAmount(expectedCollateral);
-
-    //     // Then - Verify redemption amount reset
-    //     assertEq(
-    //         fundingManager.getOpenRedemptionAmount(),
-    //         0,
-    //         "Open redemption amount should be zero after processing"
-    //     );
-    // }
-
-    /* Test testExternalQueue_updatesOrderIdsCorrectly() function
-        ├── Given an initialized funding manager contract
-        │   └── And a redemption order exists
-        │       └── When queue manager processes redemption queue
-        │           └── Then it should:
-        │               ├── Set current order ID to previous next order ID
-        │               └── Increment next order ID
-    */
-    function testExternalQueue_updatesOrderIdsCorrectly(uint depositAmount)
-        public
-    {
-        // Given - Setup valid deposit bounds
-        depositAmount = bound(
-            depositAmount,
-            1 * 10 ** _token.decimals(),
-            1_000_000 * 10 ** _token.decimals()
-        );
-
-        // Given - Create redemption order
-        uint issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-        uint sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-        uint expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-        // Given - Fund contract with redemption collateral
-        _token.mint(address(fundingManager), expectedCollateral);
-
-        // Given - Record initial order IDs
-        uint initialOrderId = fundingManager.getOrderId();
-        uint initialNextOrderId = fundingManager.getNextOrderId();
-
-        // When - Create redemption order
-        vm.prank(whitelisted);
-        fundingManager.sell(sellAmount / 2, 1);
-
-        // Then - Get final order IDs
-        uint finalOrder = fundingManager.getOrderId();
-        uint finalNextOrderId = fundingManager.getNextOrderId();
-
-        // Then - Verify order ID updates
-        assertEq(
-            initialNextOrderId,
-            finalOrder,
-            "Current order ID should match previous next order ID"
-        );
-        assertGt(
-            finalNextOrderId,
-            initialOrderId,
-            "Next order ID should be incremented"
-        );
-    }
-
-    /* Test testExternalQueue_updatesOrderIdsCorrectlyForMultipleOrders() function
-        ├── Given an initialized funding manager contract
-        │   └── And multiple redemption orders exist
-        │       └── When queue manager processes redemption queue twice
-        │           └── Then it should:
-        │               ├── Set current order ID to previous next order ID for each order
-        │               └── Increment next order ID sequentially
-    */
-    function testExternalQueue_updatesOrderIdsCorrectlyForMultipleOrders(
-        uint depositAmount
-    ) public {
-        // Given - Setup valid deposit bounds
-        depositAmount = bound(
-            depositAmount,
-            1 * 10 ** _token.decimals(),
-            1_000_000 * 10 ** _token.decimals()
-        );
-
-        // Given - Create initial redemption order
-        uint issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-        uint sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-        uint expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-        // Given - Fund contract for redemption
-        _token.mint(address(fundingManager), expectedCollateral);
-
-        // Given - Record initial order IDs
-        uint initialOrderId = fundingManager.getOrderId();
-        uint initialNextOrderId = fundingManager.getNextOrderId();
-
-        // When - Create first redemption order
-        vm.prank(whitelisted);
-        fundingManager.sell(sellAmount / 2, 1);
-
-        uint firstOrderId = fundingManager.getOrderId();
-        uint firstNextOrderId = fundingManager.getNextOrderId();
-
-        // When - Create second redemption order
-        vm.prank(whitelisted);
-        fundingManager.sell(10_000, 1);
-
-        uint secondOrderId = fundingManager.getOrderId();
-        uint secondNextOrderId = fundingManager.getNextOrderId();
-
-        // Then - Verify sequential order ID updates
-        assertEq(
-            firstNextOrderId,
-            secondOrderId,
-            "Second order ID should match first next order ID"
-        );
-        assertGt(
-            secondNextOrderId,
-            firstOrderId,
-            "Next order ID should increment sequentially"
-        );
-    }
-
-    /* Test testExternalQueue_processesMultipleOrdersCorrectly() function
-        ├── Given an initialized funding manager contract
-        │   └── When multiple redemption orders are created
-        │       └── Then it should:
-        │           ├── Process each order successfully
-        │           ├── Update total redemption amount correctly
-        │           ├── Reset open redemption amount to zero
-        │           └── Transfer expected collateral to users
-    */
-    // function testExternalQueue_processesMultipleOrdersCorrectly(
-    //     uint256[] calldata depositAmounts
-    // ) public {
-    //     // Given - Validate input array size
-    //     vm.assume(depositAmounts.length > 0 && depositAmounts.length <= 5);
-
-    //     uint256 totalExpectedCollateral = 0;
-
-    //     // When - Process multiple redemption orders
-    //     for(uint i = 0; i < depositAmounts.length; i++) {
-    //         // Given - Setup valid deposit bounds for each order
-    //         uint256 depositAmount = bound(
-    //             depositAmounts[i],
-    //             1 * 10**_token.decimals(),
-    //             1_000_000 * 10**_token.decimals()
-    //         );
-
-    //         // Given - Create redemption order
-    //         uint256 issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-    //         uint256 sellAmount = issuanceAmount / 2; // Selling 50% of purchased tokens
-    //         uint256 expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-    //         // Given - Track total collateral
-    //         totalExpectedCollateral += expectedCollateral;
-
-    //         // Given - Fund contract for redemption
-    //         _token.mint(address(fundingManager), expectedCollateral);
-
-    //         // When - Create redemption order
-    //         vm.prank(whitelisted);
-    //         fundingManager.sell(sellAmount, 1);
-    //     }
-
-    //     // Given - Record pre-processing state
-    //     uint256 initialOpenRedemption = fundingManager.getOpenRedemptionAmount();
-
-    //     // Process all orders at once
-    //     _addLogicModuleToOrchestrator(address(paymentClient));
-    //     vm.prank(address(paymentClient));
-    //     fundingManager.deductProcessedRedemptionAmount(totalExpectedCollateral);
-
-    //     // Then - Verify redemption amount reset
-    //     assertEq(
-    //         fundingManager.getOpenRedemptionAmount(),
-    //         0,
-    //         "Open redemption amount should reset after processing orders"
-    //     );
-    // }
-
     /* Test testExternalQueue_managesCollateralCorrectly() function
         ├── Given an initialized funding manager contract
         │   └── When a redemption order is processed
@@ -1771,82 +1511,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             _token.balanceOf(address(fundingManager)),
             initialContractBalance + expectedCollateral,
             "Contract balance should increase by expected collateral amount"
-        );
-    }
-
-    /* Test testExternalQueue_processesMultipleOrdersSequentially() function
-        ├── Given an initialized funding manager contract
-        │   └── When creating multiple redemption orders
-        │       └── Then for each order it should:
-        │           ├── Set current order ID to previous next order ID
-        │           ├── Increment next order ID sequentially
-        │           └── Maintain consistent order ID progression
-    */
-    function testExternalQueue_processesMultipleOrdersSequentially(
-        uint depositAmount,
-        uint8 numberOfOrders
-    ) public {
-        // Given - Bound number of orders for gas efficiency
-        numberOfOrders = uint8(bound(uint(numberOfOrders), 2, 20));
-
-        // Given - Setup valid deposit bounds
-        depositAmount = bound(
-            depositAmount,
-            1 * 10 ** _token.decimals(),
-            1_000_000 * 10 ** _token.decimals()
-        );
-
-        // Given - Create redemption conditions
-        uint issuanceAmount = _prepareSellConditions(whitelisted, depositAmount);
-        uint sellAmount = issuanceAmount / numberOfOrders; // Equal distribution
-        uint expectedCollateral = _calculateExpectedCollateral(sellAmount);
-
-        // Given - Fund contract for all redemptions
-        _token.mint(
-            address(fundingManager), expectedCollateral * numberOfOrders
-        );
-
-        // Given - Record initial IDs
-        uint previousOrderId = fundingManager.getOrderId();
-        uint previousNextOrderId = fundingManager.getNextOrderId();
-
-        // When - Process multiple orders
-        for (uint8 i = 0; i < numberOfOrders; i++) {
-            // Create redemption order
-            vm.prank(whitelisted);
-            fundingManager.sell(sellAmount, 1);
-
-            // Get updated IDs
-            uint currentOrderId = fundingManager.getOrderId();
-            uint currentNextOrderId = fundingManager.getNextOrderId();
-
-            // Then - Verify ID progression
-            assertEq(
-                currentOrderId,
-                previousNextOrderId,
-                "Current order ID should match previous next order ID"
-            );
-
-            assertTrue(
-                currentNextOrderId > previousOrderId,
-                "Next order ID should increment sequentially"
-            );
-
-            // Update tracking IDs
-            previousOrderId = currentOrderId;
-            previousNextOrderId = currentNextOrderId;
-        }
-
-        // Then - Verify final state
-        assertTrue(
-            fundingManager.getNextOrderId() - fundingManager.getOrderId() == 1,
-            "Final next order ID should be consecutive"
-        );
-
-        assertEq(
-            fundingManager.getOrderId(),
-            numberOfOrders - 1,
-            "Final order ID should match processed order count"
         );
     }
 

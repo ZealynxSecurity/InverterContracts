@@ -340,7 +340,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function deductProcessedRedemptionAmount(uint processedRedemptionAmount_)
+        external
+        onlyPaymentClient
+    {
+        _deductFromOpenRedemptionAmount(processedRedemptionAmount_);
+    }
     /// @inheritdoc IFundingManager_v1
+
     function transferOrchestratorToken(address to_, uint amount_)
         external
         onlyPaymentClient

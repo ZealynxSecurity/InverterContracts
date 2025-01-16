@@ -28,18 +28,6 @@ import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
 interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     // -------------------------------------------------------------------------
 
-    // Events
-
-    /// @notice	Emitted when an issuance price is set.
-    /// @param	price_ The price that was set.
-    event IssuancePriceSet(uint indexed price_);
-
-    /// @notice	Emitted when a redemption price is set.
-    /// @param	price_ The price that was set.
-    event RedemptionPriceSet(uint indexed price_);
-
-    // -------------------------------------------------------------------------
-
     // Errors
 
     /// @notice Thrown when attempting to set a price to zero.

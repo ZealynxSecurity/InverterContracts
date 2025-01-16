@@ -26,6 +26,17 @@ pragma solidity ^0.8.0;
  */
 interface IOraclePrice_v1 {
     // -------------------------------------------------------------------------
+    // Events
+
+    /// @notice	Emitted when an issuance price is set.
+    /// @param	price_ The price that was set.
+    event IssuancePriceSet(uint indexed price_, address indexed caller_);
+
+    /// @notice	Emitted when a redemption price is set.
+    /// @param	price_ The price that was set.
+    event RedemptionPriceSet(uint indexed price_, address indexed caller_);
+
+    // -------------------------------------------------------------------------
     // Errors
 
     /// @notice	Thrown when price returned is zero.

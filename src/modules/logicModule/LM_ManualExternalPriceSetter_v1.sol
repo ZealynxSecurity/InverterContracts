@@ -156,7 +156,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setIssuancePrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _issuancePrice = price_;
-        emit IssuancePriceSet(price_);
+        emit IssuancePriceSet(price_, msg.sender);
     }
 
     /// @notice Internal function to set the redemption price
@@ -164,7 +164,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setRedemptionPrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _redemptionPrice = price_;
-        emit RedemptionPriceSet(price_);
+        emit RedemptionPriceSet(price_, msg.sender);
     }
 
     /// @dev    Storage gap for upgradeable contracts.

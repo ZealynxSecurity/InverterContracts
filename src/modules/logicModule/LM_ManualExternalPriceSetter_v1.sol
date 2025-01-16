@@ -126,17 +126,9 @@ contract LM_ManualExternalPriceSetter_v1 is
         uint issuancePrice_,
         uint redemptionPrice_
     ) external onlyModuleRole(PRICE_SETTER_ROLE) {
-        if (issuancePrice_ == 0 || redemptionPrice_ == 0) {
-            revert Module__LM_ExternalPriceSetter__InvalidPrice();
-        }
-
-        // Normalize and set both prices atomically
+        // Set both prices atomically
         _setIssuancePrice(issuancePrice_);
         _setRedemptionPrice(redemptionPrice_);
-
-        // Emit events
-        emit IssuancePriceSet(issuancePrice_);
-        emit RedemptionPriceSet(redemptionPrice_);
     }
 
     /// @notice Gets current price for token issuance (buying tokens).

@@ -102,13 +102,16 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     mapping(address => mapping(address => uint[])) private activeStreams;
 
     /// @dev    The flags that this PaymentProcessor uses
-    bytes32 internal constant processor_flags =
-        0x000000000000000000000000000000000000000000000000000000000000000e; // 1110
-    /// @dev    The default values for those flags, in ascending order: start, cliff, end
+    ///         Contains the value 1110.
+    bytes32 internal constant PROCESSOR_FLAGS =
+        0x000000000000000000000000000000000000000000000000000000000000000e;
+
+    /// @dev    The default values for those flags, in ascending order: start
+    //          cliff, end
     uint[3] private defaultValues;
 
     /// @dev	Storage gap for future upgrades.
-    uint[46] private __gap;
+    uint[47] private __gap;
 
     //--------------------------------------------------------------------------
     // Modifiers
@@ -443,7 +446,7 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     }
 
     function getProcessorFlags() public view returns (bytes32 flags_) {
-        return processor_flags;
+        return PROCESSOR_FLAGS;
     }
 
     //--------------------------------------------------------------------------
@@ -958,47 +961,49 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     }
 
     function _getStreamingDetails(
-        bytes32 order_flags,
-        bytes32[] memory order_data
+        bytes32 orderFlags_,
+        bytes32[] memory orderData_
     ) internal view returns (uint start_, uint cliff_, uint end_) {
-        uint[3] memory return_data;
+        uint[3] memory returnData;
 
-        uint8 position_in_order_data = 0;
-        uint8 position_in_return_data = 0;
+        uint8 positionInOrderData = 0;
+        uint8 positionInReturnData = 0;
 
         for (uint i = 0; i < 256; i++) {
-            if (position_in_return_data == return_data.length) {
+            if (positionInReturnData == returnData.length) {
                 // we have either:
-                // - reached the end of the order_data array
-                // - already checked for all the values this PaymentProcessor will need
+                // - reached the end of the orderData_ array
+                // - already checked for all the values this P_P will need
                 //      ==> exit loop
                 break;
             }
 
-            //uint order_bit = (uint(order_flags) & (1 << i));
-            bool order_bit = (uint(order_flags) & (1 << i)) != 0;
-            //uint processor_bit = (uint(processor_flags) & (1 << i));
-            bool processor_bit = (uint(processor_flags) & (1 << i)) != 0;
-            if (order_bit == true && processor_bit == false) {
-                // the PaymentProcessor does not use that value -> skip that data slot in the order
-                position_in_order_data++;
+            bool orderBit = (uint(orderFlags_) & (1 << i)) != 0;
+            bool processorBit = (uint(PROCESSOR_FLAGS) & (1 << i)) != 0;
+
+            if (orderBit == true && processorBit == false) {
+                // the P_P does not use that value
+                //      ==> skip that data slot in the order
+                positionInOrderData++;
             }
-            if (order_bit == false && processor_bit == true) {
-                // the PaymentProcessor needs the value, but the order does not supply it -> use default value
-                return_data[position_in_return_data] =
-                    uint(defaultValues[position_in_return_data]);
-                position_in_return_data++;
+            if (orderBit == false && processorBit == true) {
+                // the P_P needs the value, but it's missing in the order
+                //      ==> use default value
+                returnData[positionInReturnData] =
+                    uint(defaultValues[positionInReturnData]);
+                positionInReturnData++;
             }
-            if (order_bit == true && processor_bit == true) {
-                // the PaymentProcessor needs the value, and the order supplies it -> use the value from the order
-                return_data[position_in_return_data] =
-                    uint(order_data[position_in_order_data]);
-                position_in_order_data++;
-                position_in_return_data++;
+            if (orderBit == true && processorBit == true) {
+                // the P_P needs the value, and the order supplies it
+                //      ==> use the value from the order
+                returnData[positionInReturnData] =
+                    uint(orderData_[positionInOrderData]);
+                positionInOrderData++;
+                positionInReturnData++;
             }
         }
 
-        return (return_data[0], return_data[1], return_data[2]);
+        return (returnData[0], returnData[1], returnData[2]);
     }
 
     /// @dev    Sets the default start time, cliff and end times for new

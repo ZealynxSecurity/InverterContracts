@@ -69,8 +69,8 @@ contract LM_PC_PaymentRouter_v1 is
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata);
 
-        // Set the flags for the PaymentOrders
-        uint8[] memory flags = new uint8[](3); // The Module will use 3 flags
+        // Set the flags for the PaymentOrders (this module uses 3 flags).
+        uint8[] memory flags = new uint8[](3);
         flags[0] = 1; // start, flag_ID 1
         flags[1] = 2; // cliff, flag_ID 2
         flags[2] = 3; // end, flag_ID 3

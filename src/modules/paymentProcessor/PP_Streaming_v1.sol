@@ -101,13 +101,13 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     ///         client => paymentReceiver => arrayOfStreamIdsWithPendingPayment(uint[]).
     mapping(address => mapping(address => uint[])) private activeStreams;
 
-    /// @dev    The flags that this PaymentProcessor uses
+    /// @dev    The flags that this PaymentProcessor uses.
     ///         Contains the value 1110.
     bytes32 internal constant PROCESSOR_FLAGS =
         0x000000000000000000000000000000000000000000000000000000000000000e;
 
     /// @dev    The default values for those flags, in ascending order: start
-    //          cliff, end
+    //          cliff, end.
     uint[3] private defaultValues;
 
     /// @dev	Storage gap for future upgrades.

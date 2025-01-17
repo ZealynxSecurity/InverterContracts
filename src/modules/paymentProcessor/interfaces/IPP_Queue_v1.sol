@@ -82,14 +82,16 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         uint timestamp_
     );
 
-    /// @notice	Emitted when a payment order changes its state.
-    /// @param	orderId_ Unique identifier of the payment order.
-    /// @param	state_ New state of the payment order.
-    /// @param  client_ Address of the client that owns the order.
+    /// @notice Emitted when a payment order state is updated.
+    /// @param  orderId_ The ID of the payment order.
+    /// @param  state_ The new state of the order.
+    /// @param  client_ The client address.
+    /// @param  executedBy_ The address that executed the state change.
     event PaymentOrderStateChanged(
         uint indexed orderId_,
-        RedemptionState indexed state_,
-        address indexed client_
+        RedemptionState state_,
+        address indexed client_,
+        address indexed executedBy_
     );
 
     /// @notice  Emitted when an order is skipped due to timing constraints.

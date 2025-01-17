@@ -668,7 +668,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
         _validStateTransition(orderId_, order.state_, state_);
         order.state_ = state_;
-        emit PaymentOrderStateChanged(orderId_, state_, order.client_);
+        emit PaymentOrderStateChanged(orderId_, state_, order.client_, _msgSender());
     }
 
     /// @notice Validates flags and corresponding data array.

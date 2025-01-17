@@ -30,10 +30,12 @@ interface IOraclePrice_v1 {
 
     /// @notice	Emitted when an issuance price is set.
     /// @param	price_ The price that was set.
+    /// @param	caller_ The address that set the price.
     event IssuancePriceSet(uint indexed price_, address indexed caller_);
 
     /// @notice	Emitted when a redemption price is set.
     /// @param	price_ The price that was set.
+    /// @param  caller_ The address that set the price.
     event RedemptionPriceSet(uint indexed price_, address indexed caller_);
 
     // -------------------------------------------------------------------------

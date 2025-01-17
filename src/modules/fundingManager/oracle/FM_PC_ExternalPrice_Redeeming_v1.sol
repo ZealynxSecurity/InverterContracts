@@ -25,7 +25,6 @@ import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
-import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
@@ -349,19 +348,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @inheritdoc IERC20PaymentClientBase_v1
     function amountPaid(address token_, uint amount_)
-        external
+        public
         override(ERC20PaymentClientBase_v1, IERC20PaymentClientBase_v1)
     {
         _deductFromOpenRedemptionAmount(amount_);
-        
-        // Ensure caller is authorized to act as payment processor.
-        if (!_isAuthorizedPaymentProcessor(IPaymentProcessor_v1(_msgSender())))
-        {
-            revert Module__ERC20PaymentClientBase__CallerNotAuthorized();
-        }
-
-        // reduce outstanding token amount by the given amount
-        _outstandingTokenAmounts[token_] -= amount_;
+        super.amountPaid(token_, amount_);
     }
 
     /// @inheritdoc IFundingManager_v1

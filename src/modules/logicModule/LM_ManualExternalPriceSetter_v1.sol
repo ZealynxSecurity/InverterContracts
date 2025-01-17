@@ -71,6 +71,12 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @dev    This role should be granted to trusted price feeders only.
     bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
+    /// @notice Role identifier for the admin authorized to assign the price
+    ///         setter role.
+    /// @dev    This role should be set as the role admin within the Authorizer
+    ///         module.
+    bytes32 public constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
+
     // -------------------------------------------------------------------------
     // State Variables
 

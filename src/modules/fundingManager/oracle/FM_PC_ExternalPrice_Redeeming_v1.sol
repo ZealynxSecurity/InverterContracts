@@ -91,8 +91,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Constants
 
-    /// @notice Role for whitelist management.
+    /// @notice Role identifier for accounts who are whitelisted to buy and sell.
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
+
+    /// @notice Role identifier for the admin authorized to assign the whitelist
+    ///         role.
+    /// @dev    This role should be set as the role admin for the WHITELIST_ROLE
+    ///         within the Authorizer module.
+    bytes32 public constant WHITELIST_ROLE_ADMIN = "WHITELIST_ROLE_ADMIN";
 
     // -------------------------------------------------------------------------
     // State Variables

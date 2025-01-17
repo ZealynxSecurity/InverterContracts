@@ -346,15 +346,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function deductProcessedRedemptionAmount(uint processedRedemptionAmount_)
-        external
-        onlyPaymentClient
-    {
-        _deductFromOpenRedemptionAmount(processedRedemptionAmount_);
+    /// @inheritdoc IERC20PaymentClientBase_v1
+    function amountPaid(address token_, uint amount_) external override {
+        _deductFromOpenRedemptionAmount(amount_);
+        super.amountPaid(token_, amount_);
     }
-    /// @inheritdoc IFundingManager_v1
 
+    /// @inheritdoc IFundingManager_v1
     function transferOrchestratorToken(address to_, uint amount_)
         external
         onlyPaymentClient
@@ -494,6 +492,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             flags: flags,
             data: data
         });
+
+        // Add order to payment client.
         _addPaymentOrder(order);
 
         // Process payments through the payment processor.
@@ -501,7 +501,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             IERC20PaymentClientBase_v1(address(this))
         );
 
-        // Emit event with all order details.
+        // Emit event with contract address that created the order and with the order ID.
+        emit PaymentOrderCreated(address(this), _orderId);
+        // Emit event with order details.
         emit RedemptionOrderCreated(
             _orderId,
             _msgSender(),

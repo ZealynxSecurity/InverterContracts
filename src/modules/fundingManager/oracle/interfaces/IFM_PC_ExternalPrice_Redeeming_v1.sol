@@ -113,6 +113,11 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state_
     );
 
+    /// @notice Emitted when a payment order is created with its creator address.
+    /// @param  creator_ The address of the contract creating the payment order.
+    /// @param  orderId_ The ID of the created payment order.
+    event PaymentOrderCreated(address indexed creator_, uint indexed orderId_);
+
     event RedemptionAmountUpdated(uint _openRedemptionAmount);
 
     // -------------------------------------------------------------------------

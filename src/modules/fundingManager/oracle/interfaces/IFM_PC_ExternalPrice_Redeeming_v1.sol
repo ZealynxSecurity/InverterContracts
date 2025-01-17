@@ -86,6 +86,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     event ReserveDeposited(address indexed depositor_, uint amount_);
 
     /// @notice	Emitted when a new redemption order is created.
+    /// @param  creator_ The address of the contract creating the payment order.
     /// @param	orderId_ Order identifier.
     /// @param	seller_ Address selling tokens.
     /// @param	receiver_ Address who receives the redeemed tokens.
@@ -99,8 +100,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	redemptionTime_ Time of redemption.
     /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
+        address indexed creator_,
         uint indexed orderId_,
-        address indexed seller_,
+        address seller_,
         address indexed receiver_,
         uint sellAmount_,
         uint exchangeRate_,
@@ -113,11 +115,8 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         RedemptionState state_
     );
 
-    /// @notice Emitted when a payment order is created with its creator address.
-    /// @param  creator_ The address of the contract creating the payment order.
-    /// @param  orderId_ The ID of the created payment order.
-    event PaymentOrderCreated(address indexed creator_, uint indexed orderId_);
-
+    /// @notice	Emitted when the open redemption amount is updated.
+    /// @param	_openRedemptionAmount The new open redemption amount.
     event RedemptionAmountUpdated(uint _openRedemptionAmount);
 
     // -------------------------------------------------------------------------
@@ -180,9 +179,4 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Toggles whether the contract only allows direct operations or not.
     /// @param  isDirectOperationsOnly_ The new value for the flag.
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_) external;
-
-    /// @notice Deducts a processed redemption amount from the open redemption amount.
-    /// @param  _processedRedemptionAmount The amount of redemption processed.
-    function deductProcessedRedemptionAmount(uint _processedRedemptionAmount)
-        external;
 }

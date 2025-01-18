@@ -73,6 +73,8 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     PP_Queue_v1 paymentProcessor;
     AUT_Roles_v1 authorizer;
 
+    IOrchestrator_v1 public orchestrator;
+
     function setUp() public override {
         // Setup common E2E framework
         super.setUp();
@@ -135,16 +137,8 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_FundingPayment_succeedsGivenValidBuyAmountAndInitialPrice() public {
-        // Create orchestrator with configurations
-        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig = IOrchestratorFactory_v1.WorkflowConfig({
-            independentUpdates: false,
-            independentUpdateAdmin: address(0)
-        });
-
-        IOrchestrator_v1 orchestrator = _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
-
-        // Get funding manager
-        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(address(orchestrator.fundingManager()));
+        
+        _setupOrchestratorFundingManagerPaymentProcessor();
 
         // Setup oracle and set prices
         uint256 initialPrice = 1e18; // 1:1 ratio
@@ -167,25 +161,12 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_BuyAndSell_succeedsGivenValidBuyAndRedeemAmounts() public {
-        // Create orchestrator with configurations
-        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig = IOrchestratorFactory_v1.WorkflowConfig({
-            independentUpdates: false,
-            independentUpdateAdmin: address(0)
-        });
 
-        IOrchestrator_v1 orchestrator = _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
+        _setupOrchestratorFundingManagerPaymentProcessor();
 
-        // Get funding manager and payment processor
-        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(address(orchestrator.fundingManager()));
-        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
-
-        // Setup oracle and set prices
         uint256 initialPrice = 1e18; // 1:1 ratio
         LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
 
-        // Log initial state
-        console.log("=== Initial Setup ===");
-        _logDebugInfo(orchestrator, oraclelm, initialPrice);
 
         // Prepare for buying
         uint256 buyAmount = 1000e18;
@@ -195,11 +176,11 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         _prepareBuyConditions(orchestrator, admin, user, buyAmount);
 
         // Execute buy
-        console.log("\n=== Executing Buy ===");
         vm.startPrank(user);
         uint256 expectedIssuedTokens = fundingManager.calculatePurchaseReturn(buyAmount);
         fundingManager.buy(buyAmount, expectedIssuedTokens);
         vm.stopPrank();
+        console.log("buyAmount:", buyAmount);
 
         // Log state after buy
         console.log("\n=== State After Buy ===");
@@ -218,7 +199,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         // Execute sell
         vm.startPrank(user);
         uint256 minTokensToReceive = 1; // Minimum amount to receive, can be calculated based on price
-        fundingManager.sell(redeemAmount, minTokensToReceive);
+        fundingManager.sell(buyAmount /4, minTokensToReceive);
         vm.stopPrank();
 
         // Log final state
@@ -226,6 +207,20 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         console.log("User token balance after redeem:", token.balanceOf(user));
         console.log("User issuance token balance after redeem:", issuanceToken.balanceOf(user));
     }
+
+    function _setupOrchestratorFundingManagerPaymentProcessor() internal {
+
+        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig = IOrchestratorFactory_v1.WorkflowConfig({
+            independentUpdates: false,
+            independentUpdateAdmin: address(0)
+        });
+
+        orchestrator = _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
+
+        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(address(orchestrator.fundingManager()));
+        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
+    }
+
     function _setupOracle(
         IOrchestrator_v1 orchestrator,
         address admin,
@@ -345,14 +340,6 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         vm.startPrank(seller);
         issuanceToken.approve(address(fundingManager), amount);
         vm.stopPrank();
-    }
-
-    function _preparePaymentProcessor(
-        IOrchestrator_v1 orchestrator,
-        address admin
-    ) internal {
-        // Get payment processor
-        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
     }
 
 }

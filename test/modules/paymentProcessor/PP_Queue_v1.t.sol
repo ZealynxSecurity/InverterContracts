@@ -3,11 +3,25 @@ pragma solidity ^0.8.0;
 
 // Internal
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
-import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {
     PP_Simple_v1,
     IPaymentProcessor_v1
 } from "src/modules/paymentProcessor/PP_Simple_v1.sol";
+
+// External
+import {Test} from "forge-std/Test.sol";
+import {Clones} from "@oz/proxy/Clones.sol";
+import {IERC165} from "@oz/utils/introspection/IERC165.sol";
+import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "forge-std/console.sol";
+
+// Tests and Mocks
+import {
+    ModuleTest,
+    IModule_v1,
+    IOrchestrator_v1
+} from "test/modules/ModuleTest.sol";
 import {PP_Queue_v1Mock} from
     "test/utils/mocks/modules/paymentProcessor/PP_Queue_v1Mock.sol";
 import {PP_Simple_v1AccessMock} from
@@ -20,28 +34,23 @@ import {
 import {NonStandardTokenMock} from
     "test/utils/mocks/token/NonStandardTokenMock.sol";
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
-import {
-    ModuleTest,
-    IModule_v1,
-    IOrchestrator_v1
-} from "test/modules/ModuleTest.sol";
 
-// External
-import {Test} from "forge-std/Test.sol";
-import {Clones} from "@oz/proxy/Clones.sol";
-import {IERC165} from "@oz/utils/introspection/IERC165.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "forge-std/console.sol";
+// System under testing
+import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 
-contract PP_Queue_v1 is ModuleTest {
+contract PP_Queue_v1_Test is ModuleTest {
+    // ================================================================================
+    // Storage
+
     // SuT
     PP_Queue_v1Mock queue;
 
     // Mocks
     ERC20PaymentClientBaseV1Mock paymentClient;
 
+    // ================================================================================
     // Events
+
     event TokensReleased(
         address indexed recipient, address indexed token, uint amount
     );
@@ -52,7 +61,9 @@ contract PP_Queue_v1 is ModuleTest {
         uint amount
     );
 
+    // ================================================================================
     // Variables
+
     bytes32 public constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR";
 
     // Module Constants
@@ -70,6 +81,9 @@ contract PP_Queue_v1 is ModuleTest {
 
     //Address
     address admin;
+
+    // ================================================================================
+    // Setup
 
     function setUp() public {
         admin = makeAddr("admin");
@@ -94,7 +108,7 @@ contract PP_Queue_v1 is ModuleTest {
         paymentClient.setToken(_token);
     }
 
-    //--------------------------------------------------------------------------
+    // ================================================================================
     // Test: Initialization
 
     /* Test testInit()
@@ -126,6 +140,9 @@ contract PP_Queue_v1 is ModuleTest {
         vm.expectRevert(OZErrors.Initializable__InvalidInitialization);
         queue.init(_orchestrator, _METADATA, bytes(""));
     }
+
+    // ================================================================================
+    // Test Queue Operations
 
     /* Test testQueueOperations_GivenValidRecipientAndAmount()
         └── Given a valid recipient and amount
@@ -200,6 +217,9 @@ contract PP_Queue_v1 is ModuleTest {
         assertTrue(queuedOrder.timestamp_ > 0, "Invalid timestamp");
     }
 
+    // ================================================================================
+    // Test Valid Payment Receiver
+
     /* Test testValidPaymentReceiver_GivenValidAddress()
     └── Given a valid recipient address
         └── When validating the payment receiver
@@ -219,6 +239,9 @@ contract PP_Queue_v1 is ModuleTest {
         assertFalse(queue.exposed_validPaymentReceiver(address(queue)));
     }
 
+    // ================================================================================
+    // Test Valid Total Amount
+
     /* Test testValidTotalAmount_GivenValidAmount()
         └── Given a valid amount greater than 0
             └── When validating the total amount
@@ -236,6 +259,9 @@ contract PP_Queue_v1 is ModuleTest {
     function testValidTotalAmount_RevertGivenZeroAmount() public {
         assertFalse(queue.exposed_validTotalAmount(0));
     }
+
+    // ================================================================================
+    // Test Valid Token Balance
 
     /* Test testValidTokenBalance_GivenSufficientBalance()
         └── Given a user with sufficient token balance
@@ -431,6 +457,9 @@ contract PP_Queue_v1 is ModuleTest {
             );
         }
     }
+
+    // ================================================================================
+    // Test Get Queue Size For Client
 
     /* Test testGetQueueSizeForClient_GivenEmptyAndFilledQueue()
         └── Given a client's queue
@@ -913,6 +942,9 @@ contract PP_Queue_v1 is ModuleTest {
         queue.exposed_addPaymentOrderToQueue(order_, address(this));
     }
 
+    // ================================================================================
+    // Test Queue Operations
+
     /* Test testQueueOperations_GivenValidInputs()
         └── Given valid orders
             └── When performing queue operations
@@ -950,6 +982,9 @@ contract PP_Queue_v1 is ModuleTest {
         uint[] memory queueAfter_ = queue.getOrderQueue(address(this));
         assertEq(queueAfter_.length, 0, "Queue should be empty after cancel.");
     }
+
+    // ================================================================================
+    // Test Get Queue Head
 
     /* Test testGetQueueHead_RevertGivenUninitializedQueue()
         └── Given an uninitialized queue
@@ -1289,6 +1324,9 @@ contract PP_Queue_v1 is ModuleTest {
         );
     }
 
+    // ================================================================================
+    // Test Process Next Order
+
     /* Test testProcessNextOrder_GivenValidOrder()
         └── Given a valid order in queue
             └── When processing next order
@@ -1560,6 +1598,9 @@ contract PP_Queue_v1 is ModuleTest {
         );
     }
 
+    // ================================================================================
+    // Test Update Order State
+
     /* Test testUpdateOrderState_GivenValidOrder()
         └── Given a valid order in queue
             └── When updating order state
@@ -1598,6 +1639,9 @@ contract PP_Queue_v1 is ModuleTest {
         );
     }
 
+    // ================================================================================
+    // Test Remove From Queue
+
     /* Test testRemoveFromQueue_GivenValidOrder()
         └── Given a valid order in queue
             └── When removing order
@@ -1628,6 +1672,9 @@ contract PP_Queue_v1 is ModuleTest {
         uint[] memory orders_ = queue.getOrderQueue(address(this));
         assertEq(orders_.length, 0, "Queue should be empty.");
     }
+
+    // ================================================================================
+    // Test Process Next Order Revert Given Non Standard Token
 
     /* Test testProcessNextOrder_RevertGivenNonStandardToken()
         └── Given an order with non-standard token
@@ -1664,6 +1711,9 @@ contract PP_Queue_v1 is ModuleTest {
         );
         queue.exposed_processNextOrder(address(this));
     }
+
+    // ================================================================================
+    // Test Claim Previously Unclaimable
 
     /* Test testClaimPreviouslyUnclaimable_GivenValidConditions()
         └── Given a previously unclaimable order
@@ -1781,6 +1831,9 @@ contract PP_Queue_v1 is ModuleTest {
             );
         }
     }
+
+    // ================================================================================
+    // Test Cancel Payment Order
 
     /* Test testCancelPaymentOrder_RevertGivenCompletedOrder()
         └── Given a completed order

@@ -1,44 +1,23 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity ^0.8.0;
 
-// External Libraries
-import {Clones} from "@oz/proxy/Clones.sol";
-import {IERC165} from "@oz/utils/introspection/IERC165.sol";
-import {
-    ModuleTest,
-    IModule_v1,
-    IOrchestrator_v1
-} from "test/modules/ModuleTest.sol";
-import {Test} from "forge-std/Test.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// SuT
-import {PP_Simple_v1AccessMock} from
-    "test/utils/mocks/modules/paymentProcessor/PP_Simple_v1AccessMock.sol";
-import {
-    PP_Simple_v1,
-    IPaymentProcessor_v1
-} from "src/modules/paymentProcessor/PP_Simple_v1.sol";
-
-// Mocks
-import {
-    IERC20PaymentClientBase_v1,
-    ERC20PaymentClientBaseV1Mock,
-    ERC20Mock
-} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
-import {NonStandardTokenMock} from
-    "test/utils/mocks/token/NonStandardTokenMock.sol";
-
-// Errors
-import {OZErrors} from "test/utils/errors/OZErrors.sol";
-import {PP_Queue_v1Mock} from
-    "test/utils/mocks/modules/paymentProcessor/PP_Queue_v1Mock.sol";
-import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
-
 // Internal
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
+import {PP_Simple_v1, IPaymentProcessor_v1} from "src/modules/paymentProcessor/PP_Simple_v1.sol";
+import {PP_Queue_v1Mock} from "test/utils/mocks/modules/paymentProcessor/PP_Queue_v1Mock.sol";
+import {PP_Simple_v1AccessMock} from "test/utils/mocks/modules/paymentProcessor/PP_Simple_v1AccessMock.sol";
+import {IERC20PaymentClientBase_v1, ERC20PaymentClientBaseV1Mock, ERC20Mock} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
+import {NonStandardTokenMock} from "test/utils/mocks/token/NonStandardTokenMock.sol";
+import {OZErrors} from "test/utils/errors/OZErrors.sol";
+import {ModuleTest, IModule_v1, IOrchestrator_v1} from "test/modules/ModuleTest.sol";
 
+// External
+import {Test} from "forge-std/Test.sol";
+import {Clones} from "@oz/proxy/Clones.sol";
+import {IERC165} from "@oz/utils/introspection/IERC165.sol";
+import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 
 contract PP_Queue_v1 is ModuleTest {
@@ -104,19 +83,19 @@ contract PP_Queue_v1 is ModuleTest {
     //--------------------------------------------------------------------------
     // Test: Initialization
 
-    /* Test init() function
-        ├── Given the ModuleTest is initialized
-        │   └── When the function init() is called
-        │       └── Then the orchestrator address should be set correctly
+    /* Test testInit()
+        └── Given a newly deployed contract
+            └── When the function init() is called
+                └── Then the orchestrator address should be set correctly.
     */
     function testInit() public override(ModuleTest) {
         assertEq(address(queue.orchestrator()), address(_orchestrator));
     }
 
-    /* Test supportsInterface() function
-        ├── Given the queue is initialized
-        │   └── When the function supportsInterface() is called with a valid interface ID
-        │       └── Then it should return true
+    /* Test testSupportsInterface()
+        └── Given a deployed contract
+            └── When the function supportsInterface() is called with a valid interface ID
+                └── Then it should return true.
     */
     function testSupportsInterface() public {
         assertTrue(
@@ -124,56 +103,46 @@ contract PP_Queue_v1 is ModuleTest {
         );
     }
 
-    /* Test reinitialization of init() function
-        ├── Given the queue is already initialized
-        │   └── When the function init() is called again
-        │       └── Then the transaction should revert with InvalidInitialization error
+    /* Test testReinitFails()
+        └── Given an initialized contract
+            └── When the function init() is called again
+                └── Then the transaction should revert with InvalidInitialization error.
     */
     function testReinitFails() public override(ModuleTest) {
         vm.expectRevert(OZErrors.Initializable__InvalidInitialization);
         queue.init(_orchestrator, _METADATA, bytes(""));
     }
 
-    /* Test testPublicQueueOperations_succeedsGivenValidRecipientAndAmount()
-        ├── Given a valid recipient and amount
-        │   ├── And the recipient is not address(0), the queue, or the orchestrator
-        │   ├── And the amount is greater than 0 and less than uint96 max
-        │   ├── And the authorizer is set to allow the queue
-        │   ├── And the tokens are minted and approved
-        │   ├── And a payment order is created
-        │   ├── And the payment order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   └── When the payment order is added to the queue
-        │       ├── Then the order ID should be greater than 0
-        │       ├── And the queue size for the client should be 1
-        │       ├── And the queued order recipient should match the input
-        │       ├── And the queued order amount should match the input
-        │       ├── And the queued order payment token should match the input
-        │       ├── And the queued order state should be PROCESSING
-        │       ├── And the queued order ID should match the returned order ID
-        │       ├── And the queued order client should match the sender
-        │       └── And the queued order timestamp should be greater than 0
+    /* Test testQueueOperations_GivenValidRecipientAndAmount()
+        └── Given a valid recipient and amount
+            └── When adding a payment order to the queue
+                ├── Then the order should be added successfully
+                ├── Then the queue size should be incremented
+                ├── Then the queued order amount should match input
+                ├── Then the queued order recipient should match input
+                ├── Then the queued order client should match the sender
+                └── Then the queued order timestamp should be greater than 0.
     */
-    function testPublicQueueOperations_succeedsGivenValidRecipientAndAmount(
-        address recipient,
-        uint96 amount
+    function testQueueOperations_GivenValidRecipientAndAmount(
+        address recipient_,
+        uint96 amount_
     ) public {
         // Ensure valid inputs
-        vm.assume(recipient != address(0));
-        vm.assume(recipient != address(queue));
-        vm.assume(recipient != address(_orchestrator));
-        vm.assume(amount > 0 && amount < type(uint96).max);
+        vm.assume(recipient_ != address(0));
+        vm.assume(recipient_ != address(queue));
+        vm.assume(recipient_ != address(_orchestrator));
+        vm.assume(amount_ > 0 && amount_ < type(uint96).max);
 
         // Setup
         _authorizer.setIsAuthorized(address(queue), true);
-        _token.mint(address(this), amount);
-        _token.approve(address(queue), amount);
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
 
         // Create payment order without flags or data
         IERC20PaymentClientBase_v1.PaymentOrder memory order =
         IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
+            recipient: recipient_,
+            amount: amount_,
             paymentToken: address(_token),
             originChainId: block.chainid,
             targetChainId: block.chainid,
@@ -185,9 +154,9 @@ contract PP_Queue_v1 is ModuleTest {
         paymentClient.addPaymentOrderUnchecked(order);
 
         // Then mint tokens and approve
-        _token.mint(address(paymentClient), amount);
+        _token.mint(address(paymentClient), amount_);
         vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount);
+        _token.approve(address(queue), amount_);
 
         // Add to queue and verify
         uint orderId =
@@ -202,8 +171,8 @@ contract PP_Queue_v1 is ModuleTest {
         // Verify order details
         IPP_Queue_v1.QueuedOrder memory queuedOrder =
             queue.getOrder(orderId, IERC20PaymentClientBase_v1(address(this)));
-        assertEq(queuedOrder.order_.recipient, recipient, "Wrong recipient");
-        assertEq(queuedOrder.order_.amount, amount, "Wrong amount");
+        assertEq(queuedOrder.order_.recipient, recipient_, "Wrong recipient");
+        assertEq(queuedOrder.order_.amount, amount_, "Wrong amount");
         assertEq(
             queuedOrder.order_.paymentToken, address(_token), "Wrong token"
         );
@@ -217,341 +186,252 @@ contract PP_Queue_v1 is ModuleTest {
         assertTrue(queuedOrder.timestamp_ > 0, "Invalid timestamp");
     }
 
-    /* Test testPublicValidPaymentReceiver_succeedsOrFailsGivenReceiverAddress()
-        ├── Given a valid payment receiver address
-        │   └── When the function exposed_validPaymentReceiver() is called
-        │       └── Then it should return true
-        ├── Given the payment receiver address is address(0)
-        │   └── When the function exposed_validPaymentReceiver() is called
-        │       └── Then it should return false
-        ├── Given the payment receiver address is the queue's own address
-        │   └── When the function exposed_validPaymentReceiver() is called
-        │       └── Then it should return false
+    /* Test testValidPaymentReceiver_GivenValidAddress()
+    └── Given a valid recipient address
+        └── When validating the payment receiver
+            └── Then it should return true.
     */
-    function testPublicValidPaymentReceiver_succeedsOrFailsGivenReceiverAddress(
-    ) public {
+    function testValidPaymentReceiver_GivenValidAddress() public {
         assertTrue(queue.exposed_validPaymentReceiver(makeAddr("valid")));
+    }
 
+    /* Test testValidPaymentReceiver_RevertGivenInvalidAddress()
+        └── Given an invalid recipient address
+            └── When validating the payment receiver
+                └── Then it should return false.
+    */
+    function testValidPaymentReceiver_RevertGivenInvalidAddress() public {
         assertFalse(queue.exposed_validPaymentReceiver(address(0)));
-
         assertFalse(queue.exposed_validPaymentReceiver(address(queue)));
     }
 
-    /* Test testPublicValidTotalAmount_succeedsOrFailsGivenAmount()
-        ├── Given a valid total amount (greater than 0)
-        │   └── When the function exposed_validTotalAmount() is called
-        │       └── Then it should return true
-        ├── Given an invalid total amount (equal to 0)
-        │   └── When the function exposed_validTotalAmount() is called
-        │       └── Then it should return false
+    /* Test testValidTotalAmount_GivenValidAmount()
+        └── Given a valid amount greater than 0
+            └── When validating the total amount
+                └── Then it should return true.
     */
-    function testPublicValidTotalAmount_succeedsOrFailsGivenAmount() public {
+    function testValidTotalAmount_GivenValidAmount() public {
         assertTrue(queue.exposed_validTotalAmount(100));
+    }
 
+    /* Test testValidTotalAmount_RevertGivenZeroAmount()
+        └── Given an amount equal to 0
+            └── When validating the total amount
+                └── Then it should return false.
+    */
+    function testValidTotalAmount_RevertGivenZeroAmount() public {
         assertFalse(queue.exposed_validTotalAmount(0));
     }
 
-    /* Test testPublicValidTokenBalance_succeedsOrFailsGivenBalance()
-        ├── Given a user with sufficient token balance and allowance
-        │   ├── And the user has a balance of 1000 tokens
-        │   ├── And the user has approved 1000 tokens to the queue
-        │   └── When the function exposed_validTokenBalance() is called with an amount of 500
-        │       └── Then it should return true
-        ├── Given a user with insufficient token balance
-        │   ├── And the user has a balance of 1000 tokens
-        │   ├── And the user has approved 1000 tokens to the queue
-        │   └── When the function exposed_validTokenBalance() is called with an amount of 2000
-        │       └── Then it should return false
+    /* Test testValidTokenBalance_GivenSufficientBalance()
+        └── Given a user with sufficient token balance
+            └── When validating the token balance
+                └── Then it should return true.
     */
-    function testPublicValidTokenBalance_succeedsOrFailsGivenBalance() public {
-        address user = makeAddr("user");
-
-        deal(address(_token), user, 1000);
-        vm.startPrank(user);
-        _token.approve(address(queue), 1000);
+    function testValidTokenBalance_GivenSufficientBalance() public {
+        address user_ = makeAddr("user");
+        deal(address(_token), user_, 1000);
+        
+        vm.startPrank(user_);
+        assertTrue(queue.exposed_validTokenBalance(address(_token), user_, 500));
         vm.stopPrank();
-
-        assertTrue(queue.exposed_validTokenBalance(address(_token), user, 500));
-
-        assertFalse(
-            queue.exposed_validTokenBalance(address(_token), user, 2000)
-        );
     }
 
-    /* Test testPublicValidTokenBalance_succeedsOrFailsGivenBalance()
-        ├── Given a valid user address (not address(0), not the queue, and not the test contract)
-        │   ├── And the user has a token balance of `amount` (bounded between 1 and 1e30)
-        │   ├── And the user has approved `amount` tokens to the queue
-        │   ├── When the function exposed_validTokenBalance() is called with half of `amount`
-        │   │   └── Then it should return true
-        │   └── When the function exposed_validTokenBalance() is called with double of `amount`
-        │       └── Then it should return false
+    /* Test testValidTokenBalance_RevertGivenInsufficientBalance()
+        └── Given a user with insufficient token balance
+            └── When validating the token balance
+                └── Then it should return false.
     */
-    function testPublicValidTokenBalance_succeedsOrFailsGivenBalance(
-        uint amount,
-        address user
+    function testValidTokenBalance_RevertGivenInsufficientBalance(uint96 amount_) public {
+        vm.assume(amount_ > 0);
+        
+        address user_ = makeAddr("user");
+        deal(address(_token), user_, amount_ - 1);
+        
+        vm.startPrank(user_);
+        assertFalse(queue.exposed_validTokenBalance(address(_token), user_, amount_));
+        vm.stopPrank();
+    }
+
+    /* Test testValidTokenBalance_GivenSufficientAllowance()
+        └── Given a user with sufficient token balance and allowance
+            └── When validating the token balance with half the approved amount
+                └── Then it should return true.
+    */
+    function testValidTokenBalance_GivenSufficientAllowance(
+        uint amount_,
+        address user_
     ) public {
-        vm.assume(user != address(0));
-        vm.assume(user != address(queue));
-        vm.assume(user != address(this));
+        vm.assume(user_ != address(0));
+        vm.assume(user_ != address(queue));
+        vm.assume(user_ != address(this));
 
-        amount = bound(amount, 1, 1e30);
+        amount_ = bound(amount_, 1, 1e30);
 
-        deal(address(_token), user, amount);
-        vm.startPrank(user);
-        _token.approve(address(queue), amount);
+        deal(address(_token), user_, amount_);
+        vm.startPrank(user_);
+        _token.approve(address(queue), amount_);
         vm.stopPrank();
 
         assertTrue(
-            queue.exposed_validTokenBalance(address(_token), user, amount / 2),
-            "Should have sufficient balance for half amount"
-        );
-
-        assertFalse(
-            queue.exposed_validTokenBalance(address(_token), user, amount * 2),
-            "Should not have sufficient balance for double amount"
+            queue.exposed_validTokenBalance(address(_token), user_, amount_ / 2)
         );
     }
 
-    /* Test testPublicValidTotalAmount_succeedsOrFailsGivenAmount()
-        ├── Given a total amount of 0
-        │   └── When the function exposed_validTotalAmount() is called
-        │       └── Then it should return false
-        ├── Given a total amount greater than 0
-        │   └── When the function exposed_validTotalAmount() is called
-        │       └── Then it should return true
+    /* Test testValidTokenBalance_RevertGivenInsufficientAllowance()
+        └── Given a user with insufficient allowance
+            └── When validating the token balance with double the approved amount
+                └── Then it should return false.
     */
-    function testPublicValidTotalAmount_succeedsOrFailsGivenAmount(uint amount)
-        public
-    {
-        if (amount == 0) {
+    function testValidTokenBalance_RevertGivenInsufficientAllowance(
+        uint amount_,
+        address user_
+    ) public {
+        vm.assume(user_ != address(0));
+        vm.assume(user_ != address(queue));
+        vm.assume(user_ != address(this));
+
+        amount_ = bound(amount_, 1, 1e30);
+
+        deal(address(_token), user_, amount_);
+        vm.startPrank(user_);
+        _token.approve(address(queue), amount_);
+        vm.stopPrank();
+
+        assertFalse(
+            queue.exposed_validTokenBalance(address(_token), user_, amount_ * 2)
+        );
+    }
+
+    /* Test testValidTotalAmount_GivenAmount()
+        └── Given any amount
+            └── When validating the total amount
+                └── Then it should return true for non-zero amounts and false for zero.
+    */
+    function testValidTotalAmount_GivenAmount(uint amount_) public {
+        if (amount_ == 0) {
             assertFalse(
-                queue.exposed_validTotalAmount(amount),
-                "Zero amount should be invalid"
+                queue.exposed_validTotalAmount(amount_),
+                "Zero amount should be invalid."
             );
         } else {
             assertTrue(
-                queue.exposed_validTotalAmount(amount),
-                "Non-zero amount should be valid"
+                queue.exposed_validTotalAmount(amount_),
+                "Non-zero amount should be valid."
             );
         }
     }
 
-    /* Test testPublicValidPaymentReceiver_succeedsGivenValidReceiver()
-        ├── Given a valid payment receiver address
-        │   ├── And the receiver is not address(0)
-        │   ├── And the receiver is not the queue's address
-        │   ├── And the receiver is not the orchestrator's address
-        │   ├── And the receiver is not the funding manager's token address
-        │   └── When the function exposed_validPaymentReceiver() is called
-        │       └── Then it should return true
+    /* Test testValidPaymentReceiver_GivenValidAddress()
+        └── Given a valid recipient address that is not:
+            ├── address(0)
+            ├── queue address
+            ├── orchestrator address
+            └── token address
+                └── When validating the payment receiver
+                    └── Then it should return true.
     */
-    function testPublicValidPaymentReceiver_succeedsGivenValidReceiver(
-        address receiver
-    ) public {
-        // Exclude special cases that should always be invalid
-        vm.assume(receiver != address(0));
-        vm.assume(receiver != address(queue));
-        vm.assume(receiver != address(_orchestrator));
-        vm.assume(receiver != address(_orchestrator.fundingManager().token()));
+    function testValidPaymentReceiver_GivenValidAddress(address receiver_) public {
+        vm.assume(receiver_ != address(0));
+        vm.assume(receiver_ != address(queue));
+        vm.assume(receiver_ != address(_orchestrator));
+        vm.assume(receiver_ != address(_orchestrator.fundingManager().token()));
 
         assertTrue(
-            queue.exposed_validPaymentReceiver(receiver),
-            "Valid receiver marked as invalid"
+            queue.exposed_validPaymentReceiver(receiver_),
+            "Valid receiver marked as invalid."
         );
     }
 
-    /* Test testPublicValidTokenBalance_succeedsOrFailsGivenBalanceAndAmount()
-        ├── Given a user with a token balance of `balance`
-        │   ├── And the user has approved `amount` tokens to the queue
-        │   ├── And the amount is greater than 0
-        │   ├── When the function exposed_validTokenBalance() is called
-        │   │   ├── If the balance is greater than or equal to the amount
-        │   │   │   └── Then it should return true
-        │   │   └── If the balance is less than the amount
-        │   │       └── Then it should return false
+    /* Test testValidTokenBalance_GivenBalanceAndAmount()
+        └── Given a user with a token balance and approval
+            └── When validating the token balance
+                ├── If balance is greater than or equal to amount
+                │   └── Then it should return true.
+                └── If balance is less than amount
+                    └── Then it should return false.
     */
-    function testPublicValidTokenBalance_succeedsOrFailsGivenBalanceAndAmount(
-        uint balance,
-        uint amount
+    function testValidTokenBalance_GivenBalanceAndAmount(
+        uint balance_,
+        uint amount_
     ) public {
-        // Ensure amount is not zero as it's handled by validTotalAmount
-        vm.assume(amount > 0);
+        vm.assume(amount_ > 0);
 
-        // Create test user and set up balance
-        address user = makeAddr("user");
-        deal(address(_token), user, balance);
+        address user_ = makeAddr("user");
+        deal(address(_token), user_, balance_);
 
-        // Approve tokens for queue
-        vm.startPrank(user);
-        _token.approve(address(queue), amount);
+        vm.startPrank(user_);
+        _token.approve(address(queue), amount_);
         vm.stopPrank();
 
-        // Check if balance is valid
-        bool isValid =
-            queue.exposed_validTokenBalance(address(_token), user, amount);
+        bool isValid_ = queue.exposed_validTokenBalance(
+            address(_token),
+            user_,
+            amount_
+        );
 
-        if (balance >= amount) {
-            assertTrue(isValid, "Sufficient balance marked as invalid");
+        if (balance_ >= amount_) {
+            assertTrue(isValid_, "Sufficient balance marked as invalid.");
         } else {
-            assertFalse(isValid, "Insufficient balance marked as valid");
+            assertFalse(isValid_, "Insufficient balance marked as valid.");
         }
     }
 
-    /* Test testPublicGetPaymentQueueId_succeedsGivenFlagsAndData()
-        ├── Given a set of flags and data
-        │   ├── And the data length is bounded between 0 and 10
-        │   ├── And the ORDER_ID bit in flags is either set or not set
-        │   ├── When the function exposed_getPaymentQueueId() is called
-        │   │   ├── If the ORDER_ID bit is set and data exists
-        │   │   │   └── Then it should return the correct queue ID
-        │   │   └── If the ORDER_ID bit is not set or data is empty
-        │   │       └── Then it should return 0
+    /* Test testGetPaymentQueueId_GivenFlagsAndData()
+        └── Given flags and data for queue ID retrieval
+            └── When validating the payment queue ID
+                ├── If ORDER_ID bit is set and data exists
+                │   └── Then it should return the correct queue ID.
+                └── If ORDER_ID bit is not set or data is empty
+                    └── Then it should return 0.
     */
-    function testPublicGetPaymentQueueId_succeedsGivenFlagsAndData(
-        uint queueId,
-        uint8 flagBits,
-        uint8 dataLength
+    function testGetPaymentQueueId_GivenFlagsAndData(
+        uint queueId_,
+        uint8 flagBits_,
+        uint8 dataLength_
     ) public {
-        // Bound the data length to reasonable values
-        dataLength = uint8(bound(dataLength, 0, 10));
+        dataLength_ = uint8(bound(dataLength_, 0, 10));
+        bytes32 flags_ = bytes32(uint(flagBits_));
 
-        // Create flags - we'll test both with and without the ORDER_ID bit
-        bytes32 flags = bytes32(uint(flagBits));
-
-        // Create data array with fuzzed length
-        bytes32[] memory data = new bytes32[](dataLength);
-        if (dataLength > 0) {
-            data[0] = bytes32(queueId);
+        bytes32[] memory data_ = new bytes32[](dataLength_);
+        if (dataLength_ > 0) {
+            data_[0] = bytes32(queueId_);
         }
 
-        uint retrievedId = queue.exposed_getPaymentQueueId(flags, data);
+        uint retrievedId_ = queue.exposed_getPaymentQueueId(flags_, data_);
 
-        // If ORDER_ID bit is set (bit 0) and we have data
-        if ((flagBits & 1 == 1) && dataLength > 0) {
+        if ((flagBits_ & 1 == 1) && dataLength_ > 0) {
             assertEq(
-                retrievedId,
-                queueId,
-                "Queue ID mismatch when flag is set and data exists"
+                retrievedId_,
+                queueId_,
+                "Queue ID mismatch when flag is set and data exists."
             );
         } else {
             assertEq(
-                retrievedId,
+                retrievedId_,
                 0,
-                "Should return 0 when flag is not set or data is empty"
+                "Should return 0 when flag is not set or data is empty."
             );
         }
     }
 
-    /* Test testPublicGetQueueSizeForClient_succeedsGivenClientAddress()
-        ├── Given the queue is initially empty
-        │   └── When the function getQueueSizeForClient() is called for the current client
-        │       └── Then it should return 0
-        ├── Given a payment order is added to the queue
-        │   ├── And the tokens are minted and approved
-        │   ├── And the order is added to the queue
-        │   └── When the function getQueueSizeForClient() is called for the current client
-        │       └── Then it should return 1
-        ├── Given the payment order is canceled
-        │   └── When the function getQueueSizeForClient() is called for the current client
-        │       └── Then it should return 0
-        ├── Given a non-existent client address
-        │   └── When the function getQueueSizeForClient() is called for the non-existent client
-        │       └── Then it should return 0
+    /* Test testGetQueueSizeForClient_GivenEmptyAndFilledQueue()
+        └── Given a client's queue
+            └── When checking the queue size
+                ├── Then it should be 0 initially.
+                ├── Then it should be 1 after adding an order.
+                └── Then it should be 0 after canceling the order.
     */
-    //@audit
-    function testPublicGetQueueSizeForClient_succeedsGivenClientAddress()
-        public
-    {
-        // Should be 0 initially
+    function testGetQueueSizeForClient_GivenEmptyAndFilledQueue() public {
         assertEq(
             queue.getQueueSizeForClient(address(this)),
             0,
-            "Initial queue size should be 0"
+            "Initial queue size should be 0."
         );
 
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        // Should be 1 after adding
-        assertEq(
-            queue.getQueueSizeForClient(address(this)),
-            1,
-            "Queue size should be 1 after adding"
-        );
-
-        // Should be 0 after removing
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(address(this))
-        );
-        assertEq(
-            queue.getQueueSizeForClient(address(this)),
-            0,
-            "Queue size should be 0 after removing"
-        );
-
-        // Should be 0 for non-existent client
-        assertEq(
-            queue.getQueueSizeForClient(address(0)),
-            0,
-            "Queue size should be 0 for non-existent client"
-        );
-    }
-
-    /* Test testPublicGetQueueSizeForClient_succeedsGivenClientAndOrders()
-        ├── Given a valid client address (not address(0), not the queue, and not the test contract)
-        │   ├── And the number of orders is bounded between 1 and 10
-        │   ├── And the queue is initially empty
-        │   ├── When multiple orders are added to the queue
-        │   │   └── Then the queue size should match the number of orders added
-        │   ├── When orders are canceled one by one
-        │   │   └── Then the queue size should decrease after each cancellation
-        │   ├── When all orders are canceled
-        │   │   └── Then the queue size should be 0
-        │   └── When the function getQueueSizeForClient() is called for a non-existent client
-        │       └── Then it should return 0
-    */
-    function testPublicGetQueueSizeForClient_succeedsGivenClientAndOrders(
-        address client,
-        uint8 numOrders
-    ) public {
-        // Assume valid client address
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(client != address(this));
-
-        // Bound number of orders to a reasonable range
-        numOrders = uint8(bound(uint(numOrders), 1, 10));
-
-        // Initial size should be 0
-        assertEq(
-            queue.getQueueSizeForClient(client),
-            0,
-            "Initial queue size should be 0"
-        );
-
-        // Create and store order IDs
-        uint[] memory orderIds = new uint[](numOrders);
-
-        // Add multiple orders
-        for (uint8 i = 0; i < numOrders; i++) {
-            IERC20PaymentClientBase_v1.PaymentOrder memory order =
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ = 
             IERC20PaymentClientBase_v1.PaymentOrder({
-                recipient: makeAddr(string.concat("recipient", vm.toString(i))),
+                recipient: makeAddr("recipient"),
                 amount: 100,
                 paymentToken: address(_token),
                 originChainId: block.chainid,
@@ -560,225 +440,261 @@ contract PP_Queue_v1 is ModuleTest {
                 data: new bytes32[](0)
             });
 
-            _token.mint(client, 100);
-            vm.startPrank(client);
+        _token.mint(address(this), 100);
+        _token.approve(address(queue), 100);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        assertEq(
+            queue.getQueueSizeForClient(address(this)),
+            1,
+            "Queue size should be 1 after adding."
+        );
+
+        queue.cancelPaymentOrderThroughQueueId(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queue.getQueueSizeForClient(address(this)),
+            0,
+            "Queue size should be 0 after canceling."
+        );
+    }
+
+    /* Test testGetQueueSizeForClient_GivenMultipleOrders()
+        └── Given a valid client with multiple orders
+            └── When managing the queue
+                ├── Then it should be 0 initially.
+                ├── Then it should match numOrders after adding orders.
+                ├── Then it should decrease after each cancellation.
+                └── Then it should be 0 for non-existent client.
+    */
+    function testGetQueueSizeForClient_GivenMultipleOrders(
+        address client_,
+        uint8 numOrders_
+    ) public {
+        vm.assume(client_ != address(0));
+        vm.assume(client_ != address(queue));
+        vm.assume(client_ != address(this));
+
+        numOrders_ = uint8(bound(uint(numOrders_), 1, 10));
+
+        assertEq(
+            queue.getQueueSizeForClient(client_),
+            0,
+            "Initial queue size should be 0."
+        );
+
+        uint[] memory orderIds_ = new uint[](numOrders_);
+
+        for (uint8 i = 0; i < numOrders_; i++) {
+            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+                IERC20PaymentClientBase_v1.PaymentOrder({
+                    recipient: makeAddr(string.concat("recipient", vm.toString(i))),
+                    amount: 100,
+                    paymentToken: address(_token),
+                    originChainId: block.chainid,
+                    targetChainId: block.chainid,
+                    flags: bytes32(0),
+                    data: new bytes32[](0)
+                });
+
+            _token.mint(client_, 100);
+            vm.startPrank(client_);
             _token.approve(address(queue), 100);
             vm.stopPrank();
 
-            orderIds[i] = queue.exposed_addPaymentOrderToQueue(order, client);
+            orderIds_[i] = queue.exposed_addPaymentOrderToQueue(order_, client_);
         }
 
-        // Verify queue size after adding orders
         assertEq(
-            queue.getQueueSizeForClient(client),
-            numOrders,
-            "Queue size should match number of orders added"
+            queue.getQueueSizeForClient(client_),
+            numOrders_,
+            "Queue size should match number of orders added."
         );
 
-        // Cancel orders one by one and check size decrements
-        for (uint8 i = 0; i < numOrders; i++) {
+        for (uint8 i = 0; i < numOrders_; i++) {
             queue.cancelPaymentOrderThroughQueueId(
-                orderIds[i], IERC20PaymentClientBase_v1(client)
+                orderIds_[i],
+                IERC20PaymentClientBase_v1(client_)
             );
 
             assertEq(
-                queue.getQueueSizeForClient(client),
-                numOrders - (i + 1),
-                "Queue size should decrease after each cancellation"
+                queue.getQueueSizeForClient(client_),
+                numOrders_ - (i + 1),
+                "Queue size should decrease after each cancellation."
             );
         }
 
-        // Final size should be 0
         assertEq(
-            queue.getQueueSizeForClient(client),
+            queue.getQueueSizeForClient(client_),
             0,
-            "Final queue size should be 0"
+            "Final queue size should be 0."
         );
 
-        // Test size for non-existent client
         assertEq(
             queue.getQueueSizeForClient(address(0)),
             0,
-            "Queue size should be 0 for non-existent client"
+            "Queue size should be 0 for non-existent client."
         );
-
-        // Log test parameters
-        console.log("\nTest Parameters:");
-        console.log("Client:", client);
-        console.log("Number of Orders:", numOrders);
-        console.log("Order IDs:");
-        for (uint8 i = 0; i < numOrders; i++) {
-            console.log("  Order", i, ":", orderIds[i]);
-        }
     }
 
-    /* Test testPublicGetOrder_succeedsGivenValidOrderId()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function getOrder() is called with the valid order ID
-        │       ├── Then the order recipient should match the input
-        │       ├── And the order amount should match the input
-        │       ├── And the order payment token should match the input
-        │       ├── And the order state should be PROCESSING
-        │       ├── And the order ID should match the input
-        │       └── And the order client should match the sender
+    /* Test testGetOrder_GivenValidOrderId()
+        └── Given a valid order ID
+            └── When retrieving the order
+                ├── Then it should return the correct order details.
+                ├── Then recipient should match.
+                ├── Then amount should match.
+                ├── Then token should match.
+                └── Then state should be QUEUED.
     */
-    function testPublicGetOrder_succeedsGivenValidOrderId() public {
-        // Add an order
+    function testGetOrder_GivenValidOrderId() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
 
-        // Get the order
-        IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
 
-        // Verify order details
         assertEq(
             queuedOrder_.order_.recipient,
             recipient_,
-            "Order recipient should match"
+            "Recipient should match."
         );
         assertEq(
-            queuedOrder_.order_.amount, amount_, "Order amount should match"
+            queuedOrder_.order_.amount,
+            amount_,
+            "Amount should match."
         );
         assertEq(
             queuedOrder_.order_.paymentToken,
             address(_token),
-            "Order token should match"
+            "Token should match."
         );
         assertEq(
             uint(queuedOrder_.state_),
             uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "Order should be in PROCESSING state"
-        );
-        assertEq(queuedOrder_.orderId_, orderId_, "Order ID should match");
-        assertEq(
-            queuedOrder_.client_, address(this), "Order client should match"
+            "State should be PROCESSING."
         );
     }
 
-    /* Test testPublicGetOrder_succeedsGivenValidOrderId()
-        ├── Given a valid client address (not address(0), not the queue, and not the recipient)
-        │   ├── And a valid recipient address (not address(0) and not the queue)
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And a payment order is created with the fuzzed parameters
-        │   ├── And tokens are minted and approved for the client
-        │   ├── And the order is added to the queue
-        │   └── When the function getOrder() is called with the valid order ID
-        │       ├── Then the order recipient should match the input
-        │       ├── And the order amount should match the input
-        │       ├── And the order payment token should match the input
-        │       ├── And the origin chain ID should match the input
-        │       ├── And the target chain ID should match the input
-        │       ├── And the order state should be PROCESSING
-        │       ├── And the order ID should match the input
-        │       └── And the order client should match the input
+    /* Test testGetOrder_GivenValidOrderFuzz()
+        └── Given a valid order with fuzzed inputs
+            └── When retrieving the order
+                ├── Then recipient should match.
+                ├── Then amount should match.
+                ├── Then token should match.
+                ├── Then origin chain ID should match.
+                ├── Then target chain ID should match.
+                ├── Then state should be PROCESSING.
+                ├── Then order ID should match.
+                └── Then client should match.
     */
-    function testPublicGetOrder_succeedsGivenValidOrderId(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
+    function testGetOrder_GivenValidOrder(
+        address client_,
+        address recipient_,
+        uint96 amount_,
+        uint originChainId_,
+        uint targetChainId_
     ) public {
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(recipient != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(queue));
-        vm.assume(client != recipient);
+        vm.assume(client_ != address(0));
+        vm.assume(recipient_ != address(0));
+        vm.assume(client_ != address(queue));
+        vm.assume(recipient_ != address(queue));
+        vm.assume(client_ != recipient_);
 
-        // Bound amount to reasonable values
-        amount = uint96(bound(uint(amount), 1, 1e30));
+        amount_ = uint96(bound(uint(amount_), 1, 1e30));
+        originChainId_ = bound(originChainId_, 1, 1e6);
+        targetChainId_ = bound(targetChainId_, 1, 1e6);
 
-        // Bound chain IDs to reasonable values
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: originChainId_,
+                targetChainId: targetChainId_,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        // Create order with fuzzed parameters
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup tokens for the client
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
+        _token.mint(client_, amount_);
+        vm.startPrank(client_);
+        _token.approve(address(queue), amount_);
         vm.stopPrank();
 
-        // Add the order
-        uint orderId = queue.exposed_addPaymentOrderToQueue(order, client);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, client_);
 
-        // Get the queued order
-        IPP_Queue_v1.QueuedOrder memory queuedOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(client));
-
-        // Verify all order details
-        assertEq(
-            queuedOrder.order_.recipient,
-            recipient,
-            "Order recipient should match"
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_,
+            IERC20PaymentClientBase_v1(client_)
         );
-        assertEq(queuedOrder.order_.amount, amount, "Order amount should match");
+
         assertEq(
-            queuedOrder.order_.paymentToken,
+            queuedOrder_.order_.recipient,
+            recipient_,
+            "Recipient should match."
+        );
+        assertEq(
+            queuedOrder_.order_.amount,
+            amount_,
+            "Amount should match."
+        );
+        assertEq(
+            queuedOrder_.order_.paymentToken,
             address(_token),
-            "Order token should match"
+            "Token should match."
         );
         assertEq(
-            queuedOrder.order_.originChainId,
-            originChainId,
-            "Origin chain ID should match"
+            queuedOrder_.order_.originChainId,
+            originChainId_,
+            "Origin chain ID should match."
         );
         assertEq(
-            queuedOrder.order_.targetChainId,
-            targetChainId,
-            "Target chain ID should match"
+            queuedOrder_.order_.targetChainId,
+            targetChainId_,
+            "Target chain ID should match."
         );
         assertEq(
-            uint(queuedOrder.state_),
+            uint(queuedOrder_.state_),
             uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "Order should be in PROCESSING state"
+            "State should be PROCESSING."
         );
-        assertEq(queuedOrder.orderId_, orderId, "Order ID should match");
-        assertEq(queuedOrder.client_, client, "Order client should match");
+        assertEq(
+            queuedOrder_.orderId_,
+            orderId_,
+            "Order ID should match."
+        );
+        assertEq(
+            queuedOrder_.client_,
+            client_,
+            "Client should match."
+        );
     }
 
-    /* Test testPublicGetOrder_revertsGivenInvalidOrderId()
-        ├── Given an invalid order ID
-        │   └── When the function getOrder() is called with the invalid order ID
-        │       └── Then the transaction should revert with the error Module__PP_Queue_InvalidOrderId
+    /* Test testGetOrder_RevertGivenInvalidOrderId()
+        └── Given an invalid order ID
+            └── When retrieving the order
+                └── Then it should revert with Module__PP_Queue_InvalidOrderId.
     */
     function testGetOrder_RevertGivenInvalidOrderId() public {
         vm.expectRevert(
@@ -791,447 +707,18 @@ contract PP_Queue_v1 is ModuleTest {
         queue.getOrder(1, IERC20PaymentClientBase_v1(address(this)));
     }
 
-    /* Test testPublicGetOrder_succeedsGivenCancelledOrder()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order is canceled
-        │   └── When the function getOrder() is called with the order ID
-        │       └── Then the order state should be CANCELLED
+    /* Test testGetOrder_GivenCancelledOrder()
+        └── Given a cancelled order
+            └── When retrieving the order
+                ├── Then recipient should match.
+                ├── Then amount should match.
+                ├── Then token should match.
+                └── Then state should be CANCELLED.
     */
-    function testPublicGetOrder_succeedsGivenCancelledOrder() public {
-        // Add an order
+    function testGetOrder_GivenCancelledOrder() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Cancel the order
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        // Get the order and verify it's cancelled
-        IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
-
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should be in CANCELLED state"
-        );
-    }
-
-    /* Test testPublicGetOrder_succeedsGivenCancelledOrder()
-        ├── Given a valid client address (not address(0), not the queue, and not the recipient)
-        │   ├── And a valid recipient address (not address(0) and not the queue)
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And a payment order is created with the fuzzed parameters
-        │   ├── And tokens are minted and approved for the client
-        │   ├── And the order is added to the queue
-        │   ├── And the initial state of the order is PROCESSING
-        │   ├── And the order is canceled
-        │   └── When the function getOrder() is called with the order ID
-        │       ├── Then the order state should be CANCELLED
-        │       ├── And the order recipient should remain unchanged
-        │       ├── And the order amount should remain unchanged
-        │       ├── And the order payment token should remain unchanged
-        │       ├── And the origin chain ID should remain unchanged
-        │       ├── And the target chain ID should remain unchanged
-        │       ├── And the order ID should remain unchanged
-        │       └── And the order client should remain unchanged
-    */
-    function testPublicGetOrder_succeedsGivenCancelledOrder(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(recipient != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(queue));
-        vm.assume(client != recipient);
-
-        // Bound amount to reasonable values
-        amount = uint96(bound(uint(amount), 1, 1e30));
-
-        // Bound chain IDs to reasonable values
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Create order with fuzzed parameters
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup tokens for the client
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        vm.stopPrank();
-
-        // Add the order
-        uint orderId = queue.exposed_addPaymentOrderToQueue(order, client);
-
-        // Get initial state and verify it's PROCESSING
-        IPP_Queue_v1.QueuedOrder memory initialOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(client));
-        assertEq(
-            uint(initialOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "Initial state should be PROCESSING"
-        );
-
-        // Cancel the order
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(client)
-        );
-
-        // Get the cancelled order
-        IPP_Queue_v1.QueuedOrder memory cancelledOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(client));
-
-        // Verify cancelled state
-        assertEq(
-            uint(cancelledOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should be in CANCELLED state"
-        );
-
-        // Verify order details remain unchanged after cancellation
-        assertEq(
-            cancelledOrder.order_.recipient,
-            recipient,
-            "Recipient should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.order_.amount,
-            amount,
-            "Amount should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.order_.paymentToken,
-            address(_token),
-            "Token should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.order_.originChainId,
-            originChainId,
-            "Origin chain ID should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.order_.targetChainId,
-            targetChainId,
-            "Target chain ID should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.orderId_,
-            orderId,
-            "Order ID should remain unchanged after cancellation"
-        );
-        assertEq(
-            cancelledOrder.client_,
-            client,
-            "Client should remain unchanged after cancellation"
-        );
-    }
-
-    /* Test testPublicGetOrder_succeedsGivenProcessedOrder()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order is processed and marked as COMPLETED
-        │   ├── And the order is removed from the queue
-        │   └── When the function getOrder() is called with the order ID
-        │       └── Then the order state should be COMPLETED
-    */
-    function testPublicGetOrder_succeedsGivenProcessedOrder() public {
-        // Add an order
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Process the order
-        queue.exposed_updateOrderState(
-            orderId_, IPP_Queue_v1.RedemptionState.COMPLETED
-        );
-        queue.exposed_removeFromQueue(orderId_);
-
-        // Get the order and verify it's completed
-        IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
-
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.COMPLETED),
-            "Order should be in COMPLETED state"
-        );
-    }
-
-    /* Test testPublicGetOrder_succeedsGivenProcessedOrder()
-        ├── Given a valid client address (not address(0), not the queue, and not the recipient)
-        │   ├── And a valid recipient address (not address(0) and not the queue)
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And a payment order is created with the fuzzed parameters
-        │   ├── And tokens are minted and approved for the client
-        │   ├── And the order is added to the queue
-        │   ├── And the initial state of the order is PROCESSING
-        │   ├── And the order is processed and marked as COMPLETED
-        │   ├── And the order is removed from the queue
-        │   └── When the function getOrder() is called with the order ID
-        │       ├── Then the order state should be COMPLETED
-        │       ├── And the order recipient should remain unchanged
-        │       ├── And the order amount should remain unchanged
-        │       ├── And the order payment token should remain unchanged
-        │       ├── And the origin chain ID should remain unchanged
-        │       ├── And the target chain ID should remain unchanged
-        │       ├── And the order ID should remain unchanged
-        │       └── And the order client should remain unchanged
-    */
-    function testPublicGetOrder_succeedsGivenProcessedOrder(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(recipient != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(queue));
-        vm.assume(client != recipient);
-
-        // Bound amount to reasonable values
-        amount = uint96(bound(uint(amount), 1, 1e30));
-
-        // Bound chain IDs to reasonable values
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Create order with fuzzed parameters
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup tokens for the client
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        vm.stopPrank();
-
-        // Add the order
-        uint orderId = queue.exposed_addPaymentOrderToQueue(order, client);
-
-        // Get initial state and verify it's PROCESSING
-        IPP_Queue_v1.QueuedOrder memory initialOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(client));
-        assertEq(
-            uint(initialOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "Initial state should be PROCESSING"
-        );
-
-        // Process the order
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.COMPLETED
-        );
-        queue.exposed_removeFromQueue(orderId);
-
-        // Get the processed order
-        IPP_Queue_v1.QueuedOrder memory processedOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(client));
-
-        // Verify completed state
-        assertEq(
-            uint(processedOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.COMPLETED),
-            "Order should be in COMPLETED state"
-        );
-
-        // Verify order details remain unchanged after processing
-        assertEq(
-            processedOrder.order_.recipient,
-            recipient,
-            "Recipient should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.order_.amount,
-            amount,
-            "Amount should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.order_.paymentToken,
-            address(_token),
-            "Token should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.order_.originChainId,
-            originChainId,
-            "Origin chain ID should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.order_.targetChainId,
-            targetChainId,
-            "Target chain ID should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.orderId_,
-            orderId,
-            "Order ID should remain unchanged after processing"
-        );
-        assertEq(
-            processedOrder.client_,
-            client,
-            "Client should remain unchanged after processing"
-        );
-    }
-
-    /* Test testPublicGetOrderQueue_succeedsGivenEmptyQueue()
-        ├── Given an empty queue for a client
-        │   └── When the function getOrderQueue() is called for the client
-        │       └── Then the returned queue should have a length of 0
-    */
-    function testPublicGetOrderQueue_succeedsGivenEmptyQueue() public {
-        // Get queue for non-existent client.
-        uint[] memory emptyQueue_ = queue.getOrderQueue(address(this));
-        assertEq(emptyQueue_.length, 0, "Empty queue should have length 0.");
-    }
-
-    /* Test testPublicGetOrderQueue_succeedsGivenSingleOrder()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function getOrderQueue() is called for the client
-        │       ├── Then the queue should have a length of 1
-        │       └── And the queue should contain the order ID
-    */
-    function testPublicGetOrderQueue_succeedsGivenSingleOrder(
-        address recipient_,
-        uint96 amount_
-    ) public {
-        // Filter invalid inputs.
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-
-        // Create and add order.
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Get queue and verify.
-        uint[] memory queueArray_ = queue.getOrderQueue(address(this));
-        assertEq(queueArray_.length, 1, "Queue should have length 1.");
-        assertEq(queueArray_[0], orderId_, "Queue should contain the order ID.");
-    }
-
-    /* Test testPublicGetOrderQueue_succeedsGivenMultipleOrders()
-        ├── Given a number of orders bounded between 2 and 5
-        │   ├── And each order is configured with:
-        │   │   ├── A unique recipient address
-        │   │   ├── A unique amount (incremented by 100 for each order)
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for each order
-        │   ├── And each order is added to the queue
-        │   └── When the function getOrderQueue() is called for the client
-        │       ├── Then the queue length should match the number of orders
-        │       └── And the order IDs in the queue should follow FIFO order
-    */
-    function testPublicGetOrderQueue_succeedsGivenMultipleOrders(
-        uint8 numOrders_
-    ) public {
-        // Bound number of orders between 2 and 5 for reasonable test performance.
-        numOrders_ = uint8(bound(numOrders_, 2, 5));
-
-        uint[] memory orderIds_ = new uint[](numOrders_);
-
-        // Add multiple orders.
-        for (uint i_; i_ < numOrders_; i_++) {
-            // Create unique recipient and amount for each order.
-            address recipient_ =
-                makeAddr(string.concat("recipient", vm.toString(i_)));
-            uint96 amount_ = uint96(i_ + 1) * 100;
-
-            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
             IERC20PaymentClientBase_v1.PaymentOrder({
                 recipient: recipient_,
                 amount: amount_,
@@ -1242,2511 +729,1336 @@ contract PP_Queue_v1 is ModuleTest {
                 data: new bytes32[](0)
             });
 
-            _token.mint(address(this), amount_);
-            _token.approve(address(queue), amount_);
-            orderIds_[i_] =
-                queue.exposed_addPaymentOrderToQueue(order_, address(this));
-        }
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Get queue and verify.
-        uint[] memory queueArray_ = queue.getOrderQueue(address(this));
-        assertEq(
-            queueArray_.length,
-            numOrders_,
-            "Queue length should match number of orders."
+        queue.cancelPaymentOrderThroughQueueId(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
         );
 
-        // Verify order IDs are in correct order (FIFO).
-        for (uint i_; i_ < numOrders_; i_++) {
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queuedOrder_.order_.recipient,
+            recipient_,
+            "Recipient should match."
+        );
+        assertEq(
+            queuedOrder_.order_.amount,
+            amount_,
+            "Amount should match."
+        );
+        assertEq(
+            queuedOrder_.order_.paymentToken,
+            address(_token),
+            "Token should match."
+        );
+        assertEq(
+            uint(queuedOrder_.state_),
+            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
+            "State should be CANCELLED."
+        );
+    }
+
+    /* Test testGetOrder_GivenProcessedOrder()
+        └── Given a processed order
+            └── When retrieving the order
+                ├── Then recipient should match.
+                ├── Then amount should match.
+                ├── Then token should match.
+                └── Then state should be COMPLETED.
+    */
+    function testGetOrder_GivenProcessedOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        queue.exposed_updateOrderState(
+            orderId_,
+            IPP_Queue_v1.RedemptionState.COMPLETED
+        );
+        queue.exposed_removeFromQueue(orderId_);
+
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queuedOrder_.order_.recipient,
+            recipient_,
+            "Recipient should match."
+        );
+        assertEq(
+            queuedOrder_.order_.amount,
+            amount_,
+            "Amount should match."
+        );
+        assertEq(
+            queuedOrder_.order_.paymentToken,
+            address(_token),
+            "Token should match."
+        );
+        assertEq(
+            uint(queuedOrder_.state_),
+            uint(IPP_Queue_v1.RedemptionState.COMPLETED),
+            "State should be COMPLETED."
+        );
+    }
+
+    /* Test testGetOrderQueue_GivenEmptyQueue()
+        └── Given an empty queue
+            └── When retrieving the queue
+                └── Then it should return an empty array.
+    */
+    function testGetOrderQueue_GivenEmptyQueue() public {
+        uint[] memory orders_ = queue.getOrderQueue(address(this));
+        assertEq(orders_.length, 0, "Queue should be empty.");
+    }
+
+    /* Test testGetOrderQueue_GivenSingleOrder()
+        └── Given a queue with a single order
+            └── When retrieving the queue
+                └── Then it should return array with one order ID.
+    */
+    function testGetOrderQueue_GivenSingleOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        uint[] memory orders_ = queue.getOrderQueue(address(this));
+        assertEq(orders_.length, 1, "Queue should have one order.");
+        assertEq(orders_[0], orderId_, "Order ID should match.");
+    }
+
+    /* Test testGetOrderQueue_GivenMultipleOrders()
+        └── Given a queue with multiple orders
+            └── When retrieving the queue
+                ├── Then array length should match order count.
+                └── Then all order IDs should match.
+    */
+    function testGetOrderQueue_GivenMultipleOrders(uint8 orderCount_) public {
+        orderCount_ = uint8(bound(orderCount_, 2, 5));
+        uint[] memory orderIds_ = new uint[](orderCount_);
+
+        for (uint i_; i_ < orderCount_; i_++) {
+            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+                IERC20PaymentClientBase_v1.PaymentOrder({
+                    recipient: makeAddr(string.concat("recipient", vm.toString(i_))),
+                    amount: 100,
+                    paymentToken: address(_token),
+                    originChainId: block.chainid,
+                    targetChainId: block.chainid,
+                    flags: bytes32(0),
+                    data: new bytes32[](0)
+                });
+
+            _token.mint(address(this), 100);
+            _token.approve(address(queue), 100);
+            orderIds_[i_] = queue.exposed_addPaymentOrderToQueue(
+                order_,
+                address(this)
+            );
+        }
+
+        uint[] memory queueOrders_ = queue.getOrderQueue(address(this));
+        assertEq(
+            queueOrders_.length,
+            orderCount_,
+            "Queue length should match order count."
+        );
+
+        for (uint i_; i_ < orderCount_; i_++) {
             assertEq(
-                queueArray_[i_],
+                queueOrders_[i_],
                 orderIds_[i_],
-                string.concat("Wrong order ID at position ", vm.toString(i_))
+                "Order ID should match."
             );
         }
     }
 
-    /* Test testPublicGetOrderQueue_succeedsGivenNonExistentClient()
-        ├── Given a non-existent client address
-        │   └── When the function getOrderQueue() is called for the non-existent client
-        │       └── Then the returned queue should be empty (length 0)
+    /* Test testGetOrderQueue_GivenNonExistentClient()
+        └── Given a non-existent client
+            └── When retrieving the queue
+                └── Then it should return an empty array.
     */
-    function testPublicGetOrderQueue_succeedsGivenNonExistentClient() public {
+    function testGetOrderQueue_GivenNonExistentClient() public {
         address nonExistentClient_ = makeAddr("nonExistentClient");
-        uint[] memory queueArray_ = queue.getOrderQueue(nonExistentClient_);
-        assertEq(
-            queueArray_.length, 0, "Non-existent client queue should be empty."
-        );
+        uint[] memory orders_ = queue.getOrderQueue(nonExistentClient_);
+        assertEq(orders_.length, 0, "Queue should be empty.");
     }
 
-    /* Test testPublicAddPaymentOrderToQueue_revertsGivenInvalidOrder()
-        ├── Given a payment order with an invalid recipient (address(0))
-        │   ├── And the order is configured with:
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   └── When the function exposed_addPaymentOrderToQueue() is called
-        │       └── Then the transaction should revert with the error Module__PP_Queue_QueueOperationFailed
+    /* Test testAddPaymentOrderToQueue_RevertGivenInvalidOrder()
+        └── Given an order with invalid recipient
+            └── When adding order to queue
+                └── Then it should revert with Module__PP_Queue_QueueOperationFailed.
     */
-    function testPublicAddPaymentOrderToQueue_revertsGivenInvalidOrder()
-        public
-    {
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: address(0), // Invalid recipient
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+    function testAddPaymentOrderToQueue_RevertGivenInvalidOrder() public {
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: address(0),
+                amount: 100,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
         vm.expectRevert(
             abi.encodeWithSignature(
-                "Module__PP_Queue_QueueOperationFailed(address)", address(this)
-            )
-        );
-        queue.exposed_addPaymentOrderToQueue(order, address(this));
-    }
-
-    /* Test testPublicAddPaymentOrderToQueue_revertsGivenInvalidOrder()
-        ├── Given a valid client address (not address(0) and not the queue)
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And an array of invalid payment orders:
-        │   │   ├── Case 0: Invalid token (address(0))
-        │   │   ├── Case 1: Invalid recipient (address(0))
-        │   │   └── Case 2: Invalid amount (0)
-        │   ├── And tokens are minted and approved for valid token cases
-        │   └── When the function exposed_addPaymentOrderToQueue() is called for each invalid order
-        │       ├── Then the transaction should revert with the error Module__PP_Queue_QueueOperationFailed for valid token cases
-        │       └── And the transaction should revert without data for invalid token cases
-    */
-    function testPublicAddPaymentOrderToQueue_revertsGivenInvalidOrder(
-        address client,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Bound values to reasonable ranges
-        amount = uint96(bound(uint(amount), 1, 1e30));
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Assume valid client address
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-
-        // Create invalid orders and test each case
-        IERC20PaymentClientBase_v1.PaymentOrder[] memory invalidOrders =
-            new IERC20PaymentClientBase_v1.PaymentOrder[](3);
-
-        // Case 0: Invalid token (address(0))
-        invalidOrders[0] = IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: amount,
-            paymentToken: address(0),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Case 1: Invalid recipient (address(0))
-        invalidOrders[1] = IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: address(0),
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Case 2: Invalid amount (0)
-        invalidOrders[2] = IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 0,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        string[3] memory testCases = [
-            "Invalid token (address(0))",
-            "Invalid recipient (address(0))",
-            "Invalid amount (0)"
-        ];
-
-        // Test each invalid order
-        for (uint i = 0; i < invalidOrders.length; i++) {
-            // Only setup tokens if we're using a valid token
-            if (invalidOrders[i].paymentToken != address(0)) {
-                _token.mint(client, amount);
-                vm.startPrank(client);
-                _token.approve(address(queue), amount);
-                vm.stopPrank();
-
-                // For valid tokens, expect QueueOperationFailed error
-                vm.expectRevert(
-                    abi.encodeWithSignature(
-                        "Module__PP_Queue_QueueOperationFailed(address)", client
-                    )
-                );
-            } else {
-                // For invalid token (address(0)), expect a revert without data
-                vm.expectRevert();
-            }
-
-            queue.exposed_addPaymentOrderToQueue(invalidOrders[i], client);
-        }
-    }
-
-    /* Test testPublicCancelPaymentOrderThroughQueueId_revertsGivenNonExistentOrder()
-        ├── Given a non-existent order ID (999)
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called with the non-existent order ID
-        │       └── Then the transaction should revert with the error Module__PP_Queue_InvalidOrderId
-    */
-    function testPublicCancelPaymentOrderThroughQueueId_revertsGivenNonExistentOrder(
-    ) public {
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__PP_Queue_InvalidOrderId(address,uint256)",
-                address(this),
-                999
-            )
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            999, IERC20PaymentClientBase_v1(address(this))
-        );
-    }
-
-    /* Test testPublicQueueOperations_succeedsGivenValidInputs()
-        ├── Given a valid recipient address (not address(0) and not the queue)
-        │   ├── And a valid amount (greater than 0 and less than uint96 max)
-        │   ├── And the queue is authorized
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   ├── When the function getQueueSizeForClient() is called
-        │   │   └── Then the queue size should be 1
-        │   ├── When the function getOrder() is called
-        │   │   ├── Then the order recipient should match the input
-        │   │   └── And the order amount should match the input
-        │   ├── When the function exposed_removeFromQueue() is called
-        │   │   └── Then the queue should be empty
-    */
-    //@audit => NO
-    function testPublicQueueOperations_succeedsGivenValidInputs(
-        address recipient,
-        uint96 amount
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient != address(0));
-        vm.assume(recipient != address(queue));
-        vm.assume(amount > 0 && amount < type(uint96).max);
-
-        // Setup
-        _authorizer.setIsAuthorized(address(queue), true);
-        _token.mint(address(this), amount);
-        _token.approve(address(queue), amount);
-
-        // Create order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            paymentToken: address(_token),
-            amount: amount,
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // First add the order to the payment client
-        paymentClient.addPaymentOrderUnchecked(order);
-
-        // Then mint tokens and approve
-        _token.mint(address(paymentClient), amount);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount);
-
-        // Add to queue and verify
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-        assertEq(
-            queue.getQueueSizeForClient(address(paymentClient)),
-            1,
-            "Queue size should be 1"
-        );
-
-        // Verify order details
-        IPP_Queue_v1.QueuedOrder memory queuedOrder = queue.getOrder(
-            orderId, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-        assertEq(queuedOrder.order_.recipient, recipient, "Wrong recipient");
-        assertEq(queuedOrder.order_.amount, amount, "Wrong amount");
-
-        // Remove and verify
-        queue.exposed_removeFromQueue(orderId);
-        assertEq(
-            queue.getQueueSizeForClient(address(paymentClient)),
-            0,
-            "Queue should be empty"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_revertsGivenUninitializedQueue()
-        ├── Given an uninitialized queue for a client
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the transaction should revert with the error Library__LinkedIdList__InvalidPosition
-    */
-    function testPublicGetQueueHead_revertsGivenUninitializedQueue() public {
-        vm.expectRevert(
-            abi.encodeWithSignature("Library__LinkedIdList__InvalidPosition()")
-        );
-        queue.getQueueHead(address(this));
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenSingleOrder()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be 1
-    */
-    function testPublicGetQueueHead_succeedsGivenSingleOrder() public {
-        // Add an order
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        assertEq(
-            queue.getQueueHead(address(this)),
-            1,
-            "Head should be 1 after adding first order"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenMultipleOrders()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the first order is added to the queue
-        │   ├── And the second order is added to the queue
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be 1
-    */
-    function testPublicGetQueueHead_succeedsGivenMultipleOrders() public {
-        // Add first order
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Add second order
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        assertEq(
-            queue.getQueueHead(address(this)),
-            1,
-            "Head should be 1 after second order"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenPartiallyProcessedQueue()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And the first order is canceled
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be 2
-    */
-    function testPublicGetQueueHead_succeedsGivenPartiallyProcessedQueue()
-        public
-    {
-        // Add two orders
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId1_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Cancel first order
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1_, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        assertEq(
-            queue.getQueueHead(address(this)),
-            2,
-            "Head should be 2 after cancelling first order"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenPartiallyProcessedQueue()
-        ├── Given a valid client address (not address(0) and not the queue)
-        │   ├── And a valid recipient address (not address(0))
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And the client is authorized
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And the first order is canceled
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be 2
-    */
-    function testPublicGetQueueHead_succeedsGivenPartiallyProcessedQueue(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Bound values to reasonable ranges
-        amount = uint96(bound(uint(amount), 1, 1e30));
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(0));
-
-        // Authorize client
-        _authorizer.setIsAuthorized(client, true);
-        paymentClient.setIsAuthorized(client, true);
-
-        // Create a valid order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Add first order
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        uint orderId1 = queue.exposed_addPaymentOrderToQueue(order, client);
-        vm.stopPrank();
-
-        // Add second order
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        queue.exposed_addPaymentOrderToQueue(order, client);
-        vm.stopPrank();
-
-        // Cancel first order
-        vm.prank(client);
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1, IERC20PaymentClientBase_v1(client)
-        );
-
-        // Verify queue head is 2 after cancelling first order
-        assertEq(
-            queue.getQueueHead(client),
-            2,
-            "Head should be 2 after cancelling first order"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenFullyProcessedQueue()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And both orders are canceled
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be the sentinel value (type(uint).max)
-    */
-    function testPublicGetQueueHead_succeedsGivenFullyProcessedQueue() public {
-        // Add two orders
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId1_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId2_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Cancel both orders
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1_, IERC20PaymentClientBase_v1(address(this))
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId2_, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        assertEq(
-            queue.getQueueHead(address(this)),
-            type(uint).max,
-            "Head should be sentinel after all orders cancelled"
-        );
-    }
-
-    /* Test testPublicGetQueueHead_succeedsGivenFullyProcessedQueue()
-        ├── Given a valid client address (not address(0) and not the queue)
-        │   ├── And a valid recipient address (not address(0))
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And the client is authorized
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And both orders are canceled
-        │   └── When the function getQueueHead() is called for the client
-        │       └── Then the head of the queue should be the sentinel value (type(uint).max)
-    */
-    function testPublicGetQueueHead_succeedsGivenFullyProcessedQueue(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Bound values to reasonable ranges
-        amount = uint96(bound(uint(amount), 1, 1e30));
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(0));
-
-        // Authorize client
-        _authorizer.setIsAuthorized(client, true);
-        paymentClient.setIsAuthorized(client, true);
-
-        // Create a valid order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Add first order
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        uint orderId1 = queue.exposed_addPaymentOrderToQueue(order, client);
-        vm.stopPrank();
-
-        // Add second order
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        uint orderId2 = queue.exposed_addPaymentOrderToQueue(order, client);
-        vm.stopPrank();
-
-        // Cancel both orders
-        vm.startPrank(client);
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1, IERC20PaymentClientBase_v1(client)
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId2, IERC20PaymentClientBase_v1(client)
-        );
-        vm.stopPrank();
-
-        // Verify queue head is sentinel after all orders cancelled
-        assertEq(
-            queue.getQueueHead(client),
-            type(uint).max,
-            "Head should be sentinel after all orders cancelled"
-        );
-    }
-
-    /* Test testPublicGetQueueTail_succeedsGivenUninitializedQueue()
-        ├── Given an uninitialized queue for a client
-        │   └── When the function getQueueTail() is called for the client
-        │       └── Then the tail of the queue should be 0
-    */
-    function testPublicGetQueueTail_succeedsGivenUninitializedQueue() public {
-        assertEq(
-            queue.getQueueTail(address(this)),
-            0,
-            "Tail should be 0 for uninitialized queue"
-        );
-    }
-
-    /* Test testPublicGetQueueTail_succeedsGivenSingleOrder()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function getQueueTail() is called for the client
-        │       └── Then the tail of the queue should be 1
-    */
-    function testPublicGetQueueTail_succeedsGivenSingleOrder() public {
-        // Add an order
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        assertEq(
-            queue.getQueueTail(address(this)),
-            1,
-            "Tail should be 1 after first order"
-        );
-    }
-
-    /* Test testPublicGetQueueTail_succeedsGivenMultipleOrders()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   └── When the function getQueueTail() is called for the client
-        │       └── Then the tail of the queue should be 2
-    */
-    function testPublicGetQueueTail_succeedsGivenMultipleOrders() public {
-        // Add first order
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Add second order
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        assertEq(
-            queue.getQueueTail(address(this)),
-            2,
-            "Tail should be 2 after second order"
-        );
-    }
-
-    /* Test testPublicGetQueueTail_succeedsGivenPartiallyProcessedQueue()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And the first order is canceled
-        │   └── When the function getQueueTail() is called for the client
-        │       └── Then the tail of the queue should remain 2
-    */
-    function testPublicGetQueueTail_succeedsGivenPartiallyProcessedQueue()
-        public
-    {
-        // Add two orders
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId1_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Cancel first order
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1_, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        assertEq(
-            queue.getQueueTail(address(this)),
-            2,
-            "Tail should remain 2 after cancelling first order"
-        );
-    }
-
-    /* Test testPublicGetQueueTail_succeedsGivenFullyProcessedQueue()
-        ├── Given a valid payment order
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the first order
-        │   ├── And the first order is added to the queue
-        │   ├── And tokens are minted and approved for the second order
-        │   ├── And the second order is added to the queue
-        │   ├── And both orders are canceled
-        │   └── When the function getQueueTail() is called for the client
-        │       └── Then the tail of the queue should be the sentinel value (type(uint).max)
-    */
-    function testPublicGetQueueTail_succeedsGivenFullyProcessedQueue() public {
-        // Add two orders
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId1_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId2_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Cancel both orders
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId1_, IERC20PaymentClientBase_v1(address(this))
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId2_, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        assertEq(
-            queue.getQueueTail(address(this)),
-            type(uint).max,
-            "Tail should be sentinel after all orders cancelled"
-        );
-    }
-
-    /* Test testPublicGetQueueOperatorRole_succeeds()
-        ├── Given the queue operator role is defined
-        │   └── When the function getQueueOperatorRole() is called
-        │       └── Then it should return the correct role hash (keccak256("QUEUE_OPERATOR"))
-    */
-    function testPublicGetQueueOperatorRole_succeeds() public {
-        assertEq(
-            queue.getQueueOperatorRole(),
-            keccak256("QUEUE_OPERATOR"),
-            "Incorrect queue operator role"
-        );
-    }
-
-    /* Test testPublicProcessNextOrder_succeedsGivenValidOrder()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the payment client is authorized
-        │   ├── And the payment client's token is set
-        │   ├── And the order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_processNextOrder() is called by the payment client
-        │       ├── Then the processing should succeed
-        │       └── And the recipient should receive the correct amount of tokens
-    */
-    function testPublicProcessNextOrder_succeedsGivenValidOrder(
-        address recipient_,
-        uint96 amount_
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup payment client
-        paymentClient.setIsAuthorized(address(queue), true);
-        paymentClient.setToken(ERC20Mock(address(_token)));
-
-        // Add order to payment client first
-        paymentClient.addPaymentOrderUnchecked(order_);
-
-        _token.mint(address(paymentClient), amount_);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount_);
-        queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
-
-        // Process next order as the payment client
-        vm.prank(address(paymentClient));
-        bool success_ = queue.exposed_processNextOrder(address(paymentClient));
-        assertTrue(success_, "Processing next order should succeed");
-
-        // Verify token transfer
-        assertEq(
-            _token.balanceOf(recipient_),
-            amount_,
-            "Recipient should receive tokens"
-        );
-    }
-
-    /* Test testPublicProcessNextOrder_failsGivenEmptyQueue()
-        ├── Given a payment order is created
-        │   ├── And the order is configured with:
-        │   │   ├── A recipient address
-        │   │   ├── An amount of 100
-        │   │   ├── A payment token (address(_token))
-        │   │   ├── Origin and target chain IDs matching the current chain
-        │   │   ├── Flags set to 0
-        │   │   └── An empty data array
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   ├── And the order is removed from the queue
-        │   └── When the function exposed_processNextOrder() is called by the payment client
-        │       └── Then the processing should fail (return false)
-    */
-    function testPublicProcessNextOrder_failsGivenEmptyQueue() public {
-        // Add an empty order to initialize the queue
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Initialize queue by adding and removing an order
-        _token.mint(address(paymentClient), 100);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), 100);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
-        queue.exposed_removeFromQueue(orderId_);
-
-        // Process next order on empty queue
-        vm.prank(address(paymentClient));
-        bool success_ = queue.exposed_processNextOrder(address(paymentClient));
-        assertFalse(success_, "Processing empty queue should return false");
-    }
-
-    /* Test testPublicProcessNextOrder_failsGivenEmptyQueue()
-        ├── Given a valid client address (not address(0) and not the queue)
-        │   ├── And a valid recipient address (not address(0))
-        │   ├── And a valid amount (bounded between 1 and 1e30)
-        │   ├── And valid chain IDs (bounded between 1 and 1e6)
-        │   ├── And the client is authorized
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the client
-        │   ├── And the order is added to the queue
-        │   ├── And the order is removed from the queue
-        │   └── When the function exposed_processNextOrder() is called by the client
-        │       └── Then the processing should fail (return false)
-    */
-    function testPublicProcessNextOrder_failsGivenEmptyQueue(
-        address client,
-        address recipient,
-        uint96 amount,
-        uint originChainId,
-        uint targetChainId
-    ) public {
-        // Bound values to reasonable ranges
-        amount = uint96(bound(uint(amount), 1, 1e30));
-        originChainId = bound(originChainId, 1, 1e6);
-        targetChainId = bound(targetChainId, 1, 1e6);
-
-        // Assume valid addresses
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(recipient != address(0));
-
-        // Authorize client
-        _authorizer.setIsAuthorized(client, true);
-        paymentClient.setIsAuthorized(client, true);
-
-        // Create a valid order to initialize the queue
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Initialize queue by adding and removing an order
-        _token.mint(client, amount);
-        vm.startPrank(client);
-        _token.approve(address(queue), amount);
-        uint orderId = queue.exposed_addPaymentOrderToQueue(order, client);
-        vm.stopPrank();
-
-        // Remove the order to make queue empty
-        queue.exposed_removeFromQueue(orderId);
-
-        // Process next order on empty queue
-        vm.prank(client);
-        bool success = queue.exposed_processNextOrder(client);
-
-        // Assert processing empty queue returns false
-        assertFalse(success, "Processing empty queue should return false");
-    }
-
-    /* Test testPublicExecutePaymentTransfer_succeedsGivenValidOrder()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_executePaymentTransfer() is called with the order ID
-        │       ├── Then the payment transfer should succeed
-        │       └── And the recipient should receive the correct amount of tokens
-    */
-    function testPublicExecutePaymentTransfer_succeedsGivenValidOrder(
-        address recipient_,
-        uint96 amount_
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // First add the order to the payment client
-        paymentClient.addPaymentOrderUnchecked(order_);
-
-        // Then mint tokens and approve
-        _token.mint(address(paymentClient), amount_);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
-
-        // Execute payment transfer
-        bool success_ = queue.exposed_executePaymentTransfer(orderId_);
-        assertTrue(success_, "Payment transfer should succeed");
-
-        // Verify token transfer
-        assertEq(
-            _token.balanceOf(recipient_),
-            amount_,
-            "Recipient should receive tokens"
-        );
-    }
-
-    /* Test testPublicExecutePaymentTransfer_revertsGivenInvalidOrder()
-        ├── Given an invalid order ID (greater than 0)
-        │   └── When the function exposed_executePaymentTransfer() is called with the invalid order ID
-        │       └── Then the transaction should revert with the error Module__PP_Queue_InvalidStateTransition
-    */
-    function testPublicExecutePaymentTransfer_revertsGivenInvalidOrder(
-        uint orderId_
-    ) public {
-        // Ensure order ID is not 0
-        vm.assume(orderId_ > 0);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                bytes4(
-                    keccak256(
-                        "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)"
-                    )
-                ),
-                orderId_,
-                0,
-                1
-            )
-        );
-        queue.exposed_executePaymentTransfer(orderId_);
-    }
-
-    /* Test testPublicExecutePaymentTransfer_revertsGivenInsufficientBalance()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   └── When the function exposed_addPaymentOrderToQueue() is called with insufficient balance
-        │       └── Then the transaction should revert with the error Module__PP_Queue_QueueOperationFailed
-    */
-    function testPublicExecutePaymentTransfer_revertsGivenInsufficientBalance(
-        address recipient_,
-        uint96 amount_
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                bytes4(
-                    keccak256("Module__PP_Queue_QueueOperationFailed(address)")
-                ),
+                "Module__PP_Queue_QueueOperationFailed(address)",
                 address(this)
             )
         );
         queue.exposed_addPaymentOrderToQueue(order_, address(this));
     }
 
-    /* Test testPublicOrderExists_succeedsGivenValidOrder()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_orderExists() is called with the order ID
-        │       └── Then it should return true
+    /* Test testQueueOperations_GivenValidInputs()
+        └── Given valid orders
+            └── When performing queue operations
+                ├── Then orders should be added correctly.
+                ├── Then orders should be cancelled correctly.
+                └── Then queue should be empty after operations.
     */
-    function testPublicOrderExists_succeedsGivenValidOrder(
-        address recipient_,
-        uint96 amount_
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Verify order exists
-        assertTrue(
-            queue.exposed_orderExists(
-                orderId_, IERC20PaymentClientBase_v1(address(this))
-            ),
-            "Order should exist"
-        );
-    }
-
-    /* Test testPublicOrderExists_failsGivenInvalidOrder()
-        ├── Given an order ID greater than 0
-        │   └── When the function exposed_orderExists() is called with a non-existent order ID
-        │       └── Then it should return false
-    */
-    function testPublicOrderExists_failsGivenInvalidOrder(uint orderId_)
-        public
-    {
-        // Ensure order ID is not 0
-        vm.assume(orderId_ > 0);
-
-        // Test with non-existent order ID
-        assertFalse(
-            queue.exposed_orderExists(
-                orderId_, IERC20PaymentClientBase_v1(address(this))
-            ),
-            "Non-existent order should not exist"
-        );
-    }
-
-    /* Test testPublicOrderExists_failsGivenInvalidClient()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a valid wrong client address (not address(0) and not the current client)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_orderExists() is called with the order ID and the wrong client
-        │       └── Then it should return false
-    */
-    function testPublicOrderExists_failsGivenInvalidClient(
-        address recipient_,
-        uint96 amount_,
-        address wrongClient_
-    ) public {
-        // Ensure valid inputs
-        vm.assume(recipient_ != address(0));
-        vm.assume(recipient_ != address(queue));
-        vm.assume(recipient_ != address(_orchestrator));
-        vm.assume(amount_ > 0);
-        vm.assume(wrongClient_ != address(0));
-        vm.assume(wrongClient_ != address(this));
-
-        // Add an order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount_);
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
-
-        // Test with wrong client
-        assertFalse(
-            queue.exposed_orderExists(
-                orderId_, IERC20PaymentClientBase_v1(wrongClient_)
-            ),
-            "Order should not exist for wrong client"
-        );
-    }
-
-    /* Test testPublicValidQueueId_succeedsGivenValidId()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_validQueueId() is called with the order ID and the correct client
-        │       └── Then it should return true
-    */
-    function testPublicValidQueueId_succeedsGivenValidId() public {
-        // Add an order
+    function testQueueOperations_GivenValidInputs() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Verify valid queue ID
-        assertTrue(
-            queue.exposed_validQueueId(orderId_, address(this)),
-            "Queue ID should be valid"
+        uint[] memory queueBefore_ = queue.getOrderQueue(address(this));
+        assertEq(queueBefore_.length, 1, "Queue should have one order.");
+        assertEq(queueBefore_[0], orderId_, "Order ID should match.");
+
+        queue.cancelPaymentOrderThroughQueueId(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
         );
+
+        uint[] memory queueAfter_ = queue.getOrderQueue(address(this));
+        assertEq(queueAfter_.length, 0, "Queue should be empty after cancel.");
     }
 
-    /* Test testPublicValidQueueId_failsGivenInvalidId()
-        ├── Given a non-existent order ID
-        │   └── When the function exposed_validQueueId() is called with the non-existent order ID and the correct client
-        │       └── Then it should return false
+    /* Test testGetQueueHead_RevertGivenUninitializedQueue()
+        └── Given an uninitialized queue
+            └── When getting queue head
+                └── Then it should revert with Module__PP_Queue_QueueOperationFailed.
     */
-    function testPublicValidQueueId_failsGivenInvalidId() public {
-        // Test with non-existent order ID
-        assertFalse(
-            queue.exposed_validQueueId(999, address(this)),
-            "Non-existent queue ID should be invalid"
+    function testGetQueueHead_RevertGivenUninitializedQueue() public {
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__PP_Queue_QueueOperationFailed(address)",
+                address(this)
+            )
         );
+        queue.getQueueHead(address(this));
     }
 
-    /* Test testPublicUpdateOrderState_succeedsGivenValidOrder()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_updateOrderState() is called with the order ID and the state COMPLETED
-        │       └── Then the order state should be updated to COMPLETED
+    /* Test testGetQueueHead_GivenSingleOrder()
+        └── Given a queue with one order
+            └── When getting queue head
+                └── Then it should return first order ID.
     */
-    function testPublicUpdateOrderState_succeedsGivenValidOrder() public {
-        // Add an order
+    function testGetQueueHead_GivenSingleOrder() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Update state to COMPLETED
+        assertEq(
+            queue.getQueueHead(address(this)),
+            orderId_,
+            "Head should be first order ID."
+        );
+    }
+
+    /* Test testGetQueueHead_GivenMultipleOrders()
+        └── Given a queue with multiple orders
+            └── When getting queue head
+                └── Then it should return first order ID.
+    */
+    function testGetQueueHead_GivenMultipleOrders() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint firstOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        assertEq(
+            queue.getQueueHead(address(this)),
+            firstOrderId_,
+            "Head should be first order ID."
+        );
+    }
+
+    /* Test testGetQueueHead_GivenPartiallyProcessedQueue()
+        └── Given a queue with multiple orders and first cancelled
+            └── When getting queue head
+                └── Then it should return second order ID.
+    */
+    function testGetQueueHead_GivenPartiallyProcessedQueue() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint firstOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        queue.cancelPaymentOrderThroughQueueId(
+            firstOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queue.getQueueHead(address(this)),
+            2,
+            "Head should be second order ID."
+        );
+    }
+
+    /* Test testGetQueueHead_GivenFullyProcessedQueue()
+        └── Given a queue with all orders cancelled
+            └── When getting queue head
+                └── Then it should return sentinel value.
+    */
+    function testGetQueueHead_GivenFullyProcessedQueue() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint firstOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint secondOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        queue.cancelPaymentOrderThroughQueueId(
+            firstOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+        queue.cancelPaymentOrderThroughQueueId(
+            secondOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queue.getQueueHead(address(this)),
+            type(uint).max,
+            "Head should be sentinel value."
+        );
+    }
+
+    /* Test testGetQueueTail_GivenUninitializedQueue()
+        └── Given an uninitialized queue
+            └── When getting queue tail
+                └── Then it should return sentinel value.
+    */
+    function testGetQueueTail_GivenUninitializedQueue() public {
+        assertEq(
+            queue.getQueueTail(address(this)),
+            type(uint).max,
+            "Tail should be sentinel value."
+        );
+    }
+
+    /* Test testGetQueueTail_GivenSingleOrder()
+        └── Given a queue with one order
+            └── When getting queue tail
+                └── Then it should return first order ID.
+    */
+    function testGetQueueTail_GivenSingleOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        assertEq(
+            queue.getQueueTail(address(this)),
+            orderId_,
+            "Tail should be first order ID."
+        );
+    }
+
+    /* Test testGetQueueTail_GivenMultipleOrders()
+        └── Given a queue with multiple orders
+            └── When getting queue tail
+                └── Then it should return last order ID.
+    */
+    function testGetQueueTail_GivenMultipleOrders() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint lastOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        assertEq(
+            queue.getQueueTail(address(this)),
+            lastOrderId_,
+            "Tail should be last order ID."
+        );
+    }
+
+    /* Test testGetQueueTail_GivenPartiallyProcessedQueue()
+        └── Given a queue with multiple orders and first cancelled
+            └── When getting queue tail
+                └── Then it should return last order ID.
+    */
+    function testGetQueueTail_GivenPartiallyProcessedQueue() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint firstOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint lastOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        queue.cancelPaymentOrderThroughQueueId(
+            firstOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queue.getQueueTail(address(this)),
+            lastOrderId_,
+            "Tail should be last order ID."
+        );
+    }
+
+    /* Test testGetQueueTail_GivenFullyProcessedQueue()
+        └── Given a queue with all orders cancelled
+            └── When getting queue tail
+                └── Then it should return sentinel value.
+    */
+    function testGetQueueTail_GivenFullyProcessedQueue() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint firstOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint secondOrderId_ = queue.exposed_addPaymentOrderToQueue(
+            order_,
+            address(this)
+        );
+
+        queue.cancelPaymentOrderThroughQueueId(
+            firstOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+        queue.cancelPaymentOrderThroughQueueId(
+            secondOrderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
+
+        assertEq(
+            queue.getQueueTail(address(this)),
+            type(uint).max,
+            "Tail should be sentinel value."
+        );
+    }
+
+    /* Test testGetQueueOperatorRole_GivenValidRole()
+        └── Given a queue operator role
+            └── When getting the role
+                └── Then it should return correct role hash.
+    */
+    function testGetQueueOperatorRole_GivenValidRole() public {
+        bytes32 expectedRole_ = keccak256("QUEUE_OPERATOR_ROLE");
+        assertEq(
+            queue.getQueueOperatorRole(),
+            expectedRole_,
+            "Role hash should match."
+        );
+    }
+
+    /* Test testProcessNextOrder_GivenValidOrder()
+        └── Given a valid order in queue
+            └── When processing next order
+                ├── Then it should succeed.
+                └── Then order should be processed.
+    */
+    function testProcessNextOrder_GivenValidOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        vm.prank(address(this));
+        bool success_ = queue.exposed_processNextOrder(address(this));
+        assertTrue(success_, "Order processing should succeed.");
+    }
+
+    /* Test testProcessNextOrder_GivenEmptyQueue()
+        └── Given an empty queue
+            └── When processing next order
+                └── Then it should return false.
+    */
+    function testProcessNextOrder_GivenEmptyQueue() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_removeFromQueue(orderId_);
+
+        vm.prank(address(this));
+        bool success_ = queue.exposed_processNextOrder(address(this));
+        assertFalse(success_, "Processing empty queue should fail.");
+    }
+
+    /* Test testExecutePaymentTransfer_GivenValidOrder()
+        └── Given a valid payment order
+            └── When executing transfer
+                ├── Then it should succeed.
+                ├── Then recipient should receive tokens.
+                └── Then queue balance should decrease.
+    */
+    function testExecutePaymentTransfer_GivenValidOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_executePaymentTransfer(orderId_);
+
+        assertEq(
+            _token.balanceOf(recipient_),
+            amount_,
+            "Recipient should receive tokens."
+        );
+        assertEq(
+            _token.balanceOf(address(queue)),
+            0,
+            "Queue balance should be zero."
+        );
+    }
+
+    /* Test testExecutePaymentTransfer_RevertGivenInvalidOrder()
+        └── Given an order with insufficient balance
+            └── When executing transfer
+                └── Then it should revert with Module__PP_Queue_TransferFailed.
+    */
+    function testExecutePaymentTransfer_RevertGivenInvalidOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__PP_Queue_TransferFailed(address,uint256)",
+                recipient_,
+                amount_
+            )
+        );
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_executePaymentTransfer(orderId_);
+    }
+
+    /* Test testExecutePaymentTransfer_RevertGivenInsufficientBalance()
+        └── Given an order with insufficient balance
+            └── When executing transfer
+                └── Then it should revert with Module__PP_Queue_TransferFailed.
+    */
+    function testExecutePaymentTransfer_RevertGivenInsufficientBalance() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(queue), amount_ - 1);
+
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__PP_Queue_TransferFailed(address,uint256)",
+                recipient_,
+                amount_
+            )
+        );
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_executePaymentTransfer(orderId_);
+    }
+
+    /* Test testOrderExists_GivenValidOrder()
+        └── Given a valid order in queue
+            └── When checking if order exists
+                └── Then it should return true.
+    */
+    function testOrderExists_GivenValidOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        assertTrue(
+            queue.exposed_orderExists(orderId_, address(this)),
+            "Order should exist."
+        );
+    }
+
+    /* Test testOrderExists_GivenInvalidOrder()
+        └── Given a non-existent order ID
+            └── When checking if order exists
+                └── Then it should return false.
+    */
+    function testOrderExists_GivenInvalidOrder() public {
+        assertFalse(
+            queue.exposed_orderExists(999, address(this)),
+            "Invalid order should not exist."
+        );
+    }
+
+    /* Test testOrderExists_GivenInvalidClient()
+        └── Given a non-existent client
+            └── When checking if order exists
+                └── Then it should return false.
+    */
+    function testOrderExists_GivenInvalidClient() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        address invalidClient_ = makeAddr("invalidClient");
+        assertFalse(
+            queue.exposed_orderExists(orderId_, invalidClient_),
+            "Order should not exist for invalid client."
+        );
+    }
+
+    /* Test testValidQueueId_GivenValidId()
+        └── Given a valid queue ID
+            └── When checking if ID is valid
+                └── Then it should return true.
+    */
+    function testValidQueueId_GivenValidId() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        assertTrue(
+            queue.exposed_validQueueId(orderId_),
+            "Queue ID should be valid."
+        );
+    }
+
+    /* Test testUpdateOrderState_GivenValidOrder()
+        └── Given a valid order in queue
+            └── When updating order state
+                ├── Then it should update state.
+                └── Then state should match expected value.
+    */
+    function testUpdateOrderState_GivenValidOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
         queue.exposed_updateOrderState(
-            orderId_, IPP_Queue_v1.RedemptionState.COMPLETED
+            orderId_,
+            IPP_Queue_v1.RedemptionState.COMPLETED
         );
 
-        // Verify state update
-        IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_,
+            IERC20PaymentClientBase_v1(address(this))
+        );
         assertEq(
             uint(queuedOrder_.state_),
             uint(IPP_Queue_v1.RedemptionState.COMPLETED),
-            "Order state should be COMPLETED"
+            "State should be COMPLETED."
         );
     }
 
-    /* Test testPublicRemoveFromQueue_succeedsGivenValidOrder()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the initial queue size is verified to be 1
-        │   └── When the function exposed_removeFromQueue() is called with the order ID
-        │       └── Then the queue size should be 0
+    /* Test testRemoveFromQueue_GivenValidOrder()
+        └── Given a valid order in queue
+            └── When removing order
+                ├── Then it should be removed.
+                └── Then queue should be empty.
     */
-    function testPublicRemoveFromQueue_succeedsGivenValidOrder() public {
-        // Add an order
+    function testRemoveFromQueue_GivenValidOrder() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Verify initial queue size
-        assertEq(
-            queue.getQueueSizeForClient(address(this)),
-            1,
-            "Initial queue size should be 1"
-        );
-
-        // Remove order from queue
         queue.exposed_removeFromQueue(orderId_);
 
-        // Verify queue size after removal
-        assertEq(
-            queue.getQueueSizeForClient(address(this)),
-            0,
-            "Queue should be empty after removal"
-        );
+        uint[] memory orders_ = queue.getOrderQueue(address(this));
+        assertEq(orders_.length, 0, "Queue should be empty.");
     }
 
-    /* Test testPublicProcessNextOrder_failsGivenNonStandardToken()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a non-standard token that returns false on transfer but doesn't revert
-        │   ├── And a payment order is created with the non-standard token
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   └── When the function exposed_processNextOrder() is called
-        │       ├── Then the amount should be marked as unclaimable
-        │       ├── And the order state should be updated to CANCELLED
-        │       └── And the queue should be empty
+    /* Test testProcessNextOrder_RevertGivenNonStandardToken()
+        └── Given an order with non-standard token
+            └── When processing next order
+                └── Then it should revert with Module__PP_Queue_TransferFailed.
     */
-    function testPublicProcessNextOrder_failsGivenNonStandardToken() public {
-        // Setup
-        address recipient = makeAddr("recipient");
-        uint96 amount = 100;
+    function testProcessNextOrder_RevertGivenNonStandardToken() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        NonStandardTokenMock nonStandardToken_ = new NonStandardTokenMock();
+        
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(nonStandardToken_),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        // Deploy mock token that returns false on transfer but doesn't revert
-        NonStandardTokenMock mockToken = new NonStandardTokenMock();
-        mockToken.setFailTransferTo(recipient);
+        nonStandardToken_.mint(address(this), amount_);
+        vm.prank(address(this));
+        nonStandardToken_.approve(address(queue), amount_);
+        queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Create payment order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(mockToken),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup balances and approvals
-        mockToken.mint(address(this), amount);
-        mockToken.approve(address(queue), amount);
-
-        // Add order to queue
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        // Process the payment (should fail gracefully)
-        vm.expectEmit(true, true, true, true);
-        emit UnclaimableAmountAdded(
-            address(this), address(mockToken), recipient, amount
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__PP_Queue_TransferFailed(address,uint256)",
+                recipient_,
+                amount_
+            )
         );
-
         queue.exposed_processNextOrder(address(this));
+    }
 
-        // Verify state changes
-        assertEq(
-            queue.unclaimable(address(this), address(mockToken), recipient),
-            amount,
-            "Amount should be marked as unclaimable"
-        );
+    /* Test testClaimPreviouslyUnclaimable_GivenValidConditions()
+        └── Given a previously unclaimable order
+            └── When claiming order
+                ├── Then it should succeed.
+                └── Then recipient should receive tokens.
+    */
+    function testClaimPreviouslyUnclaimable_GivenValidConditions() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        IPP_Queue_v1.QueuedOrder memory queuedOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(address(this)));
-        assertEq(
-            uint(queuedOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should be cancelled"
-        );
+        _token.mint(address(queue), amount_);
+        queue.exposed_addUnclaimableOrder(order_);
+        queue.claimPreviouslyUnclaimable(order_);
 
-        // Verify queue state
         assertEq(
-            queue.getQueueSizeForClient(address(this)),
-            0,
-            "Queue should be empty after failed processing"
+            _token.balanceOf(recipient_),
+            amount_,
+            "Recipient should receive tokens."
         );
     }
 
-    /* Test testPublicClaimPreviouslyUnclaimable_succeedsGivenValidConditions()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a non-standard token that initially fails transfers to the recipient
-        │   ├── And a payment order is created with the non-standard token
-        │   ├── And the payment client is authorized
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the payment client and the queue
-        │   ├── And the order is processed, resulting in an unclaimable amount
-        │   ├── And the initial unclaimable amount is verified
-        │   ├── And claiming is attempted with no balance (should fail)
-        │   ├── And the token is updated to allow transfers to the recipient
-        │   ├── And tokens are minted and approved again for the payment client
-        │   └── When the function claimPreviouslyUnclaimable() is called
-        │       ├── Then the unclaimable amount should be successfully claimed
-        │       ├── And the unclaimable amount should be 0 after claiming
-        │       └── And attempting to claim again should fail
+    /* Test testClaimPreviouslyUnclaimable_GivenMultipleAmounts()
+        └── Given multiple unclaimable orders
+            └── When claiming orders
+                ├── Then all claims should succeed.
+                └── Then recipients should receive correct amounts.
     */
-    function testPublicClaimPreviouslyUnclaimable_succeedsGivenValidConditions()
-        public
-    {
-        // Setup
-        address recipient = makeAddr("recipient");
-        uint96 amount = 100;
+    function testClaimPreviouslyUnclaimable_GivenMultipleAmounts() public {
+        address[] memory recipients_ = new address[](3);
+        uint96[] memory amounts_ = new uint96[](3);
+        
+        for (uint i_; i_ < 3; i_++) {
+            recipients_[i_] = makeAddr(string.concat("recipient", vm.toString(i_)));
+            amounts_[i_] = uint96((i_ + 1) * 100);
+            
+            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+                IERC20PaymentClientBase_v1.PaymentOrder({
+                    recipient: recipients_[i_],
+                    amount: amounts_[i_],
+                    paymentToken: address(_token),
+                    originChainId: block.chainid,
+                    targetChainId: block.chainid,
+                    flags: bytes32(0),
+                    data: new bytes32[](0)
+                });
 
-        // Deploy mock token that returns false on transfer but doesn't revert
-        NonStandardTokenMock mockToken = new NonStandardTokenMock();
-        mockToken.setFailTransferTo(recipient); // Only fail transfers to recipient
+            _token.mint(address(queue), amounts_[i_]);
+            queue.exposed_addUnclaimableOrder(order_);
+            queue.claimPreviouslyUnclaimable(order_);
 
-        // Add payment order directly to payment client
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(mockToken),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-        paymentClient.addPaymentOrderUnchecked(order);
+            assertEq(
+                _token.balanceOf(recipients_[i_]),
+                amounts_[i_],
+                "Recipient should receive correct amount."
+            );
+        }
+    }
 
-        // Setup balances and approvals
-        mockToken.mint(address(paymentClient), amount);
-        vm.prank(address(paymentClient));
-        mockToken.approve(address(queue), amount);
+    /* Test testExecutePaymentQueue_GivenMultipleOrders()
+        └── Given multiple valid orders in queue
+            └── When executing payment queue
+                ├── Then all orders should be processed.
+                └── Then recipients should receive correct amounts.
+    */
+    function testExecutePaymentQueue_GivenMultipleOrders() public {
+        address[] memory recipients_ = new address[](3);
+        uint96[] memory amounts_ = new uint96[](3);
+        uint totalAmount_;
+        
+        for (uint i_; i_ < 3; i_++) {
+            recipients_[i_] = makeAddr(string.concat("recipient", vm.toString(i_)));
+            amounts_[i_] = uint96((i_ + 1) * 100);
+            totalAmount_ += amounts_[i_];
+            
+            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+                IERC20PaymentClientBase_v1.PaymentOrder({
+                    recipient: recipients_[i_],
+                    amount: amounts_[i_],
+                    paymentToken: address(_token),
+                    originChainId: block.chainid,
+                    targetChainId: block.chainid,
+                    flags: bytes32(0),
+                    data: new bytes32[](0)
+                });
 
-        // Add order to queue and process it (will fail and create unclaimable amount)
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-        vm.prank(address(paymentClient));
-        queue.exposed_processNextOrder(address(paymentClient));
+            _token.mint(address(this), amounts_[i_]);
+            _token.approve(address(queue), amounts_[i_]);
+            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        }
 
-        // Verify initial unclaimable amount
-        assertEq(
-            queue.unclaimable(
-                address(paymentClient), address(mockToken), recipient
-            ),
-            amount,
-            "Initial unclaimable amount incorrect"
-        );
+        queue.exposed_executePaymentQueue(address(this));
 
-        // Test claiming with no balance (should fail)
-        vm.expectRevert();
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
+        for (uint i_; i_ < 3; i_++) {
+            assertEq(
+                _token.balanceOf(recipients_[i_]),
+                amounts_[i_],
+                "Recipient should receive correct amount."
+            );
+        }
+    }
 
-        // Now allow transfers to recipient and try again
-        mockToken.setFailTransferTo(address(0)); // Allow all transfers
-        mockToken.mint(address(paymentClient), amount);
-        vm.prank(address(paymentClient));
-        mockToken.approve(address(queue), amount);
+    /* Test testCancelPaymentOrder_RevertGivenCompletedOrder()
+        └── Given a completed order
+            └── When attempting to cancel
+                └── Then it should revert with Module__PP_Queue_InvalidStateTransition.
+    */
+    function testCancelPaymentOrder_RevertGivenCompletedOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        // Claim the unclaimable amount (should succeed now)
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_executePaymentQueue(address(this));
 
-        // Verify unclaimable amount is now 0
-        assertEq(
-            queue.unclaimable(
-                address(paymentClient), address(mockToken), recipient
-            ),
-            0,
-            "Unclaimable amount should be 0 after claiming"
-        );
-
-        // Try to claim again (should fail)
         vm.expectRevert(
             abi.encodeWithSignature(
-                "Module__PaymentProcessor__NothingToClaim(address,address)",
-                address(paymentClient),
-                recipient
+                "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
+                orderId_,
+                uint8(IPP_Queue_v1.RedemptionState.COMPLETED),
+                uint8(IPP_Queue_v1.RedemptionState.CANCELLED)
             )
         );
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
+        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
     }
 
-    /* Test testPublicClaimPreviouslyUnclaimable_succeedsGivenMultipleAmounts()
-        ├── Given a valid recipient address
-        │   ├── And two valid amounts (greater than 0)
-        │   ├── And a non-standard token that initially fails transfers to the recipient
-        │   ├── And the payment client is configured with the non-standard token
-        │   ├── And two payment orders are created with the non-standard token
-        │   ├── And both orders are added to the payment client and the queue
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And both orders are processed, resulting in unclaimable amounts
-        │   ├── And the total unclaimable amount is verified
-        │   ├── And claiming is attempted with no balance (should fail)
-        │   ├── And claiming is attempted while transfers are still failing (should fail)
-        │   ├── And the token is updated to allow transfers to the recipient
-        │   ├── And tokens are minted and approved again for the payment client
-        │   └── When the function claimPreviouslyUnclaimable() is called
-        │       ├── Then the unclaimable amounts should be successfully claimed
-        │       ├── And the unclaimable amount should be 0 after claiming
-        │       └── And attempting to claim again should fail
+    /* Test testCancelPaymentOrder_RevertGivenCancelledOrder()
+        └── Given a cancelled order
+            └── When attempting to cancel again
+                └── Then it should revert with Module__PP_Queue_InvalidStateTransition.
     */
-    function testPublicClaimPreviouslyUnclaimable_succeedsGivenMultipleAmounts()
-        public
-    {
-        // Setup
-        address recipient = makeAddr("recipient");
-        uint96 amount1 = 100;
-        uint96 amount2 = 200;
+    function testCancelPaymentOrder_RevertGivenCancelledOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        // Create and configure mock token that will fail transfers to recipient
-        NonStandardTokenMock mockToken = new NonStandardTokenMock();
-        mockToken.setFailTransferTo(recipient);
-        paymentClient.setToken(ERC20Mock(address(mockToken)));
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
 
-        // Add first payment order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order1 =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount1,
-            paymentToken: address(mockToken),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Add second payment order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order2 =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount2,
-            paymentToken: address(mockToken),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Process both orders (they will fail and create unclaimable amounts)
-        paymentClient.addPaymentOrderUnchecked(order1);
-        paymentClient.addPaymentOrderUnchecked(order2);
-
-        // Setup balances and approvals for initial failed transfers
-        mockToken.mint(address(paymentClient), amount1 + amount2);
-        vm.prank(address(paymentClient));
-        mockToken.approve(address(queue), amount1 + amount2);
-
-        // Add orders to queue and process them
-        queue.exposed_addPaymentOrderToQueue(order1, address(paymentClient));
-        queue.exposed_addPaymentOrderToQueue(order2, address(paymentClient));
-
-        vm.prank(address(paymentClient));
-        queue.exposed_processNextOrder(address(paymentClient));
-        vm.prank(address(paymentClient));
-        queue.exposed_processNextOrder(address(paymentClient));
-
-        // Verify total unclaimable amount
-        assertEq(
-            queue.unclaimable(
-                address(paymentClient), address(mockToken), recipient
-            ),
-            amount1 + amount2,
-            "Total unclaimable amount incorrect"
-        );
-
-        // Test claiming with no balance (should fail)
-        vm.expectRevert();
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
-
-        // Test claiming while transfers are still failing (should fail)
-        vm.prank(address(paymentClient));
-        mockToken.mint(address(paymentClient), amount1 + amount2);
-        vm.prank(address(paymentClient));
-        mockToken.approve(address(queue), amount1 + amount2);
-        vm.expectRevert();
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
-
-        // Now allow transfers to recipient
-        mockToken.setFailTransferTo(address(0)); // Allow all transfers
-        mockToken.mint(address(paymentClient), amount1 + amount2);
-        vm.prank(address(paymentClient));
-        mockToken.approve(address(queue), amount1 + amount2);
-
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
-
-        // Verify all amounts were claimed
-        assertEq(
-            queue.unclaimable(
-                address(paymentClient), address(mockToken), recipient
-            ),
-            0,
-            "Unclaimable amount should be 0 after claiming"
-        );
-
-        // Try to claim again (should fail)
         vm.expectRevert(
             abi.encodeWithSignature(
-                "Module__PaymentProcessor__NothingToClaim(address,address)",
-                address(paymentClient),
-                recipient
+                "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
+                orderId_,
+                uint8(IPP_Queue_v1.RedemptionState.CANCELLED),
+                uint8(IPP_Queue_v1.RedemptionState.CANCELLED)
             )
         );
-        queue.claimPreviouslyUnclaimable(
-            address(paymentClient), address(mockToken), recipient
-        );
+        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
     }
 
-    /* Test testPublicExecutePaymentQueue_succeedsGivenMultipleOrders()
-        ├── Given two valid recipient addresses
-        │   ├── And two valid amounts (greater than 0)
-        │   ├── And two payment orders are created with the valid parameters
-        │   ├── And the payment client is authorized and configured with the token
-        │   ├── And both orders are added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And both orders are added to the queue
-        │   ├── And the initial queue size is verified to be 2
-        │   └── When the function exposed_executePaymentQueue() is called
-        │       ├── Then the queue should be empty
-        │       ├── And recipient1 should receive the correct amount of tokens
-        │       └── And recipient2 should receive the correct amount of tokens
+    /* Test testOrderExists_GivenDifferentStates()
+        └── Given orders in different states
+            └── When checking existence
+                ├── Then non-existent order returns false.
+                ├── Then existing order returns true.
+                ├── Then cancelled order returns true.
+                └── Then completed order returns true.
     */
-    function testPublicExecutePaymentQueue_succeedsGivenMultipleOrders()
-        public
-    {
-        // Setup
-        address recipient1 = makeAddr("recipient1");
-        address recipient2 = makeAddr("recipient2");
-        uint96 amount1 = 100;
-        uint96 amount2 = 200;
+    function testOrderExists_GivenDifferentStates() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        // Create orders
-        IERC20PaymentClientBase_v1.PaymentOrder memory order1 =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient1,
-            amount: amount1,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        IERC20PaymentClientBase_v1.PaymentOrder memory order2 =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient2,
-            amount: amount2,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup payment client
-        paymentClient.setIsAuthorized(address(queue), true);
-        paymentClient.setToken(ERC20Mock(address(_token)));
-
-        // Add orders to payment client
-        paymentClient.addPaymentOrderUnchecked(order1);
-        paymentClient.addPaymentOrderUnchecked(order2);
-
-        // Setup balances and approvals
-        _token.mint(address(paymentClient), amount1 + amount2);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount1 + amount2);
-
-        // Add orders to queue
-        queue.exposed_addPaymentOrderToQueue(order1, address(paymentClient));
-        queue.exposed_addPaymentOrderToQueue(order2, address(paymentClient));
-
-        // Verify initial queue size
-        assertEq(
-            queue.getQueueSizeForClient(address(paymentClient)),
-            2,
-            "Queue should have 2 orders"
-        );
-
-        // Execute queue
-        vm.prank(address(paymentClient));
-        queue.exposed_executePaymentQueue(address(paymentClient));
-
-        // Verify final state
-        assertEq(
-            queue.getQueueSizeForClient(address(paymentClient)),
-            0,
-            "Queue should be empty"
-        );
-        assertEq(
-            _token.balanceOf(recipient1),
-            amount1,
-            "Recipient1 should have received tokens"
-        );
-        assertEq(
-            _token.balanceOf(recipient2),
-            amount2,
-            "Recipient2 should have received tokens"
-        );
-    }
-
-    /* Test testPublicOrderExists_succeedsGivenDifferentStates()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the payment client is configured with the token
-        │   ├── And the order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   ├── And the order state is updated to CANCELLED
-        │   ├── And a second order is added to the queue
-        │   ├── And the second order is completed
-        │   └── When the function exposed_orderExists() is called for each scenario
-        │       ├── Then a non-existent order should return false
-        │       ├── And an existing order should return true
-        │       ├── And a cancelled order should still exist
-        │       ├── And a second order should exist
-        │       └── And a completed order should still exist
-    */
-    function testPublicOrderExists_succeedsGivenDifferentStates() public {
-        // Setup
-        address recipient = makeAddr("recipient");
-        uint96 amount = 100;
-
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Test non-existent order
         assertFalse(
-            queue.exposed_orderExists(
-                1, IERC20PaymentClientBase_v1(address(paymentClient))
-            ),
-            "Non-existent order should return false"
+            queue.orderExists(999, address(this)),
+            "Non-existent order should return false."
         );
 
-        // Setup payment client
-        paymentClient.setToken(ERC20Mock(address(_token)));
-        paymentClient.addPaymentOrderUnchecked(order);
-
-        // Setup balances and approvals
-        _token.mint(address(paymentClient), amount);
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount);
-
-        // Add order and test
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
+        _token.mint(address(this), amount_ * 2);
+        _token.approve(address(queue), amount_ * 2);
+        
+        uint orderId1_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
         assertTrue(
-            queue.exposed_orderExists(
-                orderId, IERC20PaymentClientBase_v1(address(paymentClient))
-            ),
-            "Existing order should return true"
+            queue.orderExists(orderId1_, address(this)),
+            "Existing order should return true."
         );
 
-        // Update to CANCELLED state and test
         queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.CANCELLED
+            orderId1_,
+            IPP_Queue_v1.RedemptionState.CANCELLED
         );
         assertTrue(
-            queue.exposed_orderExists(
-                orderId, IERC20PaymentClientBase_v1(address(paymentClient))
-            ),
-            "Cancelled order should still exist"
-        );
-
-        // Add another order and test
-        uint orderId2 =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-        assertTrue(
-            queue.exposed_orderExists(
-                orderId2, IERC20PaymentClientBase_v1(address(paymentClient))
-            ),
-            "Second order should exist"
+            queue.orderExists(orderId1_, address(this)),
+            "Cancelled order should return true."
         );
 
-        // Complete second order and test
-        vm.prank(address(paymentClient));
-        queue.exposed_executePaymentQueue(address(paymentClient));
+        uint orderId2_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        queue.exposed_executePaymentQueue(address(this));
         assertTrue(
-            queue.exposed_orderExists(
-                orderId2, IERC20PaymentClientBase_v1(address(paymentClient))
-            ),
-            "Completed order should still exist"
+            queue.orderExists(orderId2_, address(this)),
+            "Completed order should return true."
         );
     }
 
-    /* Test testPublicCancelPaymentOrder_revertsGivenCompletedOrder()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order is processed by transferring tokens directly
-        │   ├── And the order state is updated to COMPLETED
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called
-        │       └── Then the transaction should revert
+    /* Test testProcessNextOrder_RevertGivenInsufficientBalance()
+        └── Given order with insufficient balance
+            └── When processing next order
+                └── Then it should revert with Module__PP_Queue_TransferFailed.
     */
-    function testPublicCancelPaymentOrder_revertsGivenCompletedOrder() public {
-        // Create a new order
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+    function testProcessNextOrder_RevertGivenInsufficientBalance() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
 
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
+        _token.mint(address(this), amount_ - 1);
+        _token.approve(address(queue), amount_);
+        queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        // Process the order by transferring tokens directly
-        vm.startPrank(address(this));
-        _token.transfer(order.recipient, order.amount);
-        vm.stopPrank();
-
-        // Update order state to COMPLETED
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.COMPLETED
-        );
-
-        // Try to cancel a completed order
         vm.expectRevert(
-            abi.encodeWithSignature("Module__PP_Queue_InvalidState()")
+            abi.encodeWithSignature(
+                "Module__PP_Queue_TransferFailed(address,uint256)",
+                recipient_,
+                amount_
+            )
         );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(address(this))
+        queue.exposed_processNextOrder(address(this));
+    }
+
+    /* Test testUpdateOrderState_RevertGivenInvalidTransition()
+        └── Given a cancelled order
+            └── When updating to completed state
+                └── Then it should revert with Module__PP_Queue_InvalidStateTransition.
+    */
+    function testUpdateOrderState_RevertGivenInvalidTransition() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
+            IERC20PaymentClientBase_v1.PaymentOrder({
+                recipient: recipient_,
+                amount: amount_,
+                paymentToken: address(_token),
+                originChainId: block.chainid,
+                targetChainId: block.chainid,
+                flags: bytes32(0),
+                data: new bytes32[](0)
+            });
+
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
+        uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
+
+        queue.exposed_updateOrderState(
+            orderId_,
+            IPP_Queue_v1.RedemptionState.CANCELLED
+        );
+
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
+                orderId_,
+                uint8(IPP_Queue_v1.RedemptionState.CANCELLED),
+                uint8(IPP_Queue_v1.RedemptionState.COMPLETED)
+            )
+        );
+        queue.exposed_updateOrderState(
+            orderId_,
+            IPP_Queue_v1.RedemptionState.COMPLETED
         );
     }
 
-    /* Test testPublicCancelPaymentOrder_revertsGivenNonExistentOrder()
-        ├── Given a non-existent order ID
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called with the non-existent order ID
-        │       └── Then the transaction should revert
+    /* Test testValidQueueId_RevertGivenInvalidId()
+        └── Given an invalid queue ID
+            └── When validating ID
+                └── Then it should return false.
     */
-    function testPublicCancelPaymentOrder_revertsGivenNonExistentOrder()
-        public
-    {
-        uint nonExistentOrderId = 999;
+    function testValidQueueId_RevertGivenInvalidId() public {
+        assertFalse(
+            queue.exposed_validQueueId(999),
+            "Invalid queue ID should return false."
+        );
+    }
+
+    /* Test testCancelPaymentOrder_RevertGivenNonExistentOrder()
+        └── Given a non-existent order ID
+            └── When cancelling order
+                └── Then it should revert with Module__PP_Queue_InvalidOrderId.
+    */
+    function testCancelPaymentOrder_RevertGivenNonExistentOrder() public {
+        uint nonExistentOrderId_ = 999;
 
         vm.expectRevert(
             abi.encodeWithSignature(
                 "Module__PP_Queue_InvalidOrderId(address,uint256)",
                 address(this),
-                nonExistentOrderId
+                nonExistentOrderId_
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(
-            nonExistentOrderId, IERC20PaymentClientBase_v1(address(this))
-        );
+        queue.cancelPaymentOrderThroughQueueId(nonExistentOrderId_, address(this));
     }
 
-    /* Test testPublicCancelPaymentOrder_revertsGivenAlreadyCancelledOrder()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order is cancelled
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called again with the same order ID
-        │       └── Then the transaction should revert
+    /* Test testCancelPaymentOrder_RevertGivenZeroId()
+        └── Given order ID zero
+            └── When cancelling order
+                └── Then it should revert with Module__PP_Queue_InvalidOrderId.
     */
-    function testPublicCancelPaymentOrder_revertsGivenAlreadyCancelledOrder()
-        public
-    {
-        // Añadir una orden
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        // Cancelar la orden
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(address(this))
-        );
-
-        // Intentar cancelar la orden nuevamente
-        vm.expectRevert(
-            abi.encodeWithSignature("Module__PP_Queue_InvalidState()")
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(address(this))
-        );
-    }
-
-    /* Test testPublicOrderExists_succeedsGivenDifferentStates()
-        ├── Given a valid recipient address (not address(0), not the queue, not the payment client, and not the orchestrator)
-        │   ├── And a valid amount (greater than 0 and bounded to uint96 max)
-        │   ├── And valid origin and target chain IDs (matching the current chain)
-        │   ├── And the payment client is configured with the token
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the order is added to the payment client
-        │   ├── And the first order is added to the queue and cancelled
-        │   ├── And the second order is added to the queue
-        │   ├── And the second order is processed
-        │   └── When the function exposed_processNextOrder() is called
-        │       ├── Then if the transfer is successful:
-        │       │   ├── The recipient should receive the correct amount of tokens
-        │       │   ├── The client balance should be 0
-        │       │   └── The queue should be empty
-        │       └── Else if the transfer fails:
-        │           ├── The client should retain the balance
-        │           └── The failure reason should be logged
-    */
-    function testPublicOrderExists_succeedsGivenDifferentStates(
-        address recipient,
-        uint96 amount,
-        uint8 originChainId,
-        uint8 targetChainId
-    ) public {
-        vm.assume(recipient != address(0));
-        vm.assume(recipient != address(queue));
-        vm.assume(recipient != address(paymentClient));
-        vm.assume(recipient != address(_orchestrator));
-
-        amount = uint96(bound(uint(amount), 1, type(uint96).max));
-        originChainId =
-            uint8(bound(uint(originChainId), block.chainid, block.chainid));
-        targetChainId =
-            uint8(bound(uint(targetChainId), block.chainid, block.chainid));
-
-        console.log("Test with amount:", amount);
-        console.log("Payment Client:", address(paymentClient));
-        console.log("Queue:", address(queue));
-        console.log("Recipient:", recipient);
-
-        // Setup initial state
-        paymentClient.setToken(ERC20Mock(address(_token)));
-        _token.mint(address(paymentClient), amount);
-
-        // First approve from payment client to queue
-        vm.startPrank(address(paymentClient));
-        _token.approve(address(queue), amount);
-        console.log("\nInitial state:");
-        console.log("Client balance:", _token.balanceOf(address(paymentClient)));
-        console.log(
-            "Queue allowance from client:",
-            _token.allowance(address(paymentClient), address(queue))
-        );
-        vm.stopPrank();
-
-        // Create and process orders
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        paymentClient.addPaymentOrderUnchecked(order);
-
-        // Add first order (will be cancelled)
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.CANCELLED
-        );
-
-        // Add second order (will be processed)
-        uint orderId2 =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-
-        // Log order state before setting to PROCESSING
-        IPP_Queue_v1.QueuedOrder memory orderBefore = queue.getOrder(
-            orderId2, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-        console.log(
-            "\nOrder state before:", uint(orderBefore.state_), "(PROCESSING)"
-        );
-
-        // No need to set to PROCESSING, it's already in that state
-
-        console.log("\nProcessing order...");
-        // Process order and check result
-        vm.startPrank(address(paymentClient));
-        bool success = queue.exposed_processNextOrder(address(paymentClient));
-        console.log("Process result:", success);
-
-        // Check final state based on token balances
-        console.log("\nFinal state:");
-        uint recipientBalance = _token.balanceOf(recipient);
-        uint clientBalance = _token.balanceOf(address(paymentClient));
-        console.log("Recipient balance:", recipientBalance);
-        console.log("Client balance:", clientBalance);
-
-        // If the transfer was successful (recipient got tokens)
-        if (recipientBalance == amount) {
-            assertTrue(success, "Process next order failed");
-            assertEq(clientBalance, 0, "Client balance should be 0");
-
-            // Verify that the order is no longer in the queue
-            uint[] memory queue_orders =
-                queue.getOrderQueue(address(paymentClient));
-            assertEq(
-                queue_orders.length,
-                0,
-                "Queue should be empty after successful transfer"
-            );
-        } else {
-            assertFalse(success, "Process next order should have failed");
-            assertEq(clientBalance, amount, "Client should keep balance");
-
-            // Try to identify why the transfer failed
-            vm.startPrank(address(queue));
-            try _token.transferFrom(address(paymentClient), recipient, amount)
-            returns (bool result) {
-                console.log("Manual transfer after failure succeeded:", result);
-            } catch Error(string memory reason) {
-                console.log(
-                    "Manual transfer after failure failed with:", reason
-                );
-            }
-            vm.stopPrank();
-        }
-        vm.stopPrank();
-    }
-
-    /* Test testPublicProcessNextOrder_failsGivenInsufficientConditions()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And the payment client is configured with the token
-        │   ├── And the order is added to the payment client
-        │   ├── And tokens are minted and approved for the payment client
-        │   ├── And the order is added to the queue
-        │   ├── And the initial state of the order is verified to be PROCESSING
-        │   └── When the function exposed_processNextOrder() is called
-        │       ├── Then if the processing fails:
-        │       │   ├── The failure reason should be logged
-        │       │   ├── The client balance and allowance should be checked
-        │       │   └── The order state should remain PROCESSING or transition to CANCELLED
-        │       └── Else if the processing succeeds:
-        │           ├── The order state should transition to COMPLETED
-        │           ├── The recipient should receive the correct amount of tokens
-        │           └── The client balance should be updated accordingly
-    */
-    function testPublicProcessNextOrder_failsGivenInsufficientConditions()
-        public
-    {
-        // Setup a basic order
-        address recipient = makeAddr("recipient");
-        uint96 amount = 1000;
-
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        // Setup payment client and balances
-        paymentClient.setToken(ERC20Mock(address(_token)));
-        paymentClient.addPaymentOrderUnchecked(order);
-        _token.mint(address(paymentClient), amount);
-
-        vm.startPrank(address(paymentClient));
-        _token.approve(address(queue), amount);
-
-        // Add order to queue
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
-
-        // Get initial state
-        IPP_Queue_v1.QueuedOrder memory initialState = queue.getOrder(
-            orderId, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-        assertEq(
-            uint(initialState.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING)
-        );
-
-        // Try to process the order
-        bool success = queue.exposed_processNextOrder(address(paymentClient));
-
-        // Get final state
-        IPP_Queue_v1.QueuedOrder memory finalState = queue.getOrder(
-            orderId, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-
-        console.log("Success:", success);
-        console.log("Initial State:", uint(initialState.state_), "(PROCESSING)");
-        console.log(
-            "Final State:",
-            uint(finalState.state_),
-            finalState.state_ == IPP_Queue_v1.RedemptionState.COMPLETED
-                ? "(COMPLETED)"
-                : finalState.state_ == IPP_Queue_v1.RedemptionState.CANCELLED
-                    ? "(CANCELLED)"
-                    : "(PROCESSING)"
-        );
-        console.log("Recipient Balance:", _token.balanceOf(recipient));
-        console.log("Client Balance:", _token.balanceOf(address(paymentClient)));
-        console.log(
-            "Queue Allowance:",
-            _token.allowance(address(paymentClient), address(queue))
-        );
-
-        // The order should either complete successfully or fail with a clear reason
-        if (!success) {
-            // If it failed, let's check why
-            console.log(
-                "Has Sufficient Balance:",
-                _token.balanceOf(address(paymentClient)) >= amount
-            );
-            console.log(
-                "Has Sufficient Allowance:",
-                _token.allowance(address(paymentClient), address(queue))
-                    >= amount
-            );
-        }
-
-        vm.stopPrank();
-    }
-
-    /* Test testPublicUpdateOrderState_revertsGivenInvalidStateTransition()
-        ├── Given a valid recipient address
-        │   ├── And a valid amount (greater than 0)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order state is updated to CANCELLED
-        │   └── When the function exposed_updateOrderState() is called to transition to COMPLETED
-        │       ├── Then the transaction should revert
-        │       └── And the order state should remain CANCELLED
-    */
-    function testPublicUpdateOrderState_revertsGivenInvalidStateTransition()
-        public
-    {
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.CANCELLED
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
-                orderId,
-                uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-                uint(IPP_Queue_v1.RedemptionState.COMPLETED)
-            )
-        );
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState.COMPLETED
-        );
-
-        IPP_Queue_v1.QueuedOrder memory finalOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(address(this)));
-        assertEq(
-            uint(finalOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should remain CANCELLED"
-        );
-    }
-
-    /* Test testPublicUpdateOrderState_revertsGivenInvalidStateTransition()
-        ├── Given a valid recipient address (not address(0), not the queue, and not the payment client)
-        │   ├── And a valid amount (greater than 0 and bounded to uint96 max)
-        │   ├── And a payment order is created with the valid parameters
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And the order is added to the queue
-        │   ├── And the order state is updated to a specific initial state (COMPLETED, CANCELLED, or PROCESSING)
-        │   ├── And the target state is different from the initial state
-        │   └── When the function exposed_updateOrderState() is called to transition to the target state
-        │       ├── Then the transaction should revert
-        │       └── And the order state should remain unchanged
-    */
-    function testPublicUpdateOrderState_revertsGivenInvalidStateTransition(
-        address recipient,
-        uint96 amount,
-        uint8 fromState,
-        uint8 toState
-    ) public {
-        vm.assume(recipient != address(0));
-        vm.assume(recipient != address(queue));
-        vm.assume(recipient != address(paymentClient));
-        vm.assume(amount > 0 && amount <= type(uint96).max);
-
-        // Limit states (0=COMPLETED, 1=CANCELLED, 2=PROCESSING)
-        fromState = uint8(bound(fromState, 0, 2));
-        toState = uint8(bound(toState, 0, 2));
-
-        if (
-            // PROCESSING => x
-            fromState == uint(IPP_Queue_v1.RedemptionState.PROCESSING)
-                || fromState == toState
-        ) {
-            return;
-        }
-
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), amount);
-        _token.approve(address(queue), amount);
-        uint orderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState(fromState)
-        );
-
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
-                orderId,
-                fromState,
-                toState
-            )
-        );
-        queue.exposed_updateOrderState(
-            orderId, IPP_Queue_v1.RedemptionState(toState)
-        );
-
-        IPP_Queue_v1.QueuedOrder memory finalOrder =
-            queue.getOrder(orderId, IERC20PaymentClientBase_v1(address(this)));
-        assertEq(
-            uint(finalOrder.state_), fromState, "Order state should not change"
-        );
-
-        console.log("\nTest Parameters:");
-        console.log("Recipient:", recipient);
-        console.log("Amount:", amount);
-        console.log("From State:", fromState);
-        console.log("To State:", toState);
-        console.log("Order ID:", orderId);
-        console.log("Final State:", uint(finalOrder.state_));
-    }
-
-    /* Test testPublicValidQueueId_failsGivenInvalidId()
-        ├── Given a valid client address (not address(0), not the queue, and not the current caller)
-        │   ├── And a valid payment order is created and added to the queue
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And a valid queue ID is generated
-        │   ├── And the queue ID to test is different from the valid one and not zero
-        │   └── When the function exposed_validQueueId() is called with the invalid queue ID and client
-        │       └── Then it should return false
-    */
-    function testPublicValidQueueId_failsGivenInvalidId(
-        uint queueId,
-        address client
-    ) public {
-        // Assume valid client address
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(client != address(this));
-
-        // Create a valid order to initialize the queue counter
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint validQueueId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        // Ensure queueId is different from the valid one and not zero
-        vm.assume(queueId != validQueueId);
-        vm.assume(queueId != 0);
-
-        // Verify that the invalid queue ID is detected
-        assertFalse(
-            queue.exposed_validQueueId(queueId, client),
-            "Queue ID should be invalid"
-        );
-
-        // Log test parameters for debugging
-        console.log("\nTest Parameters:");
-        console.log("Queue ID:", queueId);
-        console.log("Client:", client);
-        console.log("Valid Queue ID:", validQueueId);
-    }
-
-    /* Test testPublicCancelPaymentOrder_revertsGivenNonExistentOrder()
-        ├── Given a valid client address (not address(0), not the queue, and not the current caller)
-        │   ├── And a valid payment order is created and added to the queue
-        │   ├── And tokens are minted and approved for the order
-        │   ├── And a valid order ID is generated
-        │   ├── And the order ID to test is different from the existing one
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called with the non-existent order ID and client
-        │       └── Then the transaction should revert
-    */
-    function testPublicCancelPaymentOrder_revertsGivenNonExistentOrder(
-        uint orderId,
-        address client
-    ) public {
-        // Assume valid client address
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(client != address(this));
-
-        // Create a valid order to have a reference point
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
-
-        _token.mint(address(this), 100);
-        _token.approve(address(queue), 100);
-        uint existingOrderId =
-            queue.exposed_addPaymentOrderToQueue(order, address(this));
-
-        // Ensure orderId is different from the existing one
-        orderId = bound(orderId, 1, type(uint).max);
-        vm.assume(orderId != existingOrderId);
-
-        // Try to cancel a non-existent order
+    function testCancelPaymentOrder_RevertGivenZeroId() public {
         vm.expectRevert(
             abi.encodeWithSignature(
                 "Module__PP_Queue_InvalidOrderId(address,uint256)",
-                client,
-                orderId
+                address(this),
+                0
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId, IERC20PaymentClientBase_v1(client)
-        );
-
-        // Log test parameters for debugging
-        console.log("\nTest Parameters:");
-        console.log("Non-existent Order ID:", orderId);
-        console.log("Client:", client);
-        console.log("Existing Order ID:", existingOrderId);
-    }
-
-    /* Test testPublicCancelPaymentOrder_revertsGivenZeroId()
-        ├── Given a valid client address (not address(0), not the queue, and not the current caller)
-        │   └── When the function cancelPaymentOrderThroughQueueId() is called with an order ID of 0
-        │       └── Then the transaction should revert
-    */
-    function testPublicCancelPaymentOrder_revertsGivenZeroId(address client)
-        public
-    {
-        // Assume valid client address
-        vm.assume(client != address(0));
-        vm.assume(client != address(queue));
-        vm.assume(client != address(this));
-
-        // Try to cancel order with ID 0
-        vm.expectRevert(
-            abi.encodeWithSignature("Module__PP_Queue_InvalidState()")
-        );
-        queue.cancelPaymentOrderThroughQueueId(
-            0, IERC20PaymentClientBase_v1(client)
-        );
-
-        // Log test parameters
-        console.log("\nTest Parameters:");
-        console.log("Client:", client);
+        queue.cancelPaymentOrderThroughQueueId(0, address(this));
     }
 }

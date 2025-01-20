@@ -33,7 +33,7 @@ contract ERC20Issuance_Blacklist_v1_Test is Test {
     // State
     ERC20Issuance_Blacklist_v1_Exposed token;
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ================================================================================
     // Setup
     function setUp() public {
         // Setup token

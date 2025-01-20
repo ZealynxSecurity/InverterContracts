@@ -1,360 +1,427 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.23;
+pragma solidity ^0.8.0;
 
-import {Test, console} from "forge-std/Test.sol"; // @todo remove
-import {LM_ManualExternalPriceSetter_v1} from
-    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {ILM_ManualExternalPriceSetter_v1} from
-    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
-import {LM_ManualExternalPriceSetter_v1} from
-    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
-import {ERC20Mock} from "test/utils/mocks/ERC20Mock.sol";
-import {AuthorizerV1Mock} from "test/utils/mocks/modules/AuthorizerV1Mock.sol";
-import {Clones} from "@oz/proxy/Clones.sol";
-import {OZErrors} from "test/utils/errors/OZErrors.sol";
+// Internal
 import {
     ModuleTest,
     IModule_v1,
     IOrchestrator_v1
 } from "test/modules/ModuleTest.sol";
+import {OZErrors} from "test/utils/errors/OZErrors.sol";
+import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
+
+// External
+import {Clones} from "@oz/proxy/Clones.sol";
+
+// Tests and Mocks
+import {Test} from "forge-std/Test.sol";
+import {LM_ManualExternalPriceSetter_v1_Exposed} from
+    "test/modules/logicModule/LM_ManualExternalPriceSetter_v1_Exposed.sol";
+import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
+
+// System under testing
+import {
+    LM_ManualExternalPriceSetter_v1,
+    ILM_ManualExternalPriceSetter_v1
+} from "@lm/LM_ManualExternalPriceSetter_v1.sol";
 
 /**
- * @title LM_ManualExternalPriceSetter_v1_Test
- * @notice Test contract for LM_ManualExternalPriceSetter_v1
+ * @title   LM_ManualExternalPriceSetter_v1_Test
+ * @dev     Test contract for LM_ManualExternalPriceSetter_v1
+ * @author  Zealynx Security
  */
 contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // Storage
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-    LM_ManualExternalPriceSetter_v1 priceSetter;
-
-    address admin;
-    address priceSetter_;
-    address user;
-
-    ERC20Decimals_Mock inputToken;
-    ERC20Mock outputToken;
-
-    bytes32 constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
-    uint8 constant INTERNAL_DECIMALS = 18;
+    // ================================================================================
+    // Constants
+    uint8 constant TOKEN_DECIMALS = 6;
     string constant TOKEN_NAME = "MOCK USDC";
     string constant TOKEN_SYMBOL = "M-USDC";
 
-    // Module Constants
-    uint constant MAJOR_VERSION = 1;
-    uint constant MINOR_VERSION = 0;
-    uint constant PATCH_VERSION = 0;
-    string constant URL = "https://github.com/organization/module"; // @todo update with module information
-    string constant TITLE = "Module";
+    // ================================================================================
+    // State
+    LM_ManualExternalPriceSetter_v1_Exposed manualExternalPriceSetter;
+    ERC20Decimals_Mock collateralToken;
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ================================================================================
     // Setup
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
     function setUp() public {
-        admin = makeAddr("admin");
-        priceSetter_ = makeAddr("priceSetter");
-        user = makeAddr("user");
+        // Create mock token with 6 decimals like USDC
+        collateralToken =
+            new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, TOKEN_DECIMALS);
 
-        vm.startPrank(admin);
+        // Setup manual external price setter
+        address impl = address(new LM_ManualExternalPriceSetter_v1_Exposed());
+        manualExternalPriceSetter =
+            LM_ManualExternalPriceSetter_v1_Exposed(Clones.clone(impl));
+        _setUpOrchestrator(manualExternalPriceSetter);
 
-        // Create mock tokens with different decimals
-        inputToken = new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, 6); // Like USDC
-        outputToken = _token; // Like most ERC20s
+        // Init module
+        bytes memory configData = abi.encode(address(collateralToken));
+        manualExternalPriceSetter.init(_orchestrator, _METADATA, configData);
 
-        // Setup price setter
-        address impl = address(new LM_ManualExternalPriceSetter_v1());
-        priceSetter = LM_ManualExternalPriceSetter_v1(Clones.clone(impl));
-
-        bytes memory configData =
-            abi.encode(address(inputToken), address(outputToken));
-
-        _setUpOrchestrator(priceSetter);
-
-        priceSetter.init(_orchestrator, _METADATA, configData);
-
-        // Grant price setter role
-        bytes32 roleId =
-            _authorizer.generateRoleId(address(priceSetter), PRICE_SETTER_ROLE);
-        _authorizer.grantRole(roleId, priceSetter_);
-
-        vm.stopPrank();
+        // Grant PRICE_SETTER_ROLE and PRICE_SETTER_ROLE_ADMIN to the test contract
+        manualExternalPriceSetter.grantModuleRole(
+            manualExternalPriceSetter.PRICE_SETTER_ROLE(), address(this)
+        );
+        manualExternalPriceSetter.grantModuleRole(
+            manualExternalPriceSetter.PRICE_SETTER_ROLE_ADMIN(), address(this)
+        );
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // Initialization Tests
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ================================================================================
+    // Test Init
 
-    /* testInit()
-        Tests initialization of the oracle contract
-        
-        Tree structure:
-        └── Given a newly deployed oracle contract
-            └── When checking the orchestrator address
-                └── Then it should match the provided orchestrator
-    */
+    // This function also tests all the gettersx
     function testInit() public override(ModuleTest) {
         assertEq(
-            address(priceSetter.orchestrator()),
-            address(_orchestrator),
-            "Orchestrator not set correctly"
+            manualExternalPriceSetter.getCollateralTokenDecimals(),
+            TOKEN_DECIMALS,
+            "Token decimals not set correctly"
         );
     }
 
-    /* testReinitFails()
-        └── Given an initialized contract
-            └── When trying to initialize again
-                └── Then it should revert with InvalidInitialization
-    */
     function testReinitFails() public override(ModuleTest) {
         vm.expectRevert(OZErrors.Initializable__InvalidInitialization);
-        priceSetter.init(
-            _orchestrator,
-            _METADATA,
-            abi.encode(address(inputToken), address(outputToken))
+        manualExternalPriceSetter.init(
+            _orchestrator, _METADATA, abi.encode(address(collateralToken))
         );
     }
 
-    /* testSupportsInterface_GivenValidInterface()
-        └── Given the contract interface
-            └── When checking interface support
-                └── Then it should support ILM_ManualExternalPriceSetter_v1
-    */
     function testSupportsInterface_GivenValidInterface() public {
         assertTrue(
-            priceSetter.supportsInterface(
+            manualExternalPriceSetter.supportsInterface(
                 type(ILM_ManualExternalPriceSetter_v1).interfaceId
             )
         );
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // Token Configuration Tests
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+    // ================================================================================
+    // Test External (public + external)
 
-    /* testTokenProperties_GivenTokensWithDifferentDecimals()
-        ├── Given the input token (USDC mock)
-        │   ├── When checking its decimals
-        │   │   └── Then it should have 6 decimals
-        │   ├── When checking its name
-        │   │   └── Then it should be "Mock Token"
-        │   ├── When checking its symbol
-        │   │   └── Then it should be "MOCK"
-        │   └── When checking its initial supply
-        │       └── Then it should be 0
-        └── Given the output token (TOKEN mock)
-            ├── When checking its decimals
-            │   └── Then it should have 18 decimals
-            ├── When checking its name
-            │   └── Then it should be "Mock Token"
-            ├── When checking its symbol
-            │   └── Then it should be "MOCK"
-            └── When checking its initial supply
-                └── Then it should be 0
+    /* Test: Function SetIssuancePrice()
+        ├── Given the caller has not PRICE_SETTER_ROLE
+        │   └── When the function setIssuancePrice() is called
+        │       └── Then the function should revert (Modifier in place test)
+        └── Given the caller has PRICE_SETTER_ROLE
+            └── When the function setIssuancePrice() is called
+                └── Then the price should be set correctly (redirects to internal func)
     */
-    function testTokenProperties_GivenTokensWithDifferentDecimals() public {
-        // Test input token (USDC mock)
-        assertEq(inputToken.decimals(), 6, "Input token should have 6 decimals");
-        assertEq(
-            inputToken.name(),
-            TOKEN_NAME,
-            "Input token should have correct name"
-        );
-        assertEq(
-            inputToken.symbol(),
-            TOKEN_SYMBOL,
-            "Input token should have correct symbol"
-        );
-        assertEq(
-            inputToken.totalSupply(),
-            0,
-            "Input token should have 0 initial supply"
-        );
 
-        // Test output token (TOKEN mock)
-        assertEq(
-            outputToken.decimals(), 18, "Output token should have 18 decimals"
-        );
-        assertEq(
-            outputToken.name(),
-            "Mock Token",
-            "Output token should have correct name"
-        );
-        assertEq(
-            outputToken.symbol(),
-            "MOCK",
-            "Output token should have correct symbol"
-        );
-        assertEq(
-            outputToken.totalSupply(),
-            0,
-            "Output token should have 0 initial supply"
-        );
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-    // Price Management Tests
-    // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-    /* testInitialSetup_GivenNoSetPrices()
-        └── Given no prices have been set
-            ├── When querying issuance price
-            │   └── Then it should revert with InvalidPrice
-            └── When querying redemption price
-                └── Then it should revert with InvalidPrice
-    */
-    function testInitialSetup_GivenNoSetPrices() public {
-        // Verify initial prices revert
-        vm.startPrank(priceSetter_);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__LM_ExternalPriceSetter__InvalidPrice()"
-            )
-        );
-        priceSetter.setIssuancePrice(0);
-
-        vm.startPrank(priceSetter_);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__LM_ExternalPriceSetter__InvalidPrice()"
-            )
-        );
-        priceSetter.setIssuanceAndRedemptionPrice(0, 0);
-    }
-
-    /* testSetIssuancePrice_GivenUnauthorizedUser()
-        ├── Given a non-authorized user and random price
-        │   └── When setting issuance price
-        │       └── Then it should revert with NotPriceSetter
-        ├── Given an authorized price setter
-        │   ├── When setting a zero price
-        │   │   └── Then it should revert with InvalidPrice
-        │   └── When setting a valid random price
-        │       └── Then the price should be set and normalized correctly
-    */
-    function testSetIssuancePrice_GivenUnauthorizedUser(
-        uint price,
-        address unauthorizedUser
+    function testSetIssuancePrice_worksGivenModifierInPlace(
+        address unauthorized_,
+        uint price_
     ) public {
-        // Assume valid unauthorized user
-        vm.assume(unauthorizedUser != address(0));
-        vm.assume(unauthorizedUser != address(this));
-        vm.assume(unauthorizedUser != priceSetter_);
+        // Setup
+        vm.assume(unauthorized_ != address(this));
+        vm.assume(price_ > 0);
+        bytes32 roleId = _authorizer.generateRoleId(
+            address(manualExternalPriceSetter),
+            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+        );
 
-        price = bound(price, 1, 1_000_000_000_000 * 1e6);
-
-        // Test unauthorized access with random price
-        vm.startPrank(unauthorizedUser);
+        // Test
+        vm.startPrank(unauthorized_);
         vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__CallerNotAuthorized(bytes32,address)",
-                _authorizer.generateRoleId(
-                    address(priceSetter), PRICE_SETTER_ROLE
-                ),
-                unauthorizedUser
+            abi.encodeWithSelector(
+                IModule_v1.Module__CallerNotAuthorized.selector,
+                roleId,
+                unauthorized_
             )
         );
-        priceSetter.setIssuancePrice(price);
-        vm.stopPrank();
+        manualExternalPriceSetter.setIssuancePrice(price_);
+    }
 
-        // Test zero price with authorized user
-        vm.startPrank(priceSetter_);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__LM_ExternalPriceSetter__InvalidPrice()"
-            )
-        );
-        priceSetter.setIssuancePrice(0);
-
-        // Test valid price setting with random price
-        priceSetter.setIssuancePrice(price);
-        // Price should be normalized from 6 decimals to 18 decimals
+    function testSetIssuancePrice_worksGivenPriceIsSet(
+        uint initialPrice_,
+        uint updatePrice_
+    ) public {
+        // Setup
+        vm.assume(initialPrice_ > 0 && updatePrice_ > 0);
+        vm.assume(initialPrice_ != updatePrice_);
+        // Set initial price
+        manualExternalPriceSetter.setIssuancePrice(initialPrice_);
+        // pre-condition
         assertEq(
-            priceSetter.getPriceForIssuance(),
-            price,
+            manualExternalPriceSetter.getPriceForIssuance(),
+            initialPrice_,
+            "Initial issuance price not set correctly"
+        );
+
+        // Test
+        manualExternalPriceSetter.setIssuancePrice(updatePrice_);
+
+        // Assert
+        assertEq(
+            manualExternalPriceSetter.getPriceForIssuance(),
+            updatePrice_,
             "Issuance price not set correctly"
         );
-
-        vm.stopPrank();
     }
 
-    /* testSetRedemptionPrice_GivenUnauthorizedUser()
-        ├── Given an unauthorized user
-        │   └── When trying to set redemption price
-        │       └── Then it should revert with NotPriceSetter error
-        ├── Given an authorized price setter and zero price
-        │   └── When setting redemption price to zero
-        │       └── Then it should revert with InvalidPrice error
-        ├── Given an authorized price setter and valid price
-        │   └── When setting redemption price
-        │       └── Then the price should be set correctly with 18 decimals
-        └── Given both redemption and issuance prices are set
-            └── When modifying issuance price
-                ├── Then redemption price should remain unchanged
-                └── Then both prices should maintain their correct decimal precision
-                    ├── Redemption: 18 decimals
-                    └── Issuance: 6 decimals
+    /* Test: Function: SetRedemptionPrice()
+        ├── Given the caller has not PRICE_SETTER_ROLE
+        │   └── When the function setRedemptionPrice() is called
+        │       └── Then the function should revert (Modifier in place test)
+        └── Given the caller has PRICE_SETTER_ROLE
+            └── When the function setRedemptionPrice() is called
+                └── Then the price should be set correctly (redirects to internal func)
     */
-    function testSetRedemptionPrice_GivenUnauthorizedUser(
-        uint price,
-        address unauthorizedUser
+
+    function testSetRedemptionPrice_worksGivenModifierInPlace(
+        address unauthorized_,
+        uint price_
     ) public {
-        // Assume valid unauthorized user
-        vm.assume(unauthorizedUser != address(0));
-        vm.assume(unauthorizedUser != address(this));
-        vm.assume(unauthorizedUser != priceSetter_);
+        // Setup
+        vm.assume(unauthorized_ != address(this));
+        vm.assume(price_ > 0);
+        bytes32 roleId = _authorizer.generateRoleId(
+            address(manualExternalPriceSetter),
+            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+        );
 
-        price = bound(price, 1e6, 1_000_000_000_000 * 1e6);
-
-        // Test unauthorized access
-        vm.startPrank(unauthorizedUser);
+        // Test
+        vm.startPrank(unauthorized_);
         vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__CallerNotAuthorized(bytes32,address)",
-                _authorizer.generateRoleId(
-                    address(priceSetter), PRICE_SETTER_ROLE
-                ),
-                unauthorizedUser
+            abi.encodeWithSelector(
+                IModule_v1.Module__CallerNotAuthorized.selector,
+                roleId,
+                unauthorized_
             )
         );
-        priceSetter.setRedemptionPrice(price);
-        vm.stopPrank();
+        manualExternalPriceSetter.setRedemptionPrice(price_);
+    }
 
-        // Test zero price with authorized user
-        vm.startPrank(priceSetter_);
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__LM_ExternalPriceSetter__InvalidPrice()"
-            )
-        );
-        priceSetter.setRedemptionPrice(0);
-
-        // Test valid price setting
-        priceSetter.setRedemptionPrice(price);
+    function testSetRedemptionPrice_worksGivenPriceIsSet(
+        uint initialPrice_,
+        uint updatePrice_
+    ) public {
+        // Setup
+        vm.assume(initialPrice_ > 0 && updatePrice_ > 0);
+        vm.assume(initialPrice_ != updatePrice_);
+        // Set initial price
+        manualExternalPriceSetter.setRedemptionPrice(initialPrice_);
+        // pre-condition
         assertEq(
-            priceSetter.getPriceForRedemption(),
-            price,
+            manualExternalPriceSetter.getPriceForRedemption(),
+            initialPrice_,
+            "Initial redemption price not set correctly"
+        );
+
+        // Test
+        manualExternalPriceSetter.setRedemptionPrice(updatePrice_);
+
+        // Assert
+        assertEq(
+            manualExternalPriceSetter.getPriceForRedemption(),
+            updatePrice_,
             "Redemption price not set correctly"
         );
+    }
 
-        // Test price independence by setting a different issuance price
-        uint issuancePrice = price; // Convert to 6 decimals for issuance
-        priceSetter.setIssuancePrice(issuancePrice);
+    /* Test: Function: SetIssuanceAndRedemptionPrice()
+        ├── Given the caller has not PRICE_SETTER_ROLE
+        │   └── When the function setIssuanceAndRedemptionPrice() is called
+        │       └── Then the function should revert (Modifier in place test)
+        └── Given the caller has PRICE_SETTER_ROLE
+            └── When the function setIssuanceAndRedemptionPrice() is called
+                └── Then the price should be set correctly (redirects to internal funcs)
+    */
 
-        // Verify both prices maintain their values independently
+    function testSetIssuanceAndRedemptionPrice_worksGivenModifierInPlace(
+        address unauthorized_,
+        uint issuancePrice_,
+        uint redemptionPrice_
+    ) public {
+        // Setup
+        vm.assume(unauthorized_ != address(this));
+        vm.assume(issuancePrice_ > 0 && redemptionPrice_ > 0);
+        bytes32 roleId = _authorizer.generateRoleId(
+            address(manualExternalPriceSetter),
+            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+        );
+
+        // Test
+        vm.startPrank(unauthorized_);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IModule_v1.Module__CallerNotAuthorized.selector,
+                roleId,
+                unauthorized_
+            )
+        );
+        manualExternalPriceSetter.setIssuanceAndRedemptionPrice(
+            issuancePrice_, redemptionPrice_
+        );
+    }
+
+    function testSetIssuanceAndRedemptionPrice_worksGivenPricesAreSet(
+        uint initialIssuancePrice_,
+        uint initialRedemptionPrice_,
+        uint updateIssuancePrice_,
+        uint updateRedemptionPrice_
+    ) public {
+        // Setup
+        vm.assume(
+            initialIssuancePrice_ > 0 && initialRedemptionPrice_ > 0
+                && updateIssuancePrice_ > 0 && updateRedemptionPrice_ > 0
+        );
+        vm.assume(initialIssuancePrice_ != updateIssuancePrice_);
+        vm.assume(initialRedemptionPrice_ != updateRedemptionPrice_);
+        // Set initial prices
+        manualExternalPriceSetter.setIssuanceAndRedemptionPrice(
+            initialIssuancePrice_, initialRedemptionPrice_
+        );
+        // pre-condition
         assertEq(
-            priceSetter.getPriceForRedemption(),
-            price,
-            "Redemption price changed unexpectedly"
+            manualExternalPriceSetter.getPriceForIssuance(),
+            initialIssuancePrice_,
+            "Initial issuance price not set correctly"
         );
         assertEq(
-            priceSetter.getPriceForIssuance(),
-            issuancePrice,
+            manualExternalPriceSetter.getPriceForRedemption(),
+            initialRedemptionPrice_,
+            "Initial redemption price not set correctly"
+        );
+
+        // Test
+        manualExternalPriceSetter.setIssuanceAndRedemptionPrice(
+            updateIssuancePrice_, updateRedemptionPrice_
+        );
+
+        // Assert
+        assertEq(
+            manualExternalPriceSetter.getPriceForIssuance(),
+            updateIssuancePrice_,
             "Issuance price not set correctly"
         );
+        assertEq(
+            manualExternalPriceSetter.getPriceForRedemption(),
+            updateRedemptionPrice_,
+            "Redemption price not set correctly"
+        );
+    }
 
-        vm.stopPrank();
+    /* Test: Function getPriceForIssuance()
+        └── Given a price is set
+            └── When the function getPriceForIssuance() is called
+                └── Then the function should return the correct price
+    */
+
+    function testGetPriceForIssuance_worksGivenPriceIsSet(uint price_) public {
+        // Setup
+        vm.assume(price_ > 0);
+        manualExternalPriceSetter.setIssuancePrice(price_);
+
+        // Test
+        assertEq(
+            manualExternalPriceSetter.getPriceForIssuance(),
+            price_,
+            "Issuance price not set correctly"
+        );
+    }
+
+    /* Test: Function getPriceForRedemption()
+        └── Given a price is set
+            └── When the function getPriceForRedemption() is called
+                └── Then the function should return the correct price
+    */
+
+    function testGetPriceForRedemption_worksGivenPriceIsSet(uint price_)
+        public
+    {
+        // Setup
+        vm.assume(price_ > 0);
+        manualExternalPriceSetter.setRedemptionPrice(price_);
+
+        // Test
+        assertEq(
+            manualExternalPriceSetter.getPriceForRedemption(),
+            price_,
+            "Redemption price not set correctly"
+        );
+    }
+
+    // ================================================================================
+    // Test Internal
+
+    /* Test: Function _setIssuancePrice()
+        ├── Given the price is 0
+        │   └── When the function _setIssuancePrice() is called
+        │       └── Then it should revert
+        └── Given the price is bigger than 0
+            └── When the function _setIssuancePrice() is called
+                ├── Then it should set the issuance price correctly
+                    └── And it should emit an event
+    */
+
+    function testInternalSetIssuancePrice_revertGivenPriceIsZero() public {
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILM_ManualExternalPriceSetter_v1
+                    .Module__LM_ExternalPriceSetter__InvalidPrice
+                    .selector
+            )
+        );
+        manualExternalPriceSetter.exposed_setIssuancePrice(0);
+    }
+
+    function testInternalSetIssuancePrie_worksGivenPriceGreaterThanZero(
+        uint price_
+    ) public {
+        // Setup
+        vm.assume(price_ > 0);
+
+        // Test
+        vm.expectEmit(true, true, true, true);
+        emit IOraclePrice_v1.IssuancePriceSet(price_, address(this));
+        manualExternalPriceSetter.exposed_setIssuancePrice(price_);
+
+        // Assert
+        assertEq(
+            manualExternalPriceSetter.getPriceForIssuance(),
+            price_,
+            "Issuance price not set correctly"
+        );
+    }
+    /* Test: Function _setRedemptionPrice()
+        ├── Given the price is 0
+        │   └── When the function _setRedemptionPrice() is called
+        │       └── Then it should revert
+        └── Given the price is bigger than 0
+            └── When the function _setRedemptionPrice() is called
+                ├── Then it should set the redemption price correctly
+                    └── And it should emit an event
+    */
+
+    function testInternalSetRedemptionPrice_revertGivenPriceIsZero() public {
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                ILM_ManualExternalPriceSetter_v1
+                    .Module__LM_ExternalPriceSetter__InvalidPrice
+                    .selector
+            )
+        );
+        manualExternalPriceSetter.exposed_setRedemptionPrice(0);
+    }
+
+    function testInternalSetRedemptionPrice_worksGivenPriceGreaterThanZero(
+        uint price_
+    ) public {
+        // Setup
+        vm.assume(price_ > 0);
+
+        // Test
+        vm.expectEmit(true, true, true, true);
+        emit IOraclePrice_v1.RedemptionPriceSet(price_, address(this));
+        manualExternalPriceSetter.exposed_setRedemptionPrice(price_);
+
+        // Assert
+        assertEq(
+            manualExternalPriceSetter.getPriceForRedemption(),
+            price_,
+            "Redemption price not set correctly"
+        );
     }
 }

@@ -1032,6 +1032,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         vm.assume(buyer != address(0));
         vm.assume(buyer != address(this));
         vm.assume(buyer != admin);
+        vm.assume(buyer != address(fundingManager));
 
         // Given - Grant whitelist role to the user
         // _authorizer.grantRole(roleId, buyer);

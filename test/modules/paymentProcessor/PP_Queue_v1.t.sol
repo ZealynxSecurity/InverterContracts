@@ -1525,7 +1525,10 @@ contract PP_Queue_v1 is ModuleTest {
         uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
         assertTrue(
-            queue.exposed_orderExists(orderId_, address(this)),
+            queue.exposed_orderExists(
+                orderId_,
+                IERC20PaymentClientBase_v1(address(this))
+            ),
             "Order should exist."
         );
     }
@@ -1537,7 +1540,10 @@ contract PP_Queue_v1 is ModuleTest {
     */
     function testOrderExists_GivenInvalidOrder() public {
         assertFalse(
-            queue.exposed_orderExists(999, address(this)),
+            queue.exposed_orderExists(
+                999,
+                IERC20PaymentClientBase_v1(address(this))
+            ),
             "Invalid order should not exist."
         );
     }
@@ -1567,7 +1573,10 @@ contract PP_Queue_v1 is ModuleTest {
 
         address invalidClient_ = makeAddr("invalidClient");
         assertFalse(
-            queue.exposed_orderExists(orderId_, invalidClient_),
+            queue.exposed_orderExists(
+                orderId_,
+                IERC20PaymentClientBase_v1(invalidClient_)
+            ),
             "Order should not exist for invalid client."
         );
     }
@@ -1596,7 +1605,7 @@ contract PP_Queue_v1 is ModuleTest {
         uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
         assertTrue(
-            queue.exposed_validQueueId(orderId_),
+            queue.exposed_validQueueId(orderId_, address(this)),
             "Queue ID should be valid."
         );
     }
@@ -1728,8 +1737,12 @@ contract PP_Queue_v1 is ModuleTest {
             });
 
         _token.mint(address(queue), amount_);
-        queue.exposed_addUnclaimableOrder(order_);
-        queue.claimPreviouslyUnclaimable(order_);
+        queue.exposed_addUnclaimableOrder(order_, address(this));
+        queue.claimPreviouslyUnclaimable(
+            address(this),
+            address(_token),
+            recipient_
+        );
 
         assertEq(
             _token.balanceOf(recipient_),
@@ -1764,8 +1777,12 @@ contract PP_Queue_v1 is ModuleTest {
                 });
 
             _token.mint(address(queue), amounts_[i_]);
-            queue.exposed_addUnclaimableOrder(order_);
-            queue.claimPreviouslyUnclaimable(order_);
+            queue.exposed_addUnclaimableOrder(order_, address(this));
+            queue.claimPreviouslyUnclaimable(
+                address(this),
+                address(_token),
+                recipients_[i_]
+            );
 
             assertEq(
                 _token.balanceOf(recipients_[i_]),
@@ -1850,7 +1867,7 @@ contract PP_Queue_v1 is ModuleTest {
                 uint8(IPP_Queue_v1.RedemptionState.CANCELLED)
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
+        queue.cancelPaymentOrderThroughQueueId(orderId_, IERC20PaymentClientBase_v1(address(this)));
     }
 
     /* Test testCancelPaymentOrder_RevertGivenCancelledOrder()
@@ -1875,7 +1892,7 @@ contract PP_Queue_v1 is ModuleTest {
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
-        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
+        queue.cancelPaymentOrderThroughQueueId(orderId_, IERC20PaymentClientBase_v1(address(this)));
 
         vm.expectRevert(
             abi.encodeWithSignature(
@@ -1885,7 +1902,7 @@ contract PP_Queue_v1 is ModuleTest {
                 uint8(IPP_Queue_v1.RedemptionState.CANCELLED)
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(orderId_, address(this));
+        queue.cancelPaymentOrderThroughQueueId(orderId_, IERC20PaymentClientBase_v1(address(this)));
     }
 
     /* Test testOrderExists_GivenDifferentStates()
@@ -1911,7 +1928,7 @@ contract PP_Queue_v1 is ModuleTest {
             });
 
         assertFalse(
-            queue.orderExists(999, address(this)),
+            queue.exposed_orderExists(999, IERC20PaymentClientBase_v1(address(this))),
             "Non-existent order should return false."
         );
 
@@ -1920,7 +1937,7 @@ contract PP_Queue_v1 is ModuleTest {
         
         uint orderId1_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
         assertTrue(
-            queue.orderExists(orderId1_, address(this)),
+            queue.exposed_orderExists(orderId1_, IERC20PaymentClientBase_v1(address(this))),
             "Existing order should return true."
         );
 
@@ -1929,14 +1946,14 @@ contract PP_Queue_v1 is ModuleTest {
             IPP_Queue_v1.RedemptionState.CANCELLED
         );
         assertTrue(
-            queue.orderExists(orderId1_, address(this)),
+            queue.exposed_orderExists(orderId1_, IERC20PaymentClientBase_v1(address(this))),
             "Cancelled order should return true."
         );
 
         uint orderId2_ = queue.exposed_addPaymentOrderToQueue(order_, address(this));
         queue.exposed_executePaymentQueue(address(this));
         assertTrue(
-            queue.orderExists(orderId2_, address(this)),
+            queue.exposed_orderExists(orderId2_, IERC20PaymentClientBase_v1(address(this))),
             "Completed order should return true."
         );
     }
@@ -2023,7 +2040,7 @@ contract PP_Queue_v1 is ModuleTest {
     */
     function testValidQueueId_RevertGivenInvalidId() public {
         assertFalse(
-            queue.exposed_validQueueId(999),
+            queue.exposed_validQueueId(999, address(this)),
             "Invalid queue ID should return false."
         );
     }
@@ -2043,7 +2060,7 @@ contract PP_Queue_v1 is ModuleTest {
                 nonExistentOrderId_
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(nonExistentOrderId_, address(this));
+        queue.cancelPaymentOrderThroughQueueId(nonExistentOrderId_, IERC20PaymentClientBase_v1(address(this)));
     }
 
     /* Test testCancelPaymentOrder_RevertGivenZeroId()
@@ -2059,6 +2076,6 @@ contract PP_Queue_v1 is ModuleTest {
                 0
             )
         );
-        queue.cancelPaymentOrderThroughQueueId(0, address(this));
+        queue.cancelPaymentOrderThroughQueueId(0, IERC20PaymentClientBase_v1(address(this)));
     }
 }

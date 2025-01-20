@@ -96,4 +96,16 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
     ) external view returns (bool) {
         return _orderExists(orderId_, client_);
     }
+
+    function exposed_addUnclaimableOrder(
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_,
+        address client_
+    ) external {
+        _addToUnclaimableAmount(
+            client_,
+            order_.paymentToken,
+            order_.recipient,
+            order_.amount
+        );
+    }
 }

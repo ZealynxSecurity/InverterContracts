@@ -748,6 +748,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool exists_)
     {
-        return orderId_ <= _currentOrderId[address(client_)];
+        return orderId_ > 0 && orderId_ <= _currentOrderId[address(client_)];
     }
 }

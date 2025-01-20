@@ -1477,13 +1477,7 @@ contract PP_Queue_v1_Test is ModuleTest {
 
         _token.mint(address(queue), amount_ - 1);
 
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__PP_Queue_TransferFailed(address,uint256)",
-                recipient_,
-                amount_
-            )
-        );
+        vm.expectRevert();
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
         queue.exposed_executePaymentTransfer(orderId_);

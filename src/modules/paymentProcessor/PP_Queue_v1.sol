@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-// Internal
+// -------------------------------------------------------------------------
+// External Imports
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+
+// -------------------------------------------------------------------------
+// Internal Imports
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
@@ -10,10 +16,6 @@ import {IERC20PaymentClientBase_v1} from
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {ERC165Upgradeable, Module_v1} from "src/modules/base/Module_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
-
-// External
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title   Queue Based Payment Processor
@@ -125,8 +127,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         __Module_init(orchestrator_, metadata_);
     }
 
-    //--------------------------------------------------------------------------
-    // Public (Getters)
+    // -------------------------------------------------------------------------
+    // Public View Functions (Getters)
 
     /// @inheritdoc IPP_Queue_v1
     function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
@@ -189,8 +191,32 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         role_ = _queueOperatorRole();
     }
 
-    //--------------------------------------------------------------------------
-    // Public (Mutating)
+    /// @inheritdoc IPaymentProcessor_v1
+    function unclaimable(
+        address client_,
+        address token_,
+        address paymentReceiver_
+    ) public view returns (uint amount_) {
+        amount_ =
+            _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
+    }
+
+    /// @inheritdoc IPaymentProcessor_v1
+    function validPaymentOrder(
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_
+    ) external view returns (bool isValid_) {
+        // Extract queue ID from order data.
+        uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
+
+        // Validate payment receiver, amount and queue ID.
+        isValid_ = _validPaymentReceiver(order_.recipient)
+            && _validTotalAmount(order_.amount)
+            && _validQueueId(queueId_, address(msg.sender))
+            && _validPaymentToken(order_.paymentToken);
+    }
+
+    // -------------------------------------------------------------------------
+    // Public Mutating Functions
 
     /// @inheritdoc IPaymentProcessor_v1
     function processPayments(IERC20PaymentClientBase_v1 client_)
@@ -223,16 +249,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPaymentProcessor_v1
-    function unclaimable(
-        address client_,
-        address token_,
-        address paymentReceiver_
-    ) public view returns (uint amount_) {
-        amount_ =
-            _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
-    }
-
-    /// @inheritdoc IPaymentProcessor_v1
     function claimPreviouslyUnclaimable(
         address client_,
         address token_,
@@ -243,20 +259,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         _claimPreviouslyUnclaimable(client_, token_, receiver_);
-    }
-
-    /// @inheritdoc IPaymentProcessor_v1
-    function validPaymentOrder(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_
-    ) external view returns (bool isValid_) {
-        // Extract queue ID from order data.
-        uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-
-        // Validate payment receiver, amount and queue ID.
-        isValid_ = _validPaymentReceiver(order_.recipient)
-            && _validTotalAmount(order_.amount)
-            && _validQueueId(queueId_, address(msg.sender))
-            && _validPaymentToken(order_.paymentToken);
     }
 
     /// @inheritdoc IPP_Queue_v1

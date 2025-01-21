@@ -35,6 +35,8 @@ import {
 
 import {ERC20DecimalsMock} from "test/utils/mocks/ERC20DecimalsMock.sol";
 
+import {IERC20PaymentClientBase_v1} from "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+
 contract FundingManagerPaymentProcessorE2E is E2ETest {
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
@@ -295,6 +297,317 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         assertEq(issuanceToken.balanceOf(user2), 0, "User2 should have 0 issuance tokens after selling");
     }
 
+    function test_e2e_FundPaymentProcessor() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18; // 1:1 ratio
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup user and initial conditions
+        address user = makeAddr("user");
+        uint256 buyAmount = 1e18;
+
+        // User buys tokens first
+        console.log("\n=== User buying tokens ===");
+        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
+        vm.prank(user);
+        fundingManager.buy(buyAmount, 1);
+        uint256 userBalance = issuanceToken.balanceOf(user);
+        assertGt(userBalance, 0, "User should have received issuance tokens");
+
+        // User creates a sell order which adds a payment order to the queue
+        console.log("\n=== Creating sell order (adds payment to queue) ===");
+        _prepareSellConditions(orchestrator, admin, user, userBalance);
+        vm.prank(user);
+        fundingManager.sell(userBalance, 1);
+
+        // Get the payment processor's balance before funding
+        uint256 balanceBefore = token.balanceOf(address(paymentProcessor));
+
+        // Fund the payment processor with tokens to process payments
+        console.log("\n=== Funding payment processor ===");
+        vm.startPrank(admin);
+        token.mint(admin, userBalance);
+        token.transfer(address(paymentProcessor), userBalance);
+        vm.stopPrank();
+
+        // Verify the funding
+        uint256 balanceAfter = token.balanceOf(address(paymentProcessor));
+        assertEq(balanceAfter, balanceBefore + userBalance, "Payment processor should have received the tokens for processing payments");
+    }
+
+    function test_e2e_ProcessPaymentQueue() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18; // 1:1 ratio
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup user and initial conditions
+        address user = makeAddr("user");
+        uint256 buyAmount = 1e18;
+
+        // User buys tokens first
+        console.log("\n=== User buying tokens ===");
+        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
+        vm.prank(user);
+        fundingManager.buy(buyAmount, 1);
+        uint256 userBalance = issuanceToken.balanceOf(user);
+        assertGt(userBalance, 0, "User should have received issuance tokens");
+
+        // Fund the payment processor with tokens to process payments
+        console.log("\n=== Funding payment processor ===");
+        vm.startPrank(admin);
+        token.mint(admin, userBalance);
+        token.transfer(address(paymentProcessor), userBalance);
+        vm.stopPrank();
+
+        // Get user's balance before selling
+        uint256 userBalanceBefore = token.balanceOf(user);
+
+        // User sells tokens which triggers payment processing
+        console.log("\n=== User selling tokens ===");
+        _prepareSellConditions(orchestrator, admin, user, userBalance);
+        vm.prank(user);
+        fundingManager.sell(userBalance, 1);
+
+        // Verify payment was processed correctly
+        uint256 userBalanceAfter = token.balanceOf(user);
+        
+        assertGt(userBalanceAfter, userBalanceBefore, "User should have received payment");
+        assertEq(issuanceToken.balanceOf(user), 0, "User should have 0 issuance tokens after sell");
+
+        // Verify queue is empty by checking its size
+        uint256 queueSize = IPP_Queue_v1(address(paymentProcessor)).getQueueSizeForClient(address(fundingManager));
+        assertEq(queueSize, 0, "Queue should be empty after payment processing");
+    }
+
+    function test_e2e_ProcessMultiplePayments() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18;
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup users
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+        uint256 buyAmount = 1e18;
+
+        // Fund payment processor
+        vm.startPrank(admin);
+        token.mint(admin, buyAmount * 2);
+        token.transfer(address(paymentProcessor), buyAmount * 2);
+        vm.stopPrank();
+
+        // User 1 buys and sells
+        console.log("\n=== User 1 buying and selling ===");
+        _prepareBuyConditions(orchestrator, admin, user1, buyAmount);
+        vm.prank(user1);
+        fundingManager.buy(buyAmount, 1);
+        uint256 user1Balance = issuanceToken.balanceOf(user1);
+        
+        uint256 user1TokensBefore = token.balanceOf(user1);
+        _prepareSellConditions(orchestrator, admin, user1, user1Balance);
+        vm.prank(user1);
+        fundingManager.sell(user1Balance, 1);
+
+        // User 2 buys and sells
+        console.log("\n=== User 2 buying and selling ===");
+        _prepareBuyConditions(orchestrator, admin, user2, buyAmount);
+        vm.prank(user2);
+        fundingManager.buy(buyAmount, 1);
+        uint256 user2Balance = issuanceToken.balanceOf(user2);
+        
+        uint256 user2TokensBefore = token.balanceOf(user2);
+        _prepareSellConditions(orchestrator, admin, user2, user2Balance);
+        vm.prank(user2);
+        fundingManager.sell(user2Balance, 1);
+
+        // Verify both users received their payments
+        assertGt(token.balanceOf(user1), user1TokensBefore, "User 1 should have received payment");
+        assertGt(token.balanceOf(user2), user2TokensBefore, "User 2 should have received payment");
+        assertEq(issuanceToken.balanceOf(user1), 0, "User 1 should have 0 issuance tokens");
+        assertEq(issuanceToken.balanceOf(user2), 0, "User 2 should have 0 issuance tokens");
+
+        // Verify queue is empty
+        uint256 queueSize = IPP_Queue_v1(address(paymentProcessor)).getQueueSizeForClient(address(fundingManager));
+        assertEq(queueSize, 0, "Queue should be empty after processing all payments");
+    }
+
+    function test_e2e_ProcessPaymentsWithInsufficientBalance() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18;
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup user
+        address user = makeAddr("user");
+        uint256 buyAmount = 1e18;
+
+        // User buys tokens first
+        console.log("\n=== User buying tokens ===");
+        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
+        vm.prank(user);
+        fundingManager.buy(buyAmount, 1);
+        uint256 userBalance = issuanceToken.balanceOf(user);
+
+        // Prepare sell conditions without funding the payment processor
+        _prepareSellConditionsWithoutFunding(orchestrator, admin, user, userBalance);
+
+        // User tries to sell - should revert due to queue operation failure
+        vm.prank(user);
+        vm.expectRevert(abi.encodeWithSignature("Module__PP_Queue_QueueOperationFailed(address)", address(fundingManager)));
+        fundingManager.sell(userBalance, 1);
+
+        // Verify user still has their issuance tokens
+        assertEq(issuanceToken.balanceOf(user), userBalance, "User should still have their issuance tokens");
+    }
+
+    //@audit => TODO
+    function test_e2e_UnclaimablePayments() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18;
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup user
+        address user = makeAddr("user");
+        uint256 buyAmount = 1e18;
+
+        // User buys tokens
+        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
+        vm.prank(user);
+        fundingManager.buy(buyAmount, 1);
+        uint256 userBalance = issuanceToken.balanceOf(user);
+
+        // Prepare sell conditions and fund the fundingManager
+        _prepareSellConditionsWithoutFunding(orchestrator, admin, user, userBalance);
+        vm.startPrank(admin);
+        token.mint(address(fundingManager), userBalance * 2); // Fund with extra tokens to ensure enough balance
+        vm.stopPrank();
+        
+        // Attempt sell - this should fail because payment processor has no funds
+        vm.prank(user);
+        fundingManager.sell(userBalance, 1);
+
+        // Check unclaimable amount
+        uint256 unclaimableAmount = paymentProcessor.unclaimable(
+            address(fundingManager),
+            address(token),
+            user
+        );
+        assertGt(unclaimableAmount, 0, "Should have unclaimable amount");
+
+        // Fund payment processor
+        vm.startPrank(admin);
+        token.mint(admin, unclaimableAmount);
+        token.transfer(address(paymentProcessor), unclaimableAmount);
+        vm.stopPrank();
+
+        // Claim unclaimable amount
+        vm.prank(user);
+        paymentProcessor.claimPreviouslyUnclaimable(
+            address(fundingManager),
+            address(token),
+            user
+        );
+
+        // Verify claim was successful
+        assertEq(
+            paymentProcessor.unclaimable(address(fundingManager), address(token), user),
+            0,
+            "Unclaimable amount should be 0 after claim"
+        );
+    }
+    //@audit => TODO
+    function test_e2e_QueueOperations() public {
+        _setupOrchestratorFundingManagerPaymentProcessor();
+
+        // Setup oracle and set prices
+        uint256 initialPrice = 1e18;
+        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
+        vm.prank(admin);
+        oraclelm.setRedemptionPrice(initialPrice);
+
+        // Setup multiple users
+        address user1 = makeAddr("user1");
+        address user2 = makeAddr("user2");
+        uint256 buyAmount = 1e18;
+
+        // Users buy tokens
+        _prepareBuyConditions(orchestrator, admin, user1, buyAmount);
+        vm.prank(user1);
+        fundingManager.buy(buyAmount, 1);
+        uint256 user1Balance = issuanceToken.balanceOf(user1);
+
+        _prepareBuyConditions(orchestrator, admin, user2, buyAmount);
+        vm.prank(user2);
+        fundingManager.buy(buyAmount, 1);
+        uint256 user2Balance = issuanceToken.balanceOf(user2);
+
+        // Calculate total payment amount needed
+        uint256 totalPaymentAmount = user1Balance + user2Balance;
+
+        // Fund the fundingManager with tokens BEFORE sells
+        vm.startPrank(admin);
+        token.mint(address(fundingManager), totalPaymentAmount);
+        vm.stopPrank();
+
+        // Create sell orders without funding payment processor
+        _prepareSellConditionsWithoutFunding(orchestrator, admin, user1, user1Balance);
+        
+        // Approve payment processor to spend tokens from funding manager for first sell
+        vm.prank(address(fundingManager));
+        token.approve(address(paymentProcessor), user1Balance);
+        
+        vm.prank(user1);
+        fundingManager.sell(user1Balance, 1);
+
+        _prepareSellConditionsWithoutFunding(orchestrator, admin, user2, user2Balance);
+        
+        // Approve payment processor to spend tokens from funding manager for second sell
+        vm.prank(address(fundingManager));
+        token.approve(address(paymentProcessor), user2Balance);
+        
+        vm.prank(user2);
+        fundingManager.sell(user2Balance, 1);
+
+        // Check queue operations before processing
+        uint256 queueHead = IPP_Queue_v1(address(paymentProcessor)).getQueueHead(address(fundingManager));
+        uint256 queueTail = IPP_Queue_v1(address(paymentProcessor)).getQueueTail(address(fundingManager));
+        uint256 queueSize = IPP_Queue_v1(address(paymentProcessor)).getQueueSizeForClient(address(fundingManager));
+
+        assertGt(queueHead, 0, "Queue head should be set");
+        assertGt(queueTail, 0, "Queue tail should be set");
+        assertEq(queueSize, 2, "Queue should have 2 items");
+        assertGt(queueTail, queueHead, "Tail ID should be greater than head ID");
+
+        // Process the queue - call must come from fundingManager
+        vm.prank(address(fundingManager));
+        paymentProcessor.processPayments(IERC20PaymentClientBase_v1(address(fundingManager)));
+
+        // Verify queue is empty after processing
+        queueSize = IPP_Queue_v1(address(paymentProcessor)).getQueueSizeForClient(address(fundingManager));
+        assertEq(queueSize, 0, "Queue should be empty after processing");
+
+        // Verify users received their tokens
+        assertGt(token.balanceOf(user1), 0, "User1 should have received tokens");
+        assertGt(token.balanceOf(user2), 0, "User2 should have received tokens");
+    }
 
     function _setupOrchestratorFundingManagerPaymentProcessor() internal {
 
@@ -422,6 +735,23 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         token.mint(address(fundingManager), requiredAmount);
         
         // Approve payment processor to spend tokens
+        vm.stopPrank();
+        
+        // Approve funding manager to spend issuance tokens
+        vm.startPrank(seller);
+        issuanceToken.approve(address(fundingManager), amount);
+        vm.stopPrank();
+    }
+
+    function _prepareSellConditionsWithoutFunding(
+        IOrchestrator_v1 orchestrator,
+        address admin,
+        address seller,
+        uint256 amount
+    ) internal {
+        // Enable selling functionality
+        vm.startPrank(admin);
+        fundingManager.openSell();
         vm.stopPrank();
         
         // Approve funding manager to spend issuance tokens

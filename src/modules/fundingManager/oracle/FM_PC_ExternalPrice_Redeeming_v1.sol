@@ -64,6 +64,7 @@ import {console} from "forge-std/console.sol";
  *
  * @author  Zealynx Security
  */
+
 contract FM_PC_ExternalPrice_Redeeming_v1 is
     IFM_PC_ExternalPrice_Redeeming_v1,
     ERC20PaymentClientBase_v1,
@@ -354,7 +355,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(ERC20PaymentClientBase_v1, IERC20PaymentClientBase_v1)
     {
         _deductFromOpenRedemptionAmount(amount_);
-        
+
         // Ensure caller is authorized to act as payment processor.
         if (!_isAuthorizedPaymentProcessor(IPaymentProcessor_v1(_msgSender())))
         {
@@ -480,6 +481,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Generate new order ID.
         _orderId = ++_orderId;
 
+        console.log("=== Creating order ===");
+        console.log("Order ID in FM:", _orderId);
+
         // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
 
@@ -493,7 +497,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             bytes32[] memory paymentParameters = new bytes32[](1);
             paymentParameters[0] = bytes32(_orderId);
 
-            (flags, data) = _assemblePaymentConfig(paymentParameters);
+            (flags, data) = _assemblePaymentConfig(paymentParameters); //  This is not configuring the flag correctly
         }
         // Create and add payment order.
         PaymentOrder memory order = PaymentOrder({
@@ -558,7 +562,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         console.log("=== Starting _sellOrder ===");
         console.log("Initial deposit amount:", _depositAmount);
         console.log("Min amount out:", _minAmountOut);
-        
+
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
         // Get protocol fee percentages and treasury addresses.
         (
@@ -684,11 +688,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     {
         console.log("Initial deposit amount:", depositAmount_);
         console.log("Oracle price:", _oracle.getPriceForRedemption());
-        
+
         // Calculate redeem amount through oracle price and normalize to 18 decimals
-        uint tokenAmount_ = (_oracle.getPriceForRedemption() * depositAmount_) / 1e18;
+        uint tokenAmount_ =
+            (_oracle.getPriceForRedemption() * depositAmount_) / 1e18;
         console.log("Normalized token amount:", tokenAmount_);
-        
+
         // Convert redeem amount to collateral decimals
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals

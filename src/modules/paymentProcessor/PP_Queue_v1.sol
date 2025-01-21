@@ -14,7 +14,7 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-import{console} from "forge-std/console.sol";
+import {console} from "forge-std/console.sol";
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
@@ -432,9 +432,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-        if (queueId_ == 0) {
-            queueId_ = ++_currentOrderId[client_];
-        }
+        // if (queueId_ == 0) {
+        //     queueId_ = ++_currentOrderId[client_];
+        // }
 
         // Create new order
         _orders[queueId_] = QueuedOrder({
@@ -452,6 +452,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         // Add to linked list
         _queue[client_].addId(queueId_);
+
+        _currentOrderId[client_] = queueId_;
 
         emit PaymentOrderQueued(
             queueId_,
@@ -547,16 +549,19 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @return queueId_ The queue ID from the data or a newly generated one.
     function _getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
         internal
-        pure
+        view
         returns (uint queueId_)
     {
         // Check if orderID flag is set (bit 0)
         bool hasOrderId = uint(flags_) & (1 << FLAG_ORDER_ID) != 0;
+        console.log("=== PP: Flag set correctly ===", hasOrderId);
 
         // If flag is set and data is provided, use that ID
         if (hasOrderId && data_.length > FLAG_ORDER_ID) {
             queueId_ = uint(data_[FLAG_ORDER_ID]);
         }
+
+        console.log("=== PP: order ID", queueId_);
     }
 
     /// @notice Validate total input amount.

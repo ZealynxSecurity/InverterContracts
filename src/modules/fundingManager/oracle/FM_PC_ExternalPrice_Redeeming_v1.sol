@@ -34,6 +34,7 @@ import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
+import {console} from "forge-std/console.sol";
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
  *
@@ -554,6 +555,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
+        console.log("=== Starting _sellOrder ===");
+        console.log("Initial deposit amount:", _depositAmount);
+        console.log("Min amount out:", _minAmountOut);
+        
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
         // Get protocol fee percentages and treasury addresses.
         (
@@ -565,6 +570,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             bytes4(keccak256(bytes("_sellOrder(address,uint,uint)")))
         );
 
+        console.log("Collateral sell fee %:", collateralSellFeePercentage);
+        console.log("Issuance sell fee %:", issuanceSellFeePercentage);
+
         uint protocolFeeAmount;
         uint projectFeeAmount;
         uint netDeposit;
@@ -574,10 +582,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         (netDeposit, protocolFeeAmount, /* projectFee */ ) =
         _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
 
+        console.log("Net deposit after issuance fees:", netDeposit);
+        console.log("Protocol fee amount:", protocolFeeAmount);
+
         issuanceFeeAmount = protocolFeeAmount;
 
         // Calculate redeem amount based on upstream formula.
         uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
+        console.log("Initial collateral redeem amount:", collateralRedeemAmount);
 
         totalCollateralTokenMovedOut = collateralRedeemAmount;
 
@@ -670,13 +682,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint redeemAmount_)
     {
-        // Calculate redeem amount through oracle price.
-        uint tokenAmount_ = _oracle.getPriceForRedemption() * depositAmount_;
-
-        // Convert redeem amount to collateral decimals.
+        console.log("Initial deposit amount:", depositAmount_);
+        console.log("Oracle price:", _oracle.getPriceForRedemption());
+        
+        // Calculate redeem amount through oracle price and normalize to 18 decimals
+        uint tokenAmount_ = (_oracle.getPriceForRedemption() * depositAmount_) / 1e18;
+        console.log("Normalized token amount:", tokenAmount_);
+        
+        // Convert redeem amount to collateral decimals
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals
         );
+        console.log("Final redeem amount:", redeemAmount_);
     }
 
     /// @dev    Sets the issuance token.

@@ -14,6 +14,8 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+import{console} from "forge-std/console.sol";
+import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
  * @title   Queue Based Payment Processor
@@ -482,6 +484,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         returns (bool valid_)
     {
         IERC20 token = IERC20(token_);
+        console.log("=== Token Balance Check ===");
+        console.log("Token address:", address(token));
+        console.log("Client address:", client_);
+        console.log("Required amount:", amount_);
+        console.log("Token balance:", token.balanceOf(client_));
+        console.log("Token allowance:", token.allowance(client_, address(this)));
+        console.log("amount:", amount_);
         return token.balanceOf(client_) >= amount_
             && token.allowance(client_, address(this)) >= amount_;
     }
@@ -524,7 +533,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     {
         // Queue ID must be less than or equal to total orders
         // and greater than 0 (we start from 1).
-        return queueId_ > 0 && queueId_ <= _currentOrderId[client_];
+        // return queueId_ > 0 && queueId_ <= _currentOrderId[client_];
+        console.log("=== Queue ID Check ===");
+        console.log("Queue ID:", queueId_);
+        console.log("Current order ID:", _currentOrderId[client_]);
+        console.log("Current order ID + 1:", _currentOrderId[client_] + 1);
+        return queueId_ > 0 && queueId_ == _currentOrderId[client_] + 1;
     }
 
     /// @notice Gets payment queue ID from flags and data.

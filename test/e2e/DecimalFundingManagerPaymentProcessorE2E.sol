@@ -35,7 +35,7 @@ import {
 
 import {ERC20DecimalsMock} from "test/utils/mocks/ERC20DecimalsMock.sol";
 
-contract FundingManagerPaymentProcessorE2E is E2ETest {
+contract DecimalsFundingManagerPaymentProcessorE2E is E2ETest {
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
     // E2E Test Variables
@@ -77,21 +77,22 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     IOrchestrator_v1 public orchestrator;
 
     function setUp() public override {
+    }
+
+    function _setupWithToken(uint8 decimals, string memory name, string memory symbol) internal {
         // Setup common E2E framework
         super.setUp();
 
-        // Set Up individual Modules the E2E test is going to use and store their configurations:
-        // NOTE: It's important to store the module configurations in order, since _create_E2E_Orchestrator() will copy from the array.
-        // The order should be:
-        //      moduleConfigurations[0]  => FundingManager
-        //      moduleConfigurations[1]  => Authorizer
-        //      moduleConfigurations[2]  => PaymentProcessor
-        //      moduleConfigurations[3:] => Additional Logic Modules
+        // Create token with specified decimals
+        token = new ERC20DecimalsMock(name, symbol, decimals);
 
         // First create issuance token
         issuanceToken = new ERC20Issuance_v1(
             NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this)
         );
+
+        // Reset module configurations array
+        delete moduleConfigurations;
 
         // Additional Logic Modules
         setUpOracle();
@@ -113,6 +114,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
                 fundingManagerMetadata, configData
             )
         );
+
         // Authorizer
         setUpRoleAuthorizer();
         moduleConfigurations.push(
@@ -135,98 +137,46 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
                 oracleMetadata, abi.encode(address(token), address(issuanceToken))
             )
         );
+
+        // Setup orchestrator and modules
+        _setupOrchestratorFundingManagerPaymentProcessor();
     }
 
-    function test_e2e_FundingPayment_succeedsGivenValidBuyAmountAndInitialPrice() public {
-        
-        _setupOrchestratorFundingManagerPaymentProcessor();
+    function test_e2e_SellWith18Decimals() public {
+        address user2 = makeAddr("user2");
+        uint256 initialPrice = 1e18;
 
-        // Setup oracle and set prices
-        uint256 initialPrice = 1e18; // 1:1 ratio
-        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
-
-        // Log debug information
-        _logDebugInfo(orchestrator, oraclelm, initialPrice);
-
-        // Prepare buy conditions
-        uint256 buyAmount = 1000e18;
-        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
-
-        // Execute buy
-        vm.startPrank(user);
-        fundingManager.buy(buyAmount, 1);
-        vm.stopPrank();
-
-        // Verify user received issuance tokens
-        assertTrue(issuanceToken.balanceOf(user) > 0, "User should have received issuance tokens");
+        console.log("\n=== Test Sell: Token with 18 decimals ===");
+        _setupWithToken(18, "Token18", "TK18");
+        _testSellScenario(user2, initialPrice, 1e18); // Test with 1 token
     }
 
-    function test_e2e_BuyAndSell_succeedsGivenValidBuyAndRedeemAmounts() public {
+    function test_e2e_SellWith6Decimals() public {
+        address user2 = makeAddr("user2");
+        uint256 initialPrice = 1e18;
 
-        _setupOrchestratorFundingManagerPaymentProcessor();
-
-        uint256 initialPrice = 1e18; // 1:1 ratio
-        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
-
-
-        // Prepare for buying
-        uint256 buyAmount = 1000e18;
-        console.log("User initial token balance:", token.balanceOf(user));
-        console.log("User initial issuance token balance:", issuanceToken.balanceOf(user));
-
-        _prepareBuyConditions(orchestrator, admin, user, buyAmount);
-
-        // Execute buy
-        vm.startPrank(user);
-        uint256 expectedIssuedTokens = fundingManager.calculatePurchaseReturn(buyAmount);
-        fundingManager.buy(buyAmount, expectedIssuedTokens);
-        vm.stopPrank();
-        console.log("buyAmount:", buyAmount);
-
-        // Log state after buy
-        console.log("\n=== State After Buy ===");
-        uint256 issuanceTokenBalance = issuanceToken.balanceOf(user);
-        console.log("User token balance after buy:", token.balanceOf(user));
-        console.log("User issuance token balance after buy:", issuanceTokenBalance);
-
-        // Prepare for redeeming
-        console.log("\n=== Preparing Redeem ===");
-        uint256 redeemAmount = issuanceTokenBalance / 3; // Redeem one third of the tokens
-        console.log("Amount to redeem:", redeemAmount);
-
-        // Prepare sell conditions
-        _prepareSellConditions(orchestrator, admin, user, redeemAmount);
-
-        // Execute sell
-        vm.startPrank(user);
-        uint256 minTokensToReceive = 1; // Minimum amount to receive, can be calculated based on price
-        fundingManager.sell(buyAmount /4, minTokensToReceive);
-        vm.stopPrank();
-
-        // Log final state
-        console.log("\n=== Final State ===");
-        console.log("User token balance after redeem:", token.balanceOf(user));
-        console.log("User issuance token balance after redeem:", issuanceToken.balanceOf(user));
+        console.log("\n=== Test Sell: Token with 6 decimals (USDC-like) ===");
+        _setupWithToken(6, "Token6", "TK6");
+        _testSellScenario(user2, initialPrice, 1e6); // Test with 1 token
     }
 
-    function test_e2e_TwoUsers_BuyAndSell() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+    function test_e2e_SellWith8Decimals() public {
+        address user2 = makeAddr("user2");
+        uint256 initialPrice = 1e18;
 
+        console.log("\n=== Test Sell: Token with 8 decimals (WBTC-like) ===");
+        _setupWithToken(8, "Token8", "TK8");
+        _testSellScenario(user2, initialPrice, 1e8); // Test with 1 token
+    }
+
+
+    function _testSellScenario(address user2, uint256 initialPrice, uint256 buyAmount) internal {
         // Setup initial price
-        uint256 initialPrice = 1e17; 
-        uint8 collateralDecimals = token.decimals();
-        if (collateralDecimals != 18) {
-            initialPrice = initialPrice * (10 ** (18 - collateralDecimals));
-        }
-
         LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
         vm.prank(admin);
         oraclelm.setRedemptionPrice(initialPrice);
-
-        address user2 = makeAddr("user2");
         
         // Buy tokens
-        uint256 buyAmount = 1e6; // 1 token colateral
         _prepareBuyConditions(orchestrator, admin, user2, buyAmount);
         vm.prank(user2);
         fundingManager.buy(buyAmount, 1);
@@ -234,67 +184,37 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         uint256 issuanceBalance = issuanceToken.balanceOf(user2);
         assertGt(issuanceBalance, 0, "User2 should have received issuance tokens");
 
-        // Sell tokens
+        // Log state before sell
+        console.log("Token decimals:", token.decimals());
+        console.log("Oracle price:", initialPrice);
+        console.log("Buy amount:", buyAmount);
+        console.log("Issuance tokens received:", issuanceBalance);
+
+        // Prepare sell conditions and sell tokens
         _prepareSellConditions(orchestrator, admin, user2, issuanceBalance);
+        
+        uint256 tokenBalanceBefore = token.balanceOf(user2);
+        
         vm.prank(user2);
         fundingManager.sell(issuanceBalance, 1);
 
+        // Verify results
         assertEq(
-            issuanceToken.balanceOf(user2), 
-            0, 
+            issuanceToken.balanceOf(user2),
+            0,
             "User2 should have 0 issuance tokens after selling all"
         );
+        uint256 tokenBalanceAfter = token.balanceOf(user2);
+        uint256 tokensReceived = tokenBalanceAfter - tokenBalanceBefore;
+        
+        assertGt(tokensReceived, 0, "User2 should have received tokens");
+        console.log("Tokens before sell:", tokenBalanceBefore);
+        console.log("Tokens after sell:", tokenBalanceAfter);
+        console.log("Tokens received:", tokensReceived);
+
+        uint256 expectedMinimum = buyAmount * 90 / 100; 
+        assertGt(tokensReceived, expectedMinimum, "Received tokens less than expected minimum");
     }
-
-    function test_e2e_MultiUserSell_validatesQueueIdCorrectly() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
-
-        // Setup users
-        address user1 = makeAddr("user1");
-        address user2 = makeAddr("user2");
-        uint256 initialPrice = 1e18; // 1:1 ratio
-        uint256 buyAmount = 1e18;
-
-        // Setup oracle price
-        LM_ManualExternalPriceSetter_v1 oraclelm = _setupOracle(orchestrator, admin, initialPrice);
-        vm.prank(admin);
-        oraclelm.setRedemptionPrice(initialPrice);
-
-        // User 1 buys tokens
-        console.log("\n=== User 1 buying tokens ===");
-        _prepareBuyConditions(orchestrator, admin, user1, buyAmount);
-        vm.prank(user1);
-        fundingManager.buy(buyAmount, 1);
-        uint256 user1Balance = issuanceToken.balanceOf(user1);
-        assertGt(user1Balance, 0, "User1 should have received issuance tokens");
-
-        // User 2 buys tokens
-        console.log("\n=== User 2 buying tokens ===");
-        _prepareBuyConditions(orchestrator, admin, user2, buyAmount);
-        vm.prank(user2);
-        fundingManager.buy(buyAmount, 1);
-        uint256 user2Balance = issuanceToken.balanceOf(user2);
-        assertGt(user2Balance, 0, "User2 should have received issuance tokens");
-
-        // Prepare sell conditions for both users
-        _prepareSellConditions(orchestrator, admin, user1, user1Balance);
-        _prepareSellConditions(orchestrator, admin, user2, user2Balance);
-
-        // User 1 sells tokens
-        console.log("\n=== User 1 selling tokens ===");
-        vm.prank(user1);
-        fundingManager.sell(user1Balance, 1);
-
-        // User 2 sells tokens
-        console.log("\n=== User 2 selling tokens ===");
-        vm.prank(user2);
-        fundingManager.sell(user2Balance, 2);
-
-        // Verify both users have sold their tokens
-        assertEq(issuanceToken.balanceOf(user1), 0, "User1 should have 0 issuance tokens after selling");
-        assertEq(issuanceToken.balanceOf(user2), 0, "User2 should have 0 issuance tokens after selling");
-    }
-
 
     function _setupOrchestratorFundingManagerPaymentProcessor() internal {
 

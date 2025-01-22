@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: LGPL-3.0-only
 pragma solidity 0.8.23;
 
-// Internal
+// -------------------------------------------------------------------------
+// External Imports
+import {IERC20} from "@oz/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+
+// -------------------------------------------------------------------------
+// Internal Imports
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
@@ -13,7 +19,10 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";;
+import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
+
+;
+
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
@@ -24,11 +33,14 @@ import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
  *          within the processPayments function.
  *
  * @dev     This contract inherits from:
- *              - IPP_Queue_v1.
+ *              - IPP_Queue_v1
+ *              - Module_v1
+ *
  *          Key features:
- *              - FIFO queue management.
- *              - Automated payment execution.
- *              - Payment order lifecycle management.
+ *              - FIFO queue management
+ *              - Automated payment execution
+ *              - Payment order lifecycle management
+ *
  *          The contract implements automated payment processing by executing
  *          the queue within processPayments.
  *
@@ -127,7 +139,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     //--------------------------------------------------------------------------
-    // Public (Getters)
+    // Public View Functions
 
     /// @inheritdoc IPP_Queue_v1
     function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
@@ -191,7 +203,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     //--------------------------------------------------------------------------
-    // Public (Mutating)
+    // Public Mutating Functions
 
     /// @inheritdoc IPaymentProcessor_v1
     function processPayments(IERC20PaymentClientBase_v1 client_)
@@ -295,7 +307,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     // -------------------------------------------------------------------------
-    // Internal
+    // Internal Functions
+
+    /// @notice Gets the queue operator role identifier.
+    /// @return role_ The queue operator role identifier.
+    function _queueOperatorRole() internal pure returns (bytes32 role_) {
+        role_ = keccak256("QUEUE_OPERATOR");
+    }
 
     /// @notice Gets the queue operator role identifier.
     /// @return role_ The queue operator role identifier.

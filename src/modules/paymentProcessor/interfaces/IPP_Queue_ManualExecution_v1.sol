@@ -38,6 +38,7 @@ interface IPP_Queue_ManualExecution_v1 is IPP_Queue_v1 {
     // Functions
 
     /// @notice  Executes all pending payment orders in the queue.
+    /// @dev     This function processes all pending orders in the queue.
     function executePaymentQueue(IERC20PaymentClientBase_v1 paymentClient)
         external;
 }

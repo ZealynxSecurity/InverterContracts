@@ -89,4 +89,12 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     ///         are denominated.
     /// @return	decimals_ The decimals of the collateral token.
     function getCollateralTokenDecimals() external view returns (uint8);
+
+    /// @notice Gets the price setter role identifier.
+    /// @return bytes32 The PRICE_SETTER_ROLE identifier
+    function getPriceSetterRole() external pure returns (bytes32);
+
+    /// @notice Gets the price setter role admin identifier.
+    /// @return bytes32 The PRICE_SETTER_ROLE_ADMIN identifier
+    function getPriceSetterRoleAdmin() external pure returns (bytes32);
 }

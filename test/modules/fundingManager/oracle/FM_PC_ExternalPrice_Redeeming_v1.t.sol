@@ -245,7 +245,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Then - Verify maximum fee constraints
         assertEq(
-            fundingManager.getMaxBuyFee(),
+            fundingManager.getMaxProjectBuyFee(),
             MAX_BUY_FEE,
             "Maximum buy fee must match configured cap"
         );
@@ -491,7 +491,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Verify max buy fee
         assertEq(
-            fundingManager.getMaxBuyFee(),
+            fundingManager.getMaxProjectBuyFee(),
             MAX_BUY_FEE,
             "Max buy fee not set correctly"
         );

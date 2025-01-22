@@ -61,10 +61,10 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
         // Grant PRICE_SETTER_ROLE and PRICE_SETTER_ROLE_ADMIN to the test contract
         manualExternalPriceSetter.grantModuleRole(
-            manualExternalPriceSetter.PRICE_SETTER_ROLE(), address(this)
+            manualExternalPriceSetter.getPriceSetterRole(), address(this)
         );
         manualExternalPriceSetter.grantModuleRole(
-            manualExternalPriceSetter.PRICE_SETTER_ROLE_ADMIN(), address(this)
+            manualExternalPriceSetter.getPriceSetterRoleAdmin(), address(this)
         );
     }
 
@@ -116,7 +116,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.assume(price_ > 0);
         bytes32 roleId = _authorizer.generateRoleId(
             address(manualExternalPriceSetter),
-            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+            manualExternalPriceSetter.getPriceSetterRole()
         );
 
         // Test
@@ -176,7 +176,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.assume(price_ > 0);
         bytes32 roleId = _authorizer.generateRoleId(
             address(manualExternalPriceSetter),
-            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+            manualExternalPriceSetter.getPriceSetterRole()
         );
 
         // Test
@@ -237,7 +237,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         vm.assume(issuancePrice_ > 0 && redemptionPrice_ > 0);
         bytes32 roleId = _authorizer.generateRoleId(
             address(manualExternalPriceSetter),
-            manualExternalPriceSetter.PRICE_SETTER_ROLE()
+            manualExternalPriceSetter.getPriceSetterRole()
         );
 
         // Test

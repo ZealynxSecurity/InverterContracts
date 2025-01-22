@@ -69,13 +69,13 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Role identifier for accounts authorized to set prices.
     /// @dev    This role should be granted to trusted price feeders only.
-    bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
+    bytes32 private constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
     /// @notice Role identifier for the admin authorized to assign the price
     ///         setter role.
     /// @dev    This role should be set as the role admin within the Authorizer
     ///         module.
-    bytes32 public constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
+    bytes32 private constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -151,6 +151,16 @@ contract LM_ManualExternalPriceSetter_v1 is
         return _redemptionPrice;
     }
 
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function getPriceSetterRole() external pure returns (bytes32) {
+        return PRICE_SETTER_ROLE;
+    }
+
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function getPriceSetterRoleAdmin() external pure returns (bytes32) {
+        return PRICE_SETTER_ROLE_ADMIN;
+    }
+
     //--------------------------------------------------------------------------
     // Internal Functions
 
@@ -159,7 +169,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setIssuancePrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _issuancePrice = price_;
-        emit IssuancePriceSet(price_, msg.sender);
+        emit IssuancePriceSet(price_, _msgSender());
     }
 
     /// @notice Internal function to set the redemption price
@@ -167,7 +177,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setRedemptionPrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _redemptionPrice = price_;
-        emit RedemptionPriceSet(price_, msg.sender);
+        emit RedemptionPriceSet(price_, _msgSender());
     }
 
     /// @dev    Storage gap for upgradeable contracts.

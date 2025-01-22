@@ -35,7 +35,7 @@ import {
 
 import {ERC20DecimalsMock} from "test/utils/mocks/ERC20DecimalsMock.sol";
 
-contract DecimalsFundingManagerPaymentProcessorE2E is E2ETest {
+contract DecimalFundingManagerPaymentProcessorE2E is E2ETest {
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
     // E2E Test Variables
@@ -148,7 +148,7 @@ contract DecimalsFundingManagerPaymentProcessorE2E is E2ETest {
 
         console.log("\n=== Test Sell: Token with 18 decimals ===");
         _setupWithToken(18, "Token18", "TK18");
-        _testSellScenario(user2, initialPrice, 1e18); // Test with 1 token
+        _testSellScenario(user2, initialPrice, 1e18);
     }
 
     function test_e2e_SellWith6Decimals() public {
@@ -157,7 +157,7 @@ contract DecimalsFundingManagerPaymentProcessorE2E is E2ETest {
 
         console.log("\n=== Test Sell: Token with 6 decimals (USDC-like) ===");
         _setupWithToken(6, "Token6", "TK6");
-        _testSellScenario(user2, initialPrice, 1e6); // Test with 1 token
+        _testSellScenario(user2, initialPrice, 1e6);
     }
 
     function test_e2e_SellWith8Decimals() public {
@@ -166,7 +166,7 @@ contract DecimalsFundingManagerPaymentProcessorE2E is E2ETest {
 
         console.log("\n=== Test Sell: Token with 8 decimals (WBTC-like) ===");
         _setupWithToken(8, "Token8", "TK8");
-        _testSellScenario(user2, initialPrice, 1e8); // Test with 1 token
+        _testSellScenario(user2, initialPrice, 1e8);
     }
 
 

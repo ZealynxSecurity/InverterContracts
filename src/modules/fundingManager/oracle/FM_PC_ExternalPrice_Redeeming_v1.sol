@@ -25,6 +25,7 @@ import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
+import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
 
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
@@ -62,6 +63,7 @@ import {ERC165Upgradeable} from
  *
  * @author  Zealynx Security
  */
+
 contract FM_PC_ExternalPrice_Redeeming_v1 is
     IFM_PC_ExternalPrice_Redeeming_v1,
     ERC20PaymentClientBase_v1,
@@ -91,8 +93,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Constants
 
-    /// @notice Role for whitelist management.
+    /// @notice Role identifier for accounts who are whitelisted to buy and sell.
     bytes32 public constant WHITELIST_ROLE = "WHITELIST_ROLE";
+
+    /// @notice Role identifier for the admin authorized to assign the whitelist
+    ///         role.
+    /// @dev    This role should be set as the role admin for the WHITELIST_ROLE
+    ///         within the Authorizer module.
+    bytes32 public constant WHITELIST_ROLE_ADMIN = "WHITELIST_ROLE_ADMIN";
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -338,6 +346,23 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _sellOrder(receiver_, depositAmount_, minAmountOut_);
     }
 
+    /// @inheritdoc IERC20PaymentClientBase_v1
+    function amountPaid(address token_, uint amount_)
+        external
+        override(ERC20PaymentClientBase_v1, IERC20PaymentClientBase_v1)
+    {
+        _deductFromOpenRedemptionAmount(amount_);
+
+        // Ensure caller is authorized to act as payment processor.
+        if (!_isAuthorizedPaymentProcessor(IPaymentProcessor_v1(_msgSender())))
+        {
+            revert Module__ERC20PaymentClientBase__CallerNotAuthorized();
+        }
+
+        // reduce outstanding token amount by the given amount
+        _outstandingTokenAmounts[token_] -= amount_;
+    }
+
     /// @inheritdoc IFundingManager_v1
     function transferOrchestratorToken(address to_, uint amount_)
         external
@@ -453,8 +478,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Update open redemption amount.
         _openRedemptionAmount += collateralRedeemAmount_;
 
-        // Calculate redemption amount.
-        uint redemptionAmount_ = collateralRedeemAmount_ - issuanceFeeAmount_;
+        // collateralRedeemAmount_ is already calculated from netDeposit (post-issuance fee)
+        uint redemptionAmount_ = collateralRedeemAmount_;
 
         bytes32 flags;
         bytes32[] memory data;
@@ -477,6 +502,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             data: data
         });
 
+        // Add order to payment client.
         _addPaymentOrder(order);
 
         // Process payments through the payment processor.
@@ -484,8 +510,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             IERC20PaymentClientBase_v1(address(this))
         );
 
-        // Emit event with all order details.
+        // Emit event with order details.
         emit RedemptionOrderCreated(
+            address(this),
             _orderId,
             _msgSender(),
             receiver_,
@@ -525,6 +552,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
+
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
         // Get protocol fee percentages and treasury addresses.
         (
@@ -594,12 +622,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }
 
-        // Use virtual function to handle collateral tokens.
-        _handleCollateralTokensAfterSell(_receiver, collateralRedeemAmount);
-
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, issuanceFeeAmount
+            _receiver, _depositAmount, collateralRedeemAmount, projectFeeAmount
         );
 
         return (totalCollateralTokenMovedOut, issuanceFeeAmount);
@@ -655,10 +680,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint redeemAmount_)
     {
-        // Calculate redeem amount through oracle price.
-        uint tokenAmount_ = _oracle.getPriceForRedemption() * depositAmount_;
 
-        // Convert redeem amount to collateral decimals.
+        // Calculate redeem amount through oracle price and normalize to 18 decimals
+        uint tokenAmount_ =
+            (_oracle.getPriceForRedemption() * depositAmount_) / 1e18;
+
+        // Convert redeem amount to collateral decimals
         redeemAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             tokenAmount_, EIGHTEEN_DECIMALS, _collateralTokenDecimals
         );
@@ -706,6 +733,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             );
         }
         _projectTreasury = projectTreasury_;
+    }
+
+    /// @notice Deducts the amount of redeemed tokens from the open redemption
+    ///         amount.
+    /// @param  processedRedemptionAmount_ The amount of redemption tokens that
+    ///         were processed.
+    function _deductFromOpenRedemptionAmount(uint processedRedemptionAmount_)
+        internal
+    {
+        _openRedemptionAmount -= processedRedemptionAmount_;
+        emit RedemptionAmountUpdated(_openRedemptionAmount);
+    }
+
+    /// @notice Adds the amount of redeemed tokens to the open redemption
+    ///         amount.
+    /// @param  addedOpenRedemptionAmount_ The amount of redeemed tokens to add.
+    function _addToOpenRedemptionAmount(uint addedOpenRedemptionAmount_)
+        internal
+    {
+        _openRedemptionAmount += addedOpenRedemptionAmount_;
+        emit RedemptionAmountUpdated(_openRedemptionAmount);
     }
 
     /// @inheritdoc BondingCurveBase_v1

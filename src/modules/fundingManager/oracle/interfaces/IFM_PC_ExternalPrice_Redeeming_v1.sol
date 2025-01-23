@@ -86,6 +86,7 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     event ReserveDeposited(address indexed depositor_, uint amount_);
 
     /// @notice	Emitted when a new redemption order is created.
+    /// @param  creator_ The address of the contract creating the payment order.
     /// @param	orderId_ Order identifier.
     /// @param	seller_ Address selling tokens.
     /// @param	receiver_ Address who receives the redeemed tokens.
@@ -99,8 +100,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	redemptionTime_ Time of redemption.
     /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
+        address indexed creator_,
         uint indexed orderId_,
-        address indexed seller_,
+        address seller_,
         address indexed receiver_,
         uint sellAmount_,
         uint exchangeRate_,
@@ -112,6 +114,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         uint redemptionTime_,
         RedemptionState state_
     );
+
+    /// @notice	Emitted when the open redemption amount is updated.
+    /// @param	_openRedemptionAmount The new open redemption amount.
+    event RedemptionAmountUpdated(uint _openRedemptionAmount);
 
     // -------------------------------------------------------------------------
     // View Functions

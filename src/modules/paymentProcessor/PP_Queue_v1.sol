@@ -307,13 +307,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     // -------------------------------------------------------------------------
-    // Internal Functions
-
-    /// @notice Gets the queue operator role identifier.
-    /// @return role_ The queue operator role identifier.
-    function _queueOperatorRole() internal pure returns (bytes32 role_) {
-        role_ = keccak256("QUEUE_OPERATOR");
-    }
+    // Internal
 
     /// @notice Gets the queue operator role identifier.
     /// @return role_ The queue operator role identifier.

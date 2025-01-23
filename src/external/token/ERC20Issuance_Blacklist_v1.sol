@@ -61,14 +61,14 @@ contract ERC20Issuance_Blacklist_v1 is
     mapping(address account => bool isBlacklisted) private _blacklist;
 
     /// @notice	Mapping of blacklist manager addresses.
-    mapping(address account => bool isManager) private _isBlacklistManager;
+    mapping(address account => bool isManager) private _blacklistManager;
 
     // -------------------------------------------------------------------------
     // Modifiers
 
     /// @notice Modifier to check if the caller is a blacklist manager.
     modifier onlyBlacklistManager() {
-        if (!_isBlacklistManager[_msgSender()]) {
+        if (!_isBlacklistManager(_msgSender())) {
             revert ERC20Issuance_Blacklist_NotBlacklistManager();
         }
         _;
@@ -105,8 +105,12 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
-    function isBlacklistManager(address account_) public view returns (bool) {
-        return _isBlacklistManager[account_];
+    function isBlacklistManager(address account_)
+        external
+        view
+        returns (bool)
+    {
+        return _isBlacklistManager(account_);
     }
 
     // -------------------------------------------------------------------------
@@ -119,7 +123,7 @@ contract ERC20Issuance_Blacklist_v1 is
         }
         if (!isBlacklisted(account_)) {
             _blacklist[account_] = true;
-            emit AddedToBlacklist(account_);
+            emit AddedToBlacklist(account_, _msgSender());
         }
     }
 
@@ -128,20 +132,14 @@ contract ERC20Issuance_Blacklist_v1 is
         public
         onlyBlacklistManager
     {
-        if (account_ == address(0)) {
-            revert ERC20Issuance_Blacklist_ZeroAddress();
-        }
         if (isBlacklisted(account_)) {
             _blacklist[account_] = false;
-            emit RemovedFromBlacklist(account_);
+            emit RemovedFromBlacklist(account_, _msgSender());
         }
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklistBatched(address[] memory accounts_)
-        external
-        onlyBlacklistManager
-    {
+    function addToBlacklistBatched(address[] memory accounts_) external {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(
@@ -154,10 +152,7 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function removeFromBlacklistBatched(address[] memory accounts_)
-        external
-        onlyBlacklistManager
-    {
+    function removeFromBlacklistBatched(address[] memory accounts_) external {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(
@@ -206,7 +201,18 @@ contract ERC20Issuance_Blacklist_v1 is
         if (manager_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
         }
-        _isBlacklistManager[manager_] = allowed_;
-        emit BlacklistManagerUpdated(manager_, allowed_);
+        _blacklistManager[manager_] = allowed_;
+        emit BlacklistManagerUpdated(manager_, allowed_, _msgSender());
+    }
+
+    /// @notice Internal function to check if an address is a blacklist manager.
+    /// @param  manager_ Address to check.
+    /// @return bool True if the address is a blacklist manager, false otherwise.
+    function _isBlacklistManager(address manager_)
+        internal
+        view
+        returns (bool)
+    {
+        return _blacklistManager[manager_];
     }
 }

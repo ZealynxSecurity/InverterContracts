@@ -478,7 +478,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice	Removes an order from the queue.
     /// @param	orderId_ ID of the order to remove.
     function _removeFromQueue(uint orderId_) internal {
-        require(orderId_ != 0, "Invalid order ID."); // @todo can this ever be 0? Also should be custom error
         address client_ = _orders[orderId_].client_;
         uint prevId = _queue[client_].getPreviousId(orderId_);
         _queue[client_].removeId(prevId, orderId_);
@@ -580,8 +579,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool validPaymentReceiver_)
     {
-        return // @todo does this work if the redeemer == receiver?, as this expects it to be false
-        !(
+        return !(
             receiver_ == address(0) || receiver_ == _msgSender()
                 || receiver_ == address(this)
                 || receiver_ == address(orchestrator())
@@ -606,14 +604,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         returns (bool valid_)
     {
         if (token_ == address(0)) {
-            revert Module__PP_Queue_InvalidToken(token_);
+            return false;
         }
 
         // Try to call balanceOf to verify it's an ERC20
         try IERC20(token_).balanceOf(address(this)) returns (uint) {
             return true;
         } catch {
-            revert Module__PP_Queue_InvalidTokenImplementation(token_); // @todo should this revert or just return false?
+            return false;
         }
     }
 

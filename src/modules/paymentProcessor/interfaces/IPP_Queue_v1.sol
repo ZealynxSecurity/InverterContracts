@@ -146,10 +146,6 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  recipient_ The invalid recipient address.
     error Module__PP_Queue_InvalidRecipient(address recipient_);
 
-    /// @notice	Invalid payment token.
-    /// @param  token_ The invalid token address.
-    error Module__PP_Queue_InvalidToken(address token_);
-
     /// @notice	Invalid payment amount.
     /// @param  amount_ The invalid amount.
     error Module__PP_Queue_InvalidAmount(uint amount_);
@@ -166,10 +162,6 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  flags_ The flags provided.
     /// @param  dataLength_ The length of the data array.
     error Module__PP_Queue_InvalidFlagsOrData(bytes32 flags_, uint dataLength_);
-
-    /// @notice Invalid token implementation.
-    /// @param  token_ The invalid token address.
-    error Module__PP_Queue_InvalidTokenImplementation(address token_);
 
     /// @notice	Invalid order state transition.
     /// @param  orderId_ The order ID.

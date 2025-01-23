@@ -63,7 +63,6 @@ import {ERC165Upgradeable} from
  *
  * @author  Zealynx Security
  */
-
 contract FM_PC_ExternalPrice_Redeeming_v1 is
     IFM_PC_ExternalPrice_Redeeming_v1,
     ERC20PaymentClientBase_v1,
@@ -552,7 +551,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
     {
-
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
         // Get protocol fee percentages and treasury addresses.
         (
@@ -680,7 +678,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1)
         returns (uint redeemAmount_)
     {
-
         // Calculate redeem amount through oracle price and normalize to 18 decimals
         uint tokenAmount_ =
             (_oracle.getPriceForRedemption() * depositAmount_) / 1e18;

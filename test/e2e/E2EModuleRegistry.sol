@@ -40,12 +40,16 @@ import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
 
 // Funding Manager
-import {FM_PC_ExternalPrice_Redeeming_v1} from "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
-import {IFM_PC_ExternalPrice_Redeeming_v1} from "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+import {FM_PC_ExternalPrice_Redeeming_v1} from
+    "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
+import {IFM_PC_ExternalPrice_Redeeming_v1} from
+    "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
 
 // Oracle
-import {LM_ManualExternalPriceSetter_v1} from "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {ILM_ManualExternalPriceSetter_v1} from "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
+import {LM_ManualExternalPriceSetter_v1} from
+    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
+import {ILM_ManualExternalPriceSetter_v1} from
+    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
 
 contract E2EModuleRegistry is Test {
     // General Storage and QOL-constants
@@ -82,14 +86,12 @@ contract E2EModuleRegistry is Test {
     // This config can be copied to the setup function of each specific E2ETest contract and modified accordingly
     //--------------------------------------------------------------------------
 
-
     //--------------------------------------------------------------------------
     // Payment Processor
     //--------------------------------------------------------------------------
 
     PP_Queue_v1 queue;
     InverterBeacon_v1 streamingPaymentProcessorQueueBeacon;
-
 
     IModule_v1.Metadata paymentProcessorMetadata = IModule_v1.Metadata(
         1, // major version
@@ -98,6 +100,7 @@ contract E2EModuleRegistry is Test {
         "https://github.com/inverter/payment-processor",
         "PP_Queue_v1"
     );
+
     function setUpPaymentProcessor() internal {
         // Deploy module implementations.
         queue = new PP_Queue_v1();
@@ -135,7 +138,6 @@ contract E2EModuleRegistry is Test {
     InverterBeacon_v1 oracleBeacon;
     LM_ManualExternalPriceSetter_v1 oracle;
 
-
     function setUpOracle() internal {
         oracle = new LM_ManualExternalPriceSetter_v1();
 
@@ -150,10 +152,8 @@ contract E2EModuleRegistry is Test {
         // Register modules at moduleFactory.
         vm.prank(teamMultisig);
         gov.registerMetadataInModuleFactory(
-            oracleMetadata,
-            IInverterBeacon_v1(oracleBeacon)
+            oracleMetadata, IInverterBeacon_v1(oracleBeacon)
         );
-
     }
 
     //--------------------------------------------------------------------------
@@ -172,7 +172,6 @@ contract E2EModuleRegistry is Test {
     FM_PC_ExternalPrice_Redeeming_v1 fundingManagerExternal;
 
     function setUpFundingManager() internal {
-
         fundingManagerExternal = new FM_PC_ExternalPrice_Redeeming_v1();
 
         fundingManagerBeacon = new InverterBeacon_v1(
@@ -186,8 +185,7 @@ contract E2EModuleRegistry is Test {
         // Register modules at moduleFactory.
         vm.prank(teamMultisig);
         gov.registerMetadataInModuleFactory(
-            fundingManagerMetadata,
-            IInverterBeacon_v1(fundingManagerBeacon)
+            fundingManagerMetadata, IInverterBeacon_v1(fundingManagerBeacon)
         );
     }
 

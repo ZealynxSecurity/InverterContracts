@@ -17,14 +17,6 @@ import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {ERC165Upgradeable, Module_v1} from "src/modules/base/Module_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 
-// External
-import {IERC20} from "@oz/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-
-;
-
-import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
-
 /**
  * @title   Queue Based Payment Processor
  *
@@ -84,6 +76,17 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice    Flag position in the flags byte.
     uint8 private constant FLAG_ORDER_ID = 0;
 
+    /// @notice Role identifier for queue operations.
+    /// @dev    This role cancels payments in the queue.
+    bytes32 private constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR_ROLE";
+
+    /// @notice Role identifier for the admin authorized to assign the queue
+    ///         operator role.
+    /// @dev    This role should be set as the role admin for the
+    ///         QUEUE_OPERATOR_ROLE within the Authorizer module.
+    bytes32 private constant QUEUE_OPERATOR_ROLE_ADMIN =
+        "QUEUE_OPERATOR_ROLE_ADMIN";
+
     // -------------------------------------------------------------------------
     // Storage
 
@@ -91,7 +94,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     mapping(address client => LinkedIdList.List queue) private _queue;
 
     /// @notice Payment orders.
-    mapping(uint orderId => QueuedOrder order) internal _orders;
+    mapping(uint orderId => QueuedOrder order) private _orders;
 
     /// @notice Current order ID per client.
     mapping(address client => uint currentOrderId) private _currentOrderId;
@@ -199,7 +202,16 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @inheritdoc IPP_Queue_v1
     function getQueueOperatorRole() external pure returns (bytes32 role_) {
-        role_ = _queueOperatorRole();
+        return QUEUE_OPERATOR_ROLE;
+    }
+
+    /// @inheritdoc IPP_Queue_v1
+    function getQueueOperatorAdminRole()
+        external
+        pure
+        returns (bytes32 role_)
+    {
+        return QUEUE_OPERATOR_ROLE_ADMIN;
     }
 
     //--------------------------------------------------------------------------
@@ -262,21 +274,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function validPaymentOrder(
         IERC20PaymentClientBase_v1.PaymentOrder memory order_
     ) external view returns (bool isValid_) {
-        // Extract queue ID from order data.
-        uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-
-        // Validate payment receiver, amount and queue ID.
-        isValid_ = _validPaymentReceiver(order_.recipient)
-            && _validTotalAmount(order_.amount)
-            && _validQueueId(queueId_, address(msg.sender))
-            && _validPaymentToken(order_.paymentToken);
+        return _validPaymentOrder(order_);
     }
 
     /// @inheritdoc IPP_Queue_v1
     function cancelPaymentOrderThroughQueueId(
         uint orderId_,
         IERC20PaymentClientBase_v1 client_
-    ) external onlyModuleRole(_queueOperatorRole()) returns (bool success_) {
+    ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) returns (bool success_) {
         // Validate queue ID.
         if (!_orderExists(orderId_, client_)) {
             revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
@@ -308,18 +313,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     // -------------------------------------------------------------------------
     // Internal Functions
-
-    /// @notice Gets the queue operator role identifier.
-    /// @return role_ The queue operator role identifier.
-    function _queueOperatorRole() internal pure returns (bytes32 role_) {
-        role_ = keccak256("QUEUE_OPERATOR");
-    }
-
-    /// @notice Gets the queue operator role identifier.
-    /// @return role_ The queue operator role identifier.
-    function _queueOperatorRole() internal pure returns (bytes32 role_) {
-        role_ = keccak256("QUEUE_OPERATOR");
-    }
 
     ///	@notice	Processes the next payment order in the queue.
     ///	@return	success_ True if a payment was processed.
@@ -405,6 +398,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                 order_.order_.amount
             );
 
+            // @todo should this be cancelled or processed? Also if this transfer fails, then this doesn't mean that the funds are empty, so we could try processing more
             _updateOrderState(orderId_, RedemptionState.CANCELLED);
             _removeFromQueue(orderId_);
 
@@ -440,18 +434,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         IERC20PaymentClientBase_v1.PaymentOrder memory order_,
         address client_
     ) internal returns (uint queueId_) {
-        if (
-            !_validPaymentReceiver(order_.recipient)
-                || !_validTotalAmount(order_.amount)
-                || !_validTokenBalance(order_.paymentToken, client_, order_.amount)
-        ) {
+        if (!_validPaymentOrder(order_)) {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-        // if (queueId_ == 0) {
-        //     queueId_ = ++_currentOrderId[client_];
-        // }
 
         // Create new order
         _orders[queueId_] = QueuedOrder({
@@ -478,15 +465,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             order_.paymentToken,
             client_,
             order_.amount,
-            uint(order_.flags),
-            block.timestamp
+            uint(order_.flags)
         );
     }
 
     /// @notice	Removes an order from the queue.
     /// @param	orderId_ ID of the order to remove.
     function _removeFromQueue(uint orderId_) internal {
-        require(orderId_ != 0, "Invalid order ID.");
+        require(orderId_ != 0, "Invalid order ID."); // @todo can this ever be 0? Also should be custom error
         address client_ = _orders[orderId_].client_;
         uint prevId = _queue[client_].getPreviousId(orderId_);
         _queue[client_].removeId(prevId, orderId_);
@@ -535,15 +521,17 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @notice Validates if a queue ID is valid.
+    /// @dev    Queue ID must equal to the current order ID + 1 for the client
+    ///         and greater than 0 (we start from 1).
     /// @param  queueId_ The queue ID to validate.
-    /// @param  client_ The client address.
-    /// @return isValid_ True if the queue ID is valid.
+    /// @param  client_ The payment client address.
+    /// @return isValid_ Returns true if the queue ID is valid.
     function _validQueueId(uint queueId_, address client_)
         internal
         view
         returns (bool isValid_)
     {
-        // Queue ID must be less than or equal to total orders
+        // Queue ID must equal to the current order ID + 1 for the client
         // and greater than 0 (we start from 1).
         return queueId_ > 0 && queueId_ == _currentOrderId[client_] + 1;
     }
@@ -567,6 +555,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @notice Validate total input amount.
+    /// @dev    Amount must be greater than 0.
     /// @param  amount_ Amount to validate.
     /// @return valid_ True if uint is valid.
     function _validTotalAmount(uint amount_)
@@ -585,7 +574,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool validPaymentReceiver_)
     {
-        return !(
+        return // @todo does this work if the redeemer == receiver?, as this expects it to be false
+        !(
             receiver_ == address(0) || receiver_ == _msgSender()
                 || receiver_ == address(this)
                 || receiver_ == address(orchestrator())
@@ -593,7 +583,15 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         );
     }
 
-    /// @notice Validates a payment token.
+    /// @notice Validates the chain ID.
+    /// @dev    The chain ID must match the current chain ID.
+    /// @param  chainId_ The chain ID to validate.
+    /// @return valid_ True if the chain ID matches the current chain ID.
+    function _validChainId(uint chainId_) internal view returns (bool valid_) {
+        return chainId_ == block.chainid;
+    }
+
+    /// @notice Validates the payment token.
     /// @param  token_ Token address to validate.
     /// @return valid_ True if token is valid.
     function _validPaymentToken(address token_)
@@ -609,49 +607,27 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         try IERC20(token_).balanceOf(address(this)) returns (uint) {
             return true;
         } catch {
-            revert Module__PP_Queue_InvalidTokenImplementation(token_);
+            revert Module__PP_Queue_InvalidTokenImplementation(token_); // @todo should this revert or just return false?
         }
     }
 
     /// @notice Validates a payment order.
     /// @param  order_ The order to validate.
     /// @return valid_ True if the order is valid.
-    function _validPaymentOrder(QueuedOrder memory order_)
-        internal
-        view
-        returns (bool valid_)
-    {
-        // Validate recipient.
-        if (!_validPaymentReceiver(order_.order_.recipient)) {
-            revert Module__PP_Queue_InvalidRecipient(order_.order_.recipient);
-        }
+    function _validPaymentOrder(
+        IERC20PaymentClientBase_v1.PaymentOrder memory order_
+    ) internal view returns (bool valid_) {
+        // Extract queue ID from order data.
+        uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
-        // Validate amount.
-        if (!_validTotalAmount(order_.order_.amount)) {
-            revert Module__PP_Queue_InvalidAmount(order_.order_.amount);
-        }
-
-        // Validate payment token.
-        if (!_validPaymentToken(order_.order_.paymentToken)) {
-            revert Module__PP_Queue_InvalidToken(order_.order_.paymentToken);
-        }
-
-        // Validate chain IDs.
-        if (
-            order_.order_.originChainId != block.chainid
-                || order_.order_.targetChainId != block.chainid
-        ) {
-            revert Module__PP_Queue_InvalidChainId(
-                order_.order_.originChainId,
-                order_.order_.targetChainId,
-                block.chainid
-            );
-        }
-
-        // Validate flags and data consistency.
-        _validateFlagsAndData(order_.order_.flags, order_.order_.data);
-
-        return true;
+        // Validate payment receiver, amount and queue ID.
+        return _validPaymentReceiver(order_.recipient)
+            && _validTotalAmount(order_.amount)
+            && _validQueueId(queueId_, address(msg.sender))
+            && _validPaymentToken(order_.paymentToken)
+            && _validChainId(order_.originChainId)
+            && _validChainId(order_.targetChainId)
+            && _validateFlagsAndData(order_.flags, order_.data);
     }
 
     /// @notice Validates a state transition.
@@ -698,7 +674,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
         _validStateTransition(orderId_, order.state_, state_);
         order.state_ = state_;
-        emit PaymentOrderStateChanged(orderId_, state_, order.client_);
+        emit PaymentOrderStateChanged(
+            orderId_, state_, order.client_, _msgSender()
+        );
     }
 
     /// @notice Validates flags and corresponding data array.
@@ -707,6 +685,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validateFlagsAndData(bytes32 flags_, bytes32[] memory data_)
         internal
         pure
+        returns (bool valid_)
     {
         uint flagsValue = uint(flags_);
         uint requiredDataLength = 0;
@@ -718,21 +697,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             }
         }
 
-        // Verify data array length matches number of set flags.
-        if (data_.length < requiredDataLength) {
-            revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
-        }
-
-        // Validate each flag's data based on type.
-        uint dataIndex = 0;
-
-        // Check orderID flag (bit 0).
-        if (flagsValue & (1 << FLAG_ORDER_ID) != 0) {
-            // orderID must be non-zero.
-            if (uint(data_[dataIndex++]) == 0) {
-                revert Module__PP_Queue_InvalidFlagsOrData(flags_, data_.length);
-            }
-        }
+        return data_.length == requiredDataLength
+            && (flagsValue & (1 << FLAG_ORDER_ID)) != 0;
     }
 
     /// @notice Internal function to check whether the client is valid.

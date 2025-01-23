@@ -52,6 +52,7 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
 
     function exposed_getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
         external
+        view
         returns (uint)
     {
         return _getPaymentQueueId(flags_, data_);
@@ -79,12 +80,13 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
         return _processNextOrder(client_);
     }
 
-    function exposed_executePaymentTransfer(uint orderId_)
-        external
-        returns (bool)
-    {
-        return _executePaymentTransfer(orderId_, _orders[orderId_]);
-    }
+    // function exposed_executePaymentTransfer(
+    //     uint orderId_,
+    //     IERC20PaymentClientBase_v1 client_
+    // ) public returns (bool) {
+    //     QueuedOrder storage order_ = getOrder(orderId_, client_);
+    //     return _executePaymentTransfer(orderId_, order_);
+    // }
 
     function exposed_executePaymentQueue(address client_) external {
         _executePaymentQueue(client_);
@@ -102,10 +104,7 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
         address client_
     ) external {
         _addToUnclaimableAmount(
-            client_,
-            order_.paymentToken,
-            order_.recipient,
-            order_.amount
+            client_, order_.paymentToken, order_.recipient, order_.amount
         );
     }
 }

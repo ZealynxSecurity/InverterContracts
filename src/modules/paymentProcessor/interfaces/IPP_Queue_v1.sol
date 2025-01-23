@@ -71,15 +71,13 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  client_ Address of the client that queued the order.
     /// @param	amount_ Amount of tokens to be transferred.
     /// @param	flags_ Processing flags for the order.
-    /// @param	timestamp_ Time when the order was created.
     event PaymentOrderQueued(
         uint indexed orderId_,
         address indexed recipient_,
         address indexed token_,
         address client_,
         uint amount_,
-        uint flags_,
-        uint timestamp_
+        uint flags_
     );
 
     /// @notice Emitted when a payment order state is updated.
@@ -226,10 +224,16 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         view
         returns (uint size_);
 
-    /// @notice  Gets the role identifier for queue operations.
-    /// @dev     Role for queue operations.
+    /// @notice  Gets the role identifier for the queue operator role.
     /// @return  role_ The queue operator role identifier.
     function getQueueOperatorRole() external pure returns (bytes32 role_);
+
+    /// @notice  Gets the role identifier for queue operator admin.
+    /// @return  role_ The queue operator role admin identifier.
+    function getQueueOperatorAdminRole()
+        external
+        pure
+        returns (bytes32 role_);
 
     /// @notice	Cancels a payment order by its queue ID.
     /// @param	orderId_ The ID of the order to cancel.

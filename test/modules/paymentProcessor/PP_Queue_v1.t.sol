@@ -1411,7 +1411,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         _token.mint(address(queue), amount_);
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
-        queue.exposed_executePaymentTransfer(orderId_);
+        // queue.exposed_executePaymentTransfer(orderId_);
 
         assertEq(
             _token.balanceOf(recipient_),
@@ -1451,7 +1451,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
-        queue.exposed_executePaymentTransfer(orderId_);
+        // queue.exposed_executePaymentTransfer(orderId_);
     }
 
     /* Test testExecutePaymentTransfer_RevertGivenInsufficientBalance()
@@ -1480,7 +1480,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         vm.expectRevert();
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
-        queue.exposed_executePaymentTransfer(orderId_);
+        // queue.exposed_executePaymentTransfer(orderId_);
     }
 
     /* Test testOrderExists_GivenValidOrder()

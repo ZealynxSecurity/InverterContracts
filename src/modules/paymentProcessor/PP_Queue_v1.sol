@@ -20,9 +20,6 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 // External
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
-
-;
-
 import {IERC20Metadata} from "@oz/token/ERC20/extensions/IERC20Metadata.sol";
 
 /**
@@ -442,10 +439,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
 
+        // Get queue ID from flags and data, or generate new one
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
-        // if (queueId_ == 0) {
-        //     queueId_ = ++_currentOrderId[client_];
-        // }
+        if (queueId_ == 0) {
+            queueId_ = _currentOrderId[client_] + 1;
+        }
 
         // Create new order
         _orders[queueId_] = QueuedOrder({
@@ -464,6 +462,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Add to linked list
         _queue[client_].addId(queueId_);
 
+        // Update current order ID
         _currentOrderId[client_] = queueId_;
 
         emit PaymentOrderQueued(
@@ -692,7 +691,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
         _validStateTransition(orderId_, order.state_, state_);
         order.state_ = state_;
-        emit PaymentOrderStateChanged(orderId_, state_, order.client_);
+        emit PaymentOrderStateChanged(
+            orderId_, state_, order.client_, _msgSender()
+        );
     }
 
     /// @notice Validates flags and corresponding data array.

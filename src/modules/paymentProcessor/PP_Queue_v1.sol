@@ -177,6 +177,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @inheritdoc IPP_Queue_v1
     function getQueueHead(address client_) external view returns (uint head_) {
+        // Check if queue is initialized by checking if sentinel position exists
+        if (_queue[client_].list[LinkedIdList._SENTINEL] == 0) {
+            revert Module__PP_Queue_QueueOperationFailed(client_);
+        }
         head_ = _queue[client_].getNextId(LinkedIdList._SENTINEL);
     }
 

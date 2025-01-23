@@ -764,6 +764,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool exists_)
     {
-        return orderId_ <= _currentOrderId[address(client_)];
+        QueuedOrder storage order = _orders[orderId_];
+        return order.client_ == address(client_) && order.timestamp_ != 0;
     }
 }

@@ -1408,9 +1408,11 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: new bytes32[](0)
         });
 
-        _token.mint(address(queue), amount_);
+        _token.mint(address(this), amount_);
+        _token.approve(address(queue), amount_);
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
+        _token.mint(address(queue), amount_);
         queue.exposed_executePaymentTransfer(orderId_);
 
         assertEq(
@@ -1779,9 +1781,7 @@ contract PP_Queue_v1_Test is ModuleTest {
 
             queue.exposed_addUnclaimableOrder(order_, address(paymentClient));
             queue.claimPreviouslyUnclaimable(
-                address(paymentClient), 
-                address(_token), 
-                recipients_[i_]
+                address(paymentClient), address(_token), recipients_[i_]
             );
 
             assertEq(

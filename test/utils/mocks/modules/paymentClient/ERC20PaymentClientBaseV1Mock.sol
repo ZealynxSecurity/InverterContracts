@@ -37,7 +37,6 @@ contract ERC20PaymentClientBaseV1Mock is ERC20PaymentClientBase_v1 {
     function setToken(ERC20Mock token_) external {
         token = token_;
     }
-
     //--------------------------------------------------------------------------
     // IERC20PaymentClientBase_v1 Wrapper Functions
 
@@ -66,6 +65,12 @@ contract ERC20PaymentClientBaseV1Mock is ERC20PaymentClientBase_v1 {
 
     function exposed_addPaymentOrders(PaymentOrder[] memory orders) external {
         _addPaymentOrders(orders);
+    }
+
+    function exposed_addToOutstandingTokenAmounts(address token, uint amount)
+        external
+    {
+        _outstandingTokenAmounts[token] += amount;
     }
 
     //--------------------------------------------------------------------------

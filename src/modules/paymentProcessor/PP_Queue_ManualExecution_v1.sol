@@ -63,9 +63,6 @@ contract PP_Queue_ManualExecution_v1 is
             || super.supportsInterface(interfaceId_);
     }
 
-    /// @dev    Gap for possible future upgrades.
-    uint[50] private __gap;
-
     // -------------------------------------------------------------------------
     // Public
 
@@ -97,4 +94,7 @@ contract PP_Queue_ManualExecution_v1 is
     {
         _executePaymentQueue(address(client_));
     }
+
+    /// @dev    Gap for possible future upgrades.
+    uint[50] private __gap;
 }

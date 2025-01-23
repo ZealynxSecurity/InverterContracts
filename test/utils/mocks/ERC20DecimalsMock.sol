@@ -6,8 +6,8 @@ import "./ERC20Mock.sol";
 contract ERC20DecimalsMock is ERC20Mock {
     uint8 private _decimals;
 
-    constructor(string memory name_, string memory symbol_, uint8 decimals_) 
-        ERC20Mock(name_, symbol_) 
+    constructor(string memory name_, string memory symbol_, uint8 decimals_)
+        ERC20Mock(name_, symbol_)
     {
         _decimals = decimals_;
     }

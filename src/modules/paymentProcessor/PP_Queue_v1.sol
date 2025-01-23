@@ -109,9 +109,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             )
     ) private _unclaimableAmountsForRecipient;
 
-    /// @dev    Gap for possible future upgrades.
-    uint[50] private __gap;
-
     // -------------------------------------------------------------------------
     // Modifiers
 
@@ -742,4 +739,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
         return order.client_ == address(client_) && order.timestamp_ != 0;
     }
+
+    /// @dev    Gap for possible future upgrades.
+    uint[50] private __gap;
 }

@@ -69,13 +69,13 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Role identifier for accounts authorized to set prices.
     /// @dev    This role should be granted to trusted price feeders only.
-    bytes32 public constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
+    bytes32 private constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
 
     /// @notice Role identifier for the admin authorized to assign the price
     ///         setter role.
     /// @dev    This role should be set as the role admin within the Authorizer
     ///         module.
-    bytes32 public constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
+    bytes32 private constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -136,22 +136,29 @@ contract LM_ManualExternalPriceSetter_v1 is
         _setRedemptionPrice(redemptionPrice_);
     }
 
-    /// @notice Gets current price for token issuance (buying tokens).
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1
-    ///         issuance token).
-    /// @dev    Example: If price is 2 USDC/ISS, returns 2e18 (2 USDC needed for
-    ///         1 ISS).
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function getCollateralTokenDecimals() external view returns (uint8) {
+        return _collateralTokenDecimals;
+    }
+
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function getPriceForIssuance() external view returns (uint) {
         return _issuancePrice;
     }
 
-    /// @notice Gets current price for token redemption (selling tokens).
-    /// @return price_ Current price in 18 decimals (collateral tokens per 1
-    ///         issuance token).
-    /// @dev    Example: If price is 1.9 USDC/ISS, returns 1.9e18 (1.9 USDC
-    ///         received for 1 ISS).
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function getPriceForRedemption() external view returns (uint) {
         return _redemptionPrice;
+    }
+
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function getPriceSetterRole() external pure returns (bytes32) {
+        return PRICE_SETTER_ROLE;
+    }
+
+    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    function getPriceSetterRoleAdmin() external pure returns (bytes32) {
+        return PRICE_SETTER_ROLE_ADMIN;
     }
 
     //--------------------------------------------------------------------------
@@ -162,7 +169,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setIssuancePrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _issuancePrice = price_;
-        emit IssuancePriceSet(price_, msg.sender);
+        emit IssuancePriceSet(price_, _msgSender());
     }
 
     /// @notice Internal function to set the redemption price
@@ -170,7 +177,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     function _setRedemptionPrice(uint price_) internal {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _redemptionPrice = price_;
-        emit RedemptionPriceSet(price_, msg.sender);
+        emit RedemptionPriceSet(price_, _msgSender());
     }
 
     /// @dev    Storage gap for upgradeable contracts.

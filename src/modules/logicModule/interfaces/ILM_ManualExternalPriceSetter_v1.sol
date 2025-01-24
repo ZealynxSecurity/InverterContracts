@@ -34,33 +34,67 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     error Module__LM_ExternalPriceSetter__InvalidPrice();
 
     // -------------------------------------------------------------------------
-
     // External Functions
+
+    /// @notice Gets current price for token issuance (buying tokens).
+    /// @return price_ Current price denominated in the collateral token decimals.
+    /// @dev    The price is denominated in the collateral token decimals. For
+    ///         example, if the collateral token has 6 decimals and the issuance
+    ///         price is 1.5, returns 1500000.
+    function getPriceForIssuance() external view returns (uint);
+
+    /// @notice Gets current price for token redemption (selling tokens).
+    /// @return price_ Current price denominated in the collateral token decimals.
+    /// @dev    The price is denominated in the collateral token decimals. For
+    ///         example, if the collateral token has 6 decimals and the redemption
+    ///         price is 0.5, the price_ parameter should be 500000.
+    function getPriceForRedemption() external view returns (uint);
 
     /// @notice	Sets the issuance price.
     /// @dev    The price_ parameter should be provided with the same number
     ///         of decimals as the collateral token. For example, if the
-    ///         collateral token has 6 decimals and the price is 1.5, input
-    ///         should be 1500000.
-    /// @param	price_ The price to set.
+    ///         collateral token has 6 decimals and the issuance price is 1.5,
+    ///         the price_ parameter should be 1500000.
+    /// @param	price_ The issuance price to set, denominated in the collateral
+    ///         token decimals.
     function setIssuancePrice(uint price_) external;
 
     /// @notice	Sets the redemption price.
     /// @dev    The price_ parameter should be provided with the same number of
-    ///         decimals as the issuance token. For example, if the issuance
-    ///         token has 18 decimals and the price is 1.5, input should be
-    ///         1500000000000000000.
-    /// @param	price_ The price to set.
+    ///         of decimals as the collateral token. For example, if the
+    ///         collateral token has 6 decimals and the redemption price is 0.5,
+    ///         the price_ parameter should be 500000.
+    /// @param	price_ The redemption price to set, denominated in the collateral
+    ///         token decimals.
     function setRedemptionPrice(uint price_) external;
 
-    /// @notice	Sets both issuance and redemption prices atomically.
-    /// @dev    Both prices must be non-zero. The issuancePrice_ should be in
-    ///         collateral token decimals and redemptionPrice_ in issuance token
-    ///         decimals.
-    /// @param	issuancePrice_ The issuance price to set.
-    /// @param	redemptionPrice_ The redemption price to set.
+    /// @notice	Sets both issuance and redemption prices atomically, denominated
+    ///         in the collateral token decimals.
+    /// @dev    Both prices must be non-zero. Both the issuance and redemption
+    ///         prices should be denominated in the collateral token decimals.
+    ///         For example, if the collateral token has 6 decimals and the
+    ///         issuance and redemption price are both 1.5, the issuancePrice_
+    ///         and redemptionPrice_ parameters should be 1500000.
+    /// @param	issuancePrice_ The issuance price to set, denominated in the
+    ///         collateral token decimals.
+    /// @param	redemptionPrice_ The redemption price to set, denominated in
+    ///         the collateral token decimals.
     function setIssuanceAndRedemptionPrice(
         uint issuancePrice_,
         uint redemptionPrice_
     ) external;
+
+    /// @notice	Gets the decimals of the collateral token.
+    /// @dev    Decimals in which the issuance and redemption prices
+    ///         are denominated.
+    /// @return	decimals_ The decimals of the collateral token.
+    function getCollateralTokenDecimals() external view returns (uint8);
+
+    /// @notice Gets the price setter role identifier.
+    /// @return bytes32 The PRICE_SETTER_ROLE identifier
+    function getPriceSetterRole() external pure returns (bytes32);
+
+    /// @notice Gets the price setter role admin identifier.
+    /// @return bytes32 The PRICE_SETTER_ROLE_ADMIN identifier
+    function getPriceSetterRoleAdmin() external pure returns (bytes32);
 }

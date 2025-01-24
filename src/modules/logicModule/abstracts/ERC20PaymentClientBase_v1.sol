@@ -258,7 +258,7 @@ abstract contract ERC20PaymentClientBase_v1 is
     }
 
     /// @inheritdoc IERC20PaymentClientBase_v1
-    function amountPaid(address token_, uint amount_) external virtual {
+    function amountPaid(address token_, uint amount_) public virtual {
         // Ensure caller is authorized to act as payment processor.
         if (!_isAuthorizedPaymentProcessor(IPaymentProcessor_v1(_msgSender())))
         {

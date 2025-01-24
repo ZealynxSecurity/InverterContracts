@@ -85,33 +85,56 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	amount_ The amount deposited.
     event ReserveDeposited(address indexed depositor_, uint amount_);
 
+    /// @notice Emitted when the project treasury address is updated.
+    /// @param  currentProjectTreasury_ The current project treasury to be replaced.
+    /// @param  newProjectTreasury_ The new project treasury replacing the current.
+    event ProjectTreasuryUpdated(
+        address indexed currentProjectTreasury_,
+        address indexed newProjectTreasury_
+    );
+
+    /// @notice Emitted when the oracle address is updated.
+    /// @param  currentOracle_ The current oracle to be replaced.
+    /// @param  newOracle_ The new oracle replacing the current.
+    event OracleUpdated(
+        address indexed currentOracle_, address indexed newOracle_
+    );
+
+    /// @notice Emitted when direct operation permission is updated.
+    /// @param  currentIsDirectOperationFlag_ The current state of
+    ///         direct operation permission.
+    /// @param  newIsDirectOperationFlag_ The new state of direct
+    ///         operations permission.
+    event DirectOperationsOnlyUpdated(
+        bool indexed currentIsDirectOperationFlag_,
+        bool indexed newIsDirectOperationFlag_
+    );
+
     /// @notice	Emitted when a new redemption order is created.
-    /// @param  creator_ The address of the contract creating the payment order.
+    /// @param  paymentClient_ The address of payment client that created
+    ///         the payment order.
     /// @param	orderId_ Order identifier.
     /// @param	seller_ Address selling tokens.
-    /// @param	receiver_ Address who receives the redeemed tokens.
-    /// @param	sellAmount_ Amount of tokens to sell.
-    /// @param	exchangeRate_ Current exchange rate.
-    /// @param	collateralAmount_ Amount of collateral.
-    /// @param	feePercentage_ Fee percentage applied.
-    /// @param	feeAmount_ Fee amount calculated.
-    /// @param	redemptionAmount_ Final redemption amount.
+    /// @param	receiver_ Address who receives the redeemed collateral tokens.
+    /// @param	sellAmount_ Amount of issuance tokens sold.
+    /// @param	exchangeRate_ Current redemption exchange rate, denominated
+    ///         in collateral token decimals.
+    /// @param	feePercentage_ Project collateral fee percentage applied.
+    /// @param	feeAmount_ Project collateral fee amount collected.
+    /// @param	finalRedemptionAmount_ Final redemption amount to be received.
     /// @param	collateralToken_ Address of collateral token.
-    /// @param	redemptionTime_ Time of redemption.
     /// @param	state_ Initial state of the order.
     event RedemptionOrderCreated(
-        address indexed creator_,
+        address indexed paymentClient_,
         uint indexed orderId_,
         address seller_,
         address indexed receiver_,
         uint sellAmount_,
         uint exchangeRate_,
-        uint collateralAmount_,
         uint feePercentage_,
         uint feeAmount_,
-        uint redemptionAmount_,
+        uint finalRedemptionAmount_,
         address collateralToken_,
-        uint redemptionTime_,
         RedemptionState state_
     );
 
@@ -146,8 +169,11 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     function getBuyFee() external view returns (uint buyFee_);
 
     /// @notice Gets the maximum fee that can be charged for buy operations.
-    /// @return maxBuyFee_ The maximum buy fee.
-    function getMaxBuyFee() external view returns (uint maxBuyFee_);
+    /// @return maxProjectBuyFee_ The maximum buy fee.
+    function getMaxProjectBuyFee()
+        external
+        view
+        returns (uint maxProjectBuyFee_);
 
     /// @notice Gets the maximum project fee that can be charged for sell
     ///         operations.
@@ -160,6 +186,25 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Gets current sell fee.
     /// @return fee_ The current sell fee.
     function getSellFee() external view returns (uint fee_);
+
+    /// @notice Gets the whitelist role identifier
+    /// @return role_ The whitelist role identifier
+    function getWhitelistRole() external pure returns (bytes32 role_);
+
+    /// @notice Gets the whitelist role admin identifier
+    /// @return role_ The whitelist role admin identifier
+    function getWhitelistRoleAdmin() external pure returns (bytes32 role_);
+
+    /// @notice Gets the queue executor role identifier
+    /// @return role_ The queue executor role identifier
+    function getQueueExecutorRole() external pure returns (bytes32 role_);
+
+    /// @notice Gets the queue executor role admin identifier
+    /// @return role_ The queue executor role admin identifier
+    function getQueueExecutorRoleAdmin()
+        external
+        pure
+        returns (bytes32 role_);
 
     // -------------------------------------------------------------------------
     // External Functions
@@ -179,4 +224,11 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Toggles whether the contract only allows direct operations or not.
     /// @param  isDirectOperationsOnly_ The new value for the flag.
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_) external;
+
+    /// @notice Manually executes the redemption queue in the workflows Payment
+    ///         Processor.
+    /// @dev    If this function is called but the Payment Processor does not
+    ///         implement the option to manually execute the redemption queue
+    ///         then this function will revert.
+    function executeRedemptionQueue() external;
 }

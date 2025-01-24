@@ -107,7 +107,7 @@ contract ERC20PaymentClientBaseV1Mock is ERC20PaymentClientBase_v1 {
     }
 
     function amountPaid(address _token, uint amount)
-        external
+        public
         override(ERC20PaymentClientBase_v1)
     {
         amountPaidCounter[_token] += amount;

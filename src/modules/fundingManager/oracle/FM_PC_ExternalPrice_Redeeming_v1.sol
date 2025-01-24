@@ -598,7 +598,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             issuanceFeeAmount_,
             collateralRedeemAmount_,
             address(token()),
-            RedemptionState.PROCESSING
+            RedemptionState.PENDING
         );
     }
 

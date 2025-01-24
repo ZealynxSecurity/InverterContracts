@@ -1432,7 +1432,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         │           └── Then it should:
         │               ├── Create redemption order with correct parameters
         │               ├── Update open redemption amount
-        │               ├── Set order state to PROCESSING
+        │               ├── Set order state to PENDING
         │               └── Emit TokensSold event
     */
     function testExternalSell_succeedsGivenValidRedemptionOrder(

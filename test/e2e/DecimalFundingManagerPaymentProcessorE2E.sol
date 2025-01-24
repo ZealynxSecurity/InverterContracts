@@ -103,10 +103,10 @@ contract DecimalFundingManagerPaymentProcessorE2E is E2ETest {
         delete moduleConfigurations;
 
         // Additional Logic Modules
-        setUpOracle();
+        setUpPermissionedOracle();
 
         // FundingManager
-        setUpFundingManager();
+        setUpPermissionedOracleRedeemingFundingManager();
         bytes memory configData = abi.encode(
             address(oracle), // oracle address
             address(issuanceToken), // issuance token
@@ -132,7 +132,7 @@ contract DecimalFundingManagerPaymentProcessorE2E is E2ETest {
         );
 
         // PaymentProcessor
-        setUpPaymentProcessor();
+        setUpQueuePaymentProcessor();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
                 paymentProcessorMetadata, bytes("")

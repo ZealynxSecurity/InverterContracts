@@ -31,7 +31,10 @@ import {LM_ManualExternalPriceSetter_v1_Exposed} from
 import {ILM_ManualExternalPriceSetter_v1} from
     "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
 
-import {ERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
+import {ERC20Issuance_Blacklist_v1} from
+    "@ex/token/ERC20Issuance_Blacklist_v1.sol";
+import {ERC165Upgradeable} from
+    "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
 // import {IModule_v1} from "src/modules/base/IModule_v1.sol";
 
@@ -49,40 +52,55 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
     // E2E Test Variables
+    // -------------------------------------------------------------------------
     // Constants
-    string internal constant NAME = "Issuance Token";
-    string internal constant SYMBOL = "IST";
-    uint8 internal constant DECIMALS = 18;
-    uint internal constant MAX_SUPPLY = type(uint).max;
-    bytes32 constant WHITELIST_ROLE = "WHITELIST_ROLE";
-    bytes32 constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
-    uint8 constant INTERNAL_DECIMALS = 18;
     uint constant BPS = 10_000; // Basis points (100%)
 
-    // Fee settings
-    uint constant DEFAULT_BUY_FEE = 100; // 1%
-    uint constant DEFAULT_SELL_FEE = 100; // 1%
-    uint constant MAX_BUY_FEE = 500; // 5%
-    uint constant MAX_SELL_FEE = 500; // 5%
+    // Issuance token constants
+    string internal constant NAME = "Mock USDC";
+    string internal constant SYMBOL = "M-USDC";
+    uint8 internal constant DECIMALS = 6;
+    uint internal constant MAX_SUPPLY = type(uint).max;
+
+    // FM Fee settings
+    uint constant DEFAULT_BUY_FEE = 0; // 1%
+    uint constant DEFAULT_SELL_FEE = 20; // 0.2%
+    uint constant MAX_BUY_FEE = 0; // 0%
+    uint constant MAX_SELL_FEE = 100; // 1%
     bool constant DIRECT_OPERATIONS_ONLY = false;
 
-    // Module metadata
+    // Roles in the workflow
+    bytes32 private constant WHITELIST_ROLE = "WHITELIST_ROLE";
+    bytes32 private constant WHITELIST_ROLE_ADMIN = "WHITELIST_ROLE_ADMIN";
+    bytes32 private constant QUEUE_EXECUTOR_ROLE = "QUEUE_EXECUTOR_ROLE";
+    bytes32 private constant QUEUE_EXECUTOR_ROLE_ADMIN =
+        "QUEUE_EXECUTOR_ROLE_ADMIN";
+    bytes32 private constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR_ROLE";
+    bytes32 private constant QUEUE_OPERATOR_ROLE_ADMIN =
+        "QUEUE_OPERATOR_ROLE_ADMIN";
+    bytes32 private constant PRICE_SETTER_ROLE = "PRICE_SETTER_ROLE";
+    bytes32 private constant PRICE_SETTER_ROLE_ADMIN = "PRICE_SETTER_ROLE_ADMIN";
+    // -------------------------------------------------------------------------
+    // Test variables
 
-    // Module beacons
-
-    // Test addresses
+    // Addresses
     address admin = address(this);
-    address user = makeAddr("user");
+    address whitelistManager = makeAddr("whitelistManager");
     address whitelisted = makeAddr("whitelisted");
+    address queueOperatorManager = makeAddr("queueOperatorManager");
+    address queueOperator = makeAddr("queueOperator");
+    address queueExecutorManager = makeAddr("queueExecutorManager");
+    address queueExecutor = makeAddr("queueExecutor");
+    address user = makeAddr("user");
     address queueManager = makeAddr("queueManager");
 
     // Contracts
-    ERC20Issuance_v1 issuanceToken;
+    ERC20Issuance_Blacklist_v1 issuanceToken;
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
     PP_Queue_v1 paymentProcessor;
     AUT_Roles_v1 authorizer;
-
-    IOrchestrator_v1 public orchestrator;
+    LM_ManualExternalPriceSetter_v1 permissionedOracle;
+    IOrchestrator_v1 orchestrator;
 
     function setUp() public override {
         // Setup common E2E framework
@@ -97,24 +115,21 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         //      moduleConfigurations[3:] => Additional Logic Modules
 
         // First create issuance token
-        issuanceToken = new ERC20Issuance_v1(
-            NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this)
+        issuanceToken = new ERC20Issuance_Blacklist_v1(
+            NAME, SYMBOL, DECIMALS, MAX_SUPPLY, address(this), address(this)
         );
 
-        // Additional Logic Modules
-        setUpOracle();
-
         // FundingManager
-        setUpFundingManager();
+        setUpPermissionedOracleRedeemingFundingManager();
         bytes memory configData = abi.encode(
             address(oracle), // oracle address
             address(issuanceToken), // issuance token
-            address(token), // accepted token
+            address(token), // collateral token
             DEFAULT_BUY_FEE, // buy fee
             DEFAULT_SELL_FEE, // sell fee
             MAX_SELL_FEE, // max sell fee
             MAX_BUY_FEE, // max buy fee
-            true // buyIsOpen flag
+            DIRECT_OPERATIONS_ONLY // direct operations only flag
         );
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
@@ -130,14 +145,15 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         );
 
         // PaymentProcessor
-        setUpPaymentProcessor();
+        setUpQueuePaymentProcessor();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
                 paymentProcessorMetadata, bytes("")
             )
         );
 
-        // Finally add the oracle configuration
+        // Additional Logic Modules
+        setUpPermissionedOracle();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
                 oracleMetadata,
@@ -146,8 +162,77 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
         );
     }
 
-    function test_e2e_Buy_WithValidPriceAndAmount() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+    function _init() private {
+        //--------------------------------------------------------------------------
+        // Orchestrator_v1 Initialization
+        //--------------------------------------------------------------------------
+        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig =
+        IOrchestratorFactory_v1.WorkflowConfig({
+            independentUpdates: false,
+            independentUpdateAdmin: address(0)
+        });
+
+        orchestrator =
+            _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
+
+        // Get funding manager
+        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(
+            address(orchestrator.fundingManager())
+        );
+
+        // Get payment processor
+        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
+
+        // Get permissioned oracle
+        address[] memory modulesList = orchestrator.listModules();
+        for (uint i; i < modulesList.length; ++i) {
+            if (
+                ERC165Upgradeable(modulesList[i]).supportsInterface(
+                    type(ILM_ManualExternalPriceSetter_v1).interfaceId
+                )
+            ) {
+                permissionedOracle =
+                    LM_ManualExternalPriceSetter_v1(modulesList[i]);
+                break;
+            }
+        }
+        fundingManager.setOracleAddress(address(permissionedOracle));
+        issuanceToken.setMinter(address(fundingManager), true);
+    }
+
+    function test_e2e_QueueBaseFundingManagerAndPaymentProcessorLifecycle()
+        public
+    {
+        _init();
+
+        //--------------------------------------------------------------------------
+        // Assign role admins for roles in the system
+
+        bytes32 roleId;
+        // Assign role admin for the permissioned oracle
+        roleId = authorizer.generateRoleId(
+            address(permissionedOracle), PRICE_SETTER_ROLE
+        );
+        authorizer.transferAdminRole(roleId, PRICE_SETTER_ROLE_ADMIN);
+
+        // Assign role admin for the Queue Based Payment Processor
+        roleId = authorizer.generateRoleId(
+            address(paymentProcessor), QUEUE_OPERATOR_ROLE
+        );
+        authorizer.transferAdminRole(roleId, QUEUE_OPERATOR_ROLE_ADMIN);
+
+        // Assign role admins for the Oracle Based Funding Manager
+        roleId =
+            authorizer.generateRoleId(address(fundingManager), WHITELIST_ROLE);
+        authorizer.transferAdminRole(roleId, WHITELIST_ROLE_ADMIN);
+
+        roleId = authorizer.generateRoleId(
+            address(fundingManager), QUEUE_EXECUTOR_ROLE
+        );
+        authorizer.transferAdminRole(roleId, QUEUE_EXECUTOR_ROLE_ADMIN);
+
+        //--------------------------------------------------------------------------
+        // Assign role to addresses in the system
 
         // Setup oracle and set prices
         uint initialPrice = 1e18; // 1:1 ratio
@@ -174,7 +259,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_BuyAndSell_WithQueueProcessing() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         uint initialPrice = 1e18; // 1:1 ratio
         LM_ManualExternalPriceSetter_v1 oraclelm =
@@ -230,7 +315,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_BuyAndSell_TwoUsers() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup initial price
         uint initialPrice = 1e17;
@@ -270,7 +355,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_Sell_MultipleUsersQueueOrder() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup users
         address user1 = makeAddr("user1");
@@ -328,7 +413,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_DepositFunds_PaymentProcessor() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup oracle and set prices
         uint initialPrice = 1e18; // 1:1 ratio
@@ -375,7 +460,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_ExecuteQueue_SinglePayment() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup oracle and set prices
         uint initialPrice = 1e18; // 1:1 ratio
@@ -433,7 +518,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_ExecuteQueue_MultiplePayments() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup oracle and set prices
         uint initialPrice = 1e18;
@@ -508,7 +593,7 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
     }
 
     function test_e2e_ExecuteQueue_InsufficientBalance() public {
-        _setupOrchestratorFundingManagerPaymentProcessor();
+        _init();
 
         // Setup oracle and set prices
         uint initialPrice = 1e18;
@@ -549,22 +634,6 @@ contract FundingManagerPaymentProcessorE2E is E2ETest {
             userBalance,
             "User should still have their issuance tokens"
         );
-    }
-
-    function _setupOrchestratorFundingManagerPaymentProcessor() internal {
-        IOrchestratorFactory_v1.WorkflowConfig memory workflowConfig =
-        IOrchestratorFactory_v1.WorkflowConfig({
-            independentUpdates: false,
-            independentUpdateAdmin: address(0)
-        });
-
-        orchestrator =
-            _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
-
-        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(
-            address(orchestrator.fundingManager())
-        );
-        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
     }
 
     function _setupOracle(

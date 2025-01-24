@@ -39,9 +39,10 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     // Enum for redemption order states.
     enum RedemptionState {
-        COMPLETED,
+        PROCESSED,
         CANCELLED,
-        PROCESSING
+        PENDING,
+        FAILED
     }
 
     // -------------------------------------------------------------------------
@@ -117,6 +118,15 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     // -------------------------------------------------------------------------
     // Errors
+
+    /// @notice	Payment failed when transferring funds from client to recipient.
+    /// @param  client_ Address of the client.
+    /// @param  recipient_ Address of the recipient.
+    /// @param  token_ Address of the token.
+    /// @param  amount_ Amount of tokens.
+    error Module_PP_Queue_PaymentFailed(
+        address client_, address recipient_, address token_, uint amount_
+    );
 
     /// @notice	Operation attempted with zero amount.
     error Module__PP_Queue_ZeroAmount();

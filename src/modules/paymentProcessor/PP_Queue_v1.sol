@@ -291,7 +291,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         QueuedOrder storage order = _orders[orderId_];
 
         // Check if the order has an invalid state.
-        if (order.state_ != RedemptionState.PROCESSING) {
+        if (order.state_ != RedemptionState.PENDING) {
             revert Module__PP_Queue_InvalidState();
         }
 
@@ -329,8 +329,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         QueuedOrder storage order = _orders[firstId];
 
-        // Skip if order is not in PROCESSING state.
-        if (order.state_ != RedemptionState.PROCESSING) {
+        // Skip if order is not in PENDING state.
+        if (order.state_ != RedemptionState.PENDING) {
             _removeFromQueue(firstId);
             return false;
         }
@@ -371,7 +371,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             success && (data.length == 0 || abi.decode(data, (bool)))
                 && order_.order_.paymentToken.code.length != 0
         ) {
-            _updateOrderState(orderId_, RedemptionState.COMPLETED);
+            _updateOrderState(orderId_, RedemptionState.PROCESSED);
             _removeFromQueue(orderId_);
 
             // Notify client about successful payment.
@@ -387,6 +387,27 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
             return true;
         } else {
+            // Process payment.
+            (bool success, bytes memory data) = order_.order_.paymentToken.call(
+                abi.encodeWithSelector(
+                    IERC20(order_.order_.paymentToken).transferFrom.selector,
+                    order_.client_,
+                    address(this),
+                    order_.order_.amount
+                )
+            );
+            if (!success) {
+                revert Module_PP_Queue_PaymentFailed(
+                    order_.client_,
+                    order_.order_.recipient,
+                    order_.order_.paymentToken,
+                    order_.order_.amount
+                );
+            }
+            // Notify client about successful payment.
+            IERC20PaymentClientBase_v1(order_.client_).amountPaid(
+                order_.order_.paymentToken, order_.order_.amount
+            );
             // Store as unclaimable and update state.
             _unclaimableAmountsForRecipient[order_.client_][order_
                 .order_
@@ -399,13 +420,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                 order_.order_.amount
             );
 
-            // @todo should this be cancelled or processed? Also if this transfer fails, then this doesn't mean that the funds are empty, so we could try processing more
-            _updateOrderState(orderId_, RedemptionState.CANCELLED);
+            _updateOrderState(orderId_, RedemptionState.FAILED);
             _removeFromQueue(orderId_);
 
             return false;
         }
     }
+    // @todo add a way for the admin to re-direct unclaimable amounts from blacklisted recipients to himself
 
     /// @notice	Executes all pending orders in the queue.
     function _executePaymentQueue(address client_)
@@ -445,7 +466,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Create new order
         _orders[queueId_] = QueuedOrder({
             order_: order_,
-            state_: RedemptionState.PROCESSING,
+            state_: RedemptionState.PENDING,
             orderId_: queueId_,
             timestamp_: block.timestamp,
             client_: client_
@@ -512,12 +533,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         // Delete the field.
         delete _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
 
-        // Make sure to let paymentClient know that amount doesnt have
-        // to be stored anymore.
-        IERC20PaymentClientBase_v1(client_).amountPaid(token_, amount);
-
         // Call has to succeed otherwise no state change.
-        IERC20(token_).safeTransferFrom(client_, paymentReceiver_, amount);
+        IERC20(token_).safeTransferFrom(address(this), paymentReceiver_, amount);
 
         emit TokensReleased(paymentReceiver_, address(token_), amount);
     }
@@ -643,7 +660,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     ) internal pure returns (bool valid_) {
         // Can't transition from completed or cancelled.
         if (
-            currentState_ == RedemptionState.COMPLETED
+            currentState_ == RedemptionState.PROCESSED
                 || currentState_ == RedemptionState.CANCELLED
         ) {
             revert Module__PP_Queue_InvalidStateTransition(
@@ -653,10 +670,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
         // Can only transition to completed or cancelled from processing.
         if (
-            newState_ == RedemptionState.COMPLETED
+            newState_ == RedemptionState.PROCESSED
                 || newState_ == RedemptionState.CANCELLED
         ) {
-            if (currentState_ != RedemptionState.PROCESSING) {
+            if (currentState_ != RedemptionState.PENDING) {
                 revert Module__PP_Queue_InvalidStateTransition(
                     orderId_, currentState_, newState_
                 );

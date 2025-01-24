@@ -101,7 +101,7 @@ contract E2EModuleRegistry is Test {
         "PP_Queue_v1"
     );
 
-    function setUpPaymentProcessor() internal {
+    function setUpQueuePaymentProcessor() internal {
         // Deploy module implementations.
         queue = new PP_Queue_v1();
 
@@ -138,7 +138,7 @@ contract E2EModuleRegistry is Test {
     InverterBeacon_v1 oracleBeacon;
     LM_ManualExternalPriceSetter_v1 oracle;
 
-    function setUpOracle() internal {
+    function setUpPermissionedOracle() internal {
         oracle = new LM_ManualExternalPriceSetter_v1();
 
         oracleBeacon = new InverterBeacon_v1(
@@ -171,7 +171,7 @@ contract E2EModuleRegistry is Test {
     InverterBeacon_v1 fundingManagerBeacon;
     FM_PC_ExternalPrice_Redeeming_v1 fundingManagerExternal;
 
-    function setUpFundingManager() internal {
+    function setUpPermissionedOracleRedeemingFundingManager() internal {
         fundingManagerExternal = new FM_PC_ExternalPrice_Redeeming_v1();
 
         fundingManagerBeacon = new InverterBeacon_v1(

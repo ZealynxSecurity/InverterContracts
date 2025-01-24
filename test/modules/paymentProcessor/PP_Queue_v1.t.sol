@@ -210,7 +210,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         assertEq(
             uint(queuedOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING),
+            uint(IPP_Queue_v1.RedemptionState.PENDING),
             "Wrong state"
         );
         assertEq(queuedOrder.orderId_, orderId, "Wrong orderId");
@@ -630,8 +630,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         assertEq(
             uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "State should be PROCESSING."
+            uint(IPP_Queue_v1.RedemptionState.PENDING),
+            "State should be PENDING."
         );
     }
 
@@ -643,7 +643,7 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then token should match.
                 ├── Then origin chain ID should match.
                 ├── Then target chain ID should match.
-                ├── Then state should be PROCESSING.
+                ├── Then state should be PENDING.
                 ├── Then order ID should match.
                 └── Then client should match.
     */
@@ -706,8 +706,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         assertEq(
             uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSING),
-            "State should be PROCESSING."
+            uint(IPP_Queue_v1.RedemptionState.PENDING),
+            "State should be PENDING."
         );
         assertEq(queuedOrder_.orderId_, orderId_, "Order ID should match.");
         assertEq(queuedOrder_.client_, client_, "Client should match.");
@@ -787,7 +787,7 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then recipient should match.
                 ├── Then amount should match.
                 ├── Then token should match.
-                └── Then state should be COMPLETED.
+                └── Then state should be PROCESSED.
     */
     function testGetOrder_GivenProcessedOrder() public {
         address recipient_ = makeAddr("recipient");
@@ -811,7 +811,7 @@ contract PP_Queue_v1_Test is ModuleTest {
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
         queue.exposed_updateOrderState(
-            orderId_, IPP_Queue_v1.RedemptionState.COMPLETED
+            orderId_, IPP_Queue_v1.RedemptionState.PROCESSED
         );
         queue.exposed_removeFromQueue(orderId_);
 
@@ -829,8 +829,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         assertEq(
             uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.COMPLETED),
-            "State should be COMPLETED."
+            uint(IPP_Queue_v1.RedemptionState.PROCESSED),
+            "State should be PROCESSED."
         );
     }
 
@@ -1668,15 +1668,15 @@ contract PP_Queue_v1_Test is ModuleTest {
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
         queue.exposed_updateOrderState(
-            orderId_, IPP_Queue_v1.RedemptionState.COMPLETED
+            orderId_, IPP_Queue_v1.RedemptionState.PROCESSED
         );
 
         IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
             queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
         assertEq(
             uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.COMPLETED),
-            "State should be COMPLETED."
+            uint(IPP_Queue_v1.RedemptionState.PROCESSED),
+            "State should be PROCESSED."
         );
     }
 
@@ -1929,7 +1929,7 @@ contract PP_Queue_v1_Test is ModuleTest {
             abi.encodeWithSignature(
                 "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
                 orderId_,
-                uint8(IPP_Queue_v1.RedemptionState.COMPLETED),
+                uint8(IPP_Queue_v1.RedemptionState.PROCESSED),
                 uint8(IPP_Queue_v1.RedemptionState.CANCELLED)
             )
         );
@@ -2110,11 +2110,11 @@ contract PP_Queue_v1_Test is ModuleTest {
                 "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
                 orderId_,
                 uint8(IPP_Queue_v1.RedemptionState.CANCELLED),
-                uint8(IPP_Queue_v1.RedemptionState.COMPLETED)
+                uint8(IPP_Queue_v1.RedemptionState.PROCESSED)
             )
         );
         queue.exposed_updateOrderState(
-            orderId_, IPP_Queue_v1.RedemptionState.COMPLETED
+            orderId_, IPP_Queue_v1.RedemptionState.PROCESSED
         );
     }
 

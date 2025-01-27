@@ -161,7 +161,7 @@ abstract contract ERC20PaymentClientBase_v1 is
             _flags |= bytes32((1 << flags_[i]));
         }
 
-        emit FlagsSet(_flagCount, _flags);
+        emit FlagsSet(uint8(amountOfFlags), _flags);
     }
 
     //--------------------------------------------------------------------------

@@ -341,7 +341,6 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                 order.order_.paymentToken, order.client_, order.order_.amount
             )
         ) {
-            _updateOrderState(firstId, RedemptionState.CANCELLED);
             return false;
         }
 

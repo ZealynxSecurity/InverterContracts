@@ -721,9 +721,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         returns (uint mintAmount_)
     {
         // Calculate the mint amount.
-        mintAmount_ = _oracle.getPriceForIssuance() * depositAmount_;
+        mintAmount_ = _oracle.getPriceForIssuance() * depositAmount_
+            / _collateralTokenDecimals;
 
-        // Convert collateral deposit amount to issuance token decimals.
+        // Convert mint amount to issuance token decimals.
         mintAmount_ = FM_BC_Tools._convertAmountToRequiredDecimal(
             mintAmount_, _collateralTokenDecimals, _issuanceTokenDecimals
         );
@@ -747,7 +748,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         redeemAmount_ = (
             _oracle.getPriceForRedemption()
                 * collateralDecimalsConverterdDepositAmount
-        );
+        ) / _collateralTokenDecimals;
     }
 
     /// @dev    Sets the issuance token.

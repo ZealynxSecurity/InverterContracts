@@ -87,76 +87,6 @@ contract E2EModuleRegistry is Test {
     //--------------------------------------------------------------------------
 
     //--------------------------------------------------------------------------
-    // Payment Processor
-    //--------------------------------------------------------------------------
-
-    PP_Queue_v1 queue;
-    InverterBeacon_v1 streamingPaymentProcessorQueueBeacon;
-
-    IModule_v1.Metadata paymentProcessorMetadata = IModule_v1.Metadata(
-        1, // major version
-        0, // minor version
-        0, // patch version
-        "https://github.com/inverter/payment-processor",
-        "PP_Queue_v1"
-    );
-
-    function setUpQueuePaymentProcessor() internal {
-        // Deploy module implementations.
-        queue = new PP_Queue_v1();
-
-        // Deploy module beacons.
-        streamingPaymentProcessorQueueBeacon = new InverterBeacon_v1(
-            moduleFactory.reverter(),
-            DEFAULT_BEACON_OWNER,
-            paymentProcessorMetadata.majorVersion,
-            address(queue),
-            paymentProcessorMetadata.minorVersion,
-            paymentProcessorMetadata.patchVersion
-        );
-
-        // Register modules at moduleFactory.
-        vm.prank(teamMultisig);
-        gov.registerMetadataInModuleFactory(
-            paymentProcessorMetadata,
-            IInverterBeacon_v1(streamingPaymentProcessorQueueBeacon)
-        );
-    }
-
-    //--------------------------------------------------------------------------
-    // Oracle
-    //--------------------------------------------------------------------------
-
-    IModule_v1.Metadata oracleMetadata = IModule_v1.Metadata(
-        1, // major version
-        0, // minor version
-        0, // patch version
-        "https://github.com/inverter/oracle",
-        "LM_ManualExternalPriceSetter_v1"
-    );
-
-    InverterBeacon_v1 oracleBeacon;
-    LM_ManualExternalPriceSetter_v1 oracle;
-
-    function setUpPermissionedOracle() internal {
-        oracle = new LM_ManualExternalPriceSetter_v1();
-
-        oracleBeacon = new InverterBeacon_v1(
-            moduleFactory.reverter(),
-            DEFAULT_BEACON_OWNER,
-            oracleMetadata.majorVersion,
-            address(oracle),
-            oracleMetadata.minorVersion,
-            oracleMetadata.patchVersion
-        );
-        // Register modules at moduleFactory.
-        vm.prank(teamMultisig);
-        gov.registerMetadataInModuleFactory(
-            oracleMetadata, IInverterBeacon_v1(oracleBeacon)
-        );
-    }
-
-    //--------------------------------------------------------------------------
     // Funding Managers
     //--------------------------------------------------------------------------
 
@@ -402,6 +332,39 @@ contract E2EModuleRegistry is Test {
     // Payment Processors
     //--------------------------------------------------------------------------
 
+    // PP_Queue_v1
+    PP_Queue_v1 queue;
+    InverterBeacon_v1 streamingPaymentProcessorQueueBeacon;
+
+    IModule_v1.Metadata paymentProcessorMetadata = IModule_v1.Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/payment-processor",
+        "PP_Queue_v1"
+    );
+
+    function setUpQueuePaymentProcessor() internal {
+        // Deploy module implementations.
+        queue = new PP_Queue_v1();
+
+        // Deploy module beacons.
+        streamingPaymentProcessorQueueBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            paymentProcessorMetadata.majorVersion,
+            address(queue),
+            paymentProcessorMetadata.minorVersion,
+            paymentProcessorMetadata.patchVersion
+        );
+
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            paymentProcessorMetadata,
+            IInverterBeacon_v1(streamingPaymentProcessorQueueBeacon)
+        );
+    }
     // PP_Simple_v1
 
     PP_Simple_v1 simplePaymentProcessorImpl;
@@ -487,6 +450,38 @@ contract E2EModuleRegistry is Test {
 
     //--------------------------------------------------------------------------
     // logicModules
+    //--------------------------------------------------------------------------
+
+    // LM_ManualExternalPriceSetter_v1
+
+    IModule_v1.Metadata oracleMetadata = IModule_v1.Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/oracle",
+        "LM_ManualExternalPriceSetter_v1"
+    );
+
+    InverterBeacon_v1 oracleBeacon;
+    LM_ManualExternalPriceSetter_v1 oracle;
+
+    function setUpPermissionedOracle() internal {
+        oracle = new LM_ManualExternalPriceSetter_v1();
+
+        oracleBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            oracleMetadata.majorVersion,
+            address(oracle),
+            oracleMetadata.minorVersion,
+            oracleMetadata.patchVersion
+        );
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            oracleMetadata, IInverterBeacon_v1(oracleBeacon)
+        );
+    }
 
     // LM_PC_RecurringPayments_v1
 

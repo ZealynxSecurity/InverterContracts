@@ -46,8 +46,8 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
         return _addPaymentOrderToQueue(order_, client_);
     }
 
-    function exposed_removeFromQueue(uint orderId_) external {
-        _removeFromQueue(orderId_);
+    function exposed_removeFromQueue(uint orderId_, address client_) external {
+        _removeFromQueue(orderId_, client_);
     }
 
     function exposed_getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
@@ -67,10 +67,12 @@ contract PP_Queue_v1Mock is PP_Queue_v1 {
         return _validQueueId(queueId, client_);
     }
 
-    function exposed_updateOrderState(uint orderId_, RedemptionState state_)
-        external
-    {
-        _updateOrderState(orderId_, state_);
+    function exposed_updateOrderState(
+        uint orderId_,
+        address client_,
+        RedemptionState state_
+    ) external {
+        _updateOrderState(orderId_, client_, state_);
     }
 
     function exposed_processNextOrder(address client_)

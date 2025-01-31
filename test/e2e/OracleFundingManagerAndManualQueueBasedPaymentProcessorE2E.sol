@@ -16,9 +16,10 @@ import {
 } from "test/e2e/E2ETest.sol";
 
 // Import modules that are used in this E2E test
-import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
-import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
-
+import {
+    PP_Queue_ManualExecution_v1,
+    IPP_Queue_ManualExecution_v1
+} from "@pp/PP_Queue_ManualExecution_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 //
 import {FM_PC_ExternalPrice_Redeeming_v1} from
@@ -38,8 +39,6 @@ import {ERC20Issuance_Blacklist_v1} from
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
-// import {IModule_v1} from "src/modules/base/IModule_v1.sol";
-
 import {
     InverterBeacon_v1,
     IInverterBeacon_v1
@@ -50,7 +49,9 @@ import {ERC20DecimalsMock} from "test/utils/mocks/ERC20DecimalsMock.sol";
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
 
-contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
+contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
+    E2ETest
+{
     IOrchestratorFactory_v1.ModuleConfig[] moduleConfigurations;
 
     // E2E Test Variables
@@ -102,9 +103,6 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
     // -------------------------------------------------------------------------
     // Test variables
 
-    // Addresses
-    address admin = address(this);
-    address user = makeAddr("user");
     // Addresses for roles
     address whitelistRoleAdmin = makeAddr("whitelistRoleAdmin");
     address whitelistedUser = makeAddr("whitelistedUser");
@@ -124,7 +122,7 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
     ERC20DecimalsMock collateralToken;
     ERC20Issuance_Blacklist_v1 issuanceToken;
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
-    PP_Queue_v1 paymentProcessor;
+    PP_Queue_ManualExecution_v1 paymentProcessor;
     AUT_Roles_v1 authorizer;
     LM_ManualExternalPriceSetter_v1 permissionedOracle;
     IOrchestrator_v1 orchestrator;
@@ -193,10 +191,10 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
         );
 
         // PaymentProcessor
-        setUpQueuePaymentProcessor();
+        setUpManualQueueBasedPaymentProcessor();
         moduleConfigurations.push(
             IOrchestratorFactory_v1.ModuleConfig(
-                paymentProcessorMetadata,
+                manualQueueBasedPaymentProcessorMetadata,
                 abi.encode(cancelledOrdersTreasury, failedOrdersTreasury)
             )
         );
@@ -228,7 +226,9 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
         );
 
         // Get payment processor
-        paymentProcessor = PP_Queue_v1(address(orchestrator.paymentProcessor()));
+        paymentProcessor = PP_Queue_ManualExecution_v1(
+            address(orchestrator.paymentProcessor())
+        );
 
         // Get permissioned oracle
         address[] memory modulesList = orchestrator.listModules();
@@ -443,7 +443,7 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
             0,
             "User should have 0 issuance tokens after sell"
         );
-        // Verify project treasury has all the collateral from the buy amount
+        // Verify project treasury has all the collateral still from the buy
         assertEq(
             collateralToken.balanceOf(projectTreasury),
             buyAmount,
@@ -458,7 +458,7 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
         uint orderId = data.orderId_;
 
         // Get order from payment processor
-        IPP_Queue_v1.QueuedOrder memory order =
+        IPP_Queue_ManualExecution_v1.QueuedOrder memory order =
             paymentProcessor.getOrder(orderId, fundingManager);
         IERC20PaymentClientBase_v1.PaymentOrder memory paymentOrder =
             order.order_;
@@ -480,14 +480,72 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
         );
 
         //--------------------------------------------------------------------------
-        // Execute Queue
+        // Deposit Reserve
         //--------------------------------------------------------------------------
 
         uint openRedemptionAmount = fundingManager.getOpenRedemptionAmount();
+        //--------------------------------------------------------------------------
+        // Pre-deposit assertions
         assertEq(
             openRedemptionAmount,
             paymentOrder.amount,
             "Open redemption amount should be equal to the payment amount of the 1 order that got created"
+        );
+        // Deposit reserve back into the funding manager
+        vm.prank(projectTreasury);
+        collateralToken.approve(address(fundingManager), openRedemptionAmount);
+        assertEq(
+            collateralToken.allowance(projectTreasury, address(fundingManager)),
+            openRedemptionAmount,
+            "Allowance should be equal to the open redemption amount"
+        );
+
+        vm.prank(projectTreasury);
+        fundingManager.depositReserve(openRedemptionAmount);
+
+        //--------------------------------------------------------------------------
+        // Post-deposit assertions
+
+        // Verify project treasury has all depoisted all the collateral
+        // back into the funding manager
+        assertEq(
+            collateralToken.balanceOf(projectTreasury),
+            0,
+            "project treasury should have no collateral left"
+        );
+
+        // Verify funding manager has all the reserve back, deposited through
+        // the depositReserve function
+        assertEq(
+            collateralToken.balanceOf(address(fundingManager)),
+            openRedemptionAmount,
+            "project treasury should have no collateral left"
+        );
+
+        //--------------------------------------------------------------------------
+        // Execute Queue
+        //--------------------------------------------------------------------------
+
+        //--------------------------------------------------------------------------
+        // Pre-execute assertions
+
+        // Verify user has no issuance tokens before queue execution
+        assertEq(
+            issuanceToken.balanceOf(whitelistedUser),
+            0,
+            "User should have 0 issuance tokens after sell"
+        );
+
+        vm.startPrank(queueExecutor);
+        fundingManager.executeRedemptionQueue();
+
+        //--------------------------------------------------------------------------
+        // Post-execute assertions
+
+        assertEq(
+            issuanceToken.balanceOf(whitelistedUser),
+            paymentOrder.amount,
+            "User should have the right amount of issuance tokens after queue execution"
         );
     }
     // In your test file
@@ -498,47 +556,6 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
         // Approve tokens to funding manager
         vm.startPrank(buyer);
         collateralToken.approve(address(fundingManager), buyAmount);
-        vm.stopPrank();
-    }
-
-    // @todo: Do we need this function?
-    function _prepareSellConditions(
-        IOrchestrator_v1 orchestrator,
-        address admin,
-        address seller,
-        uint amount
-    ) internal {
-        // Enable selling functionality
-        vm.startPrank(admin);
-        fundingManager.openSell();
-
-        // Ensure funding manager has enough tokens for redemption
-        uint requiredAmount = amount * 2; // Double to account for fees
-        token.mint(address(fundingManager), requiredAmount);
-
-        // Approve payment processor to spend tokens
-        vm.stopPrank();
-
-        // Approve funding manager to spend issuance tokens
-        vm.startPrank(seller);
-        issuanceToken.approve(address(fundingManager), amount);
-        vm.stopPrank();
-    }
-
-    function _prepareSellConditionsWithoutFunding(
-        IOrchestrator_v1 orchestrator,
-        address admin,
-        address seller,
-        uint amount
-    ) internal {
-        // Enable selling functionality
-        vm.startPrank(admin);
-        fundingManager.openSell();
-        vm.stopPrank();
-
-        // Approve funding manager to spend issuance tokens
-        vm.startPrank(seller);
-        issuanceToken.approve(address(fundingManager), amount);
         vm.stopPrank();
     }
 
@@ -566,7 +583,7 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
                     uint feePercentage,
                     uint feeAmount,
                     uint finalRedemptionAmount,
-                    address collateralToken,
+                    address collateralToken_,
                     IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState state
                 ) = abi.decode(
                     entry.data,
@@ -589,7 +606,7 @@ contract QueueBaseFundingManagerAndPaymentProcessorE2E is E2ETest {
                 data.feePercentage_ = feePercentage;
                 data.feeAmount_ = feeAmount;
                 data.finalRedemptionAmount_ = finalRedemptionAmount;
-                data.collateralToken_ = collateralToken;
+                data.collateralToken_ = collateralToken_;
                 data.state_ = state;
 
                 return data;

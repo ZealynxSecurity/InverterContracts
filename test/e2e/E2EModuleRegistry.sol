@@ -28,28 +28,18 @@ import {AUT_Roles_v1} from "@aut/role/AUT_Roles_v1.sol";
 import {AUT_TokenGated_Roles_v1} from "@aut/role/AUT_TokenGated_Roles_v1.sol";
 import {AUT_EXT_VotingRoles_v1} from
     "src/modules/authorizer/extensions/AUT_EXT_VotingRoles_v1.sol";
+import {PP_Queue_ManualExecution_v1} from "@pp/PP_Queue_ManualExecution_v1.sol";
+import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
+import {FM_PC_ExternalPrice_Redeeming_v1} from
+    "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
+import {LM_ManualExternalPriceSetter_v1} from
+    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
 
 // Beacon
 import {
     InverterBeacon_v1,
     IInverterBeacon_v1
 } from "src/proxies/InverterBeacon_v1.sol";
-
-// PaymentProcesor
-import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
-import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
-
-// Funding Manager
-import {FM_PC_ExternalPrice_Redeeming_v1} from
-    "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
-import {IFM_PC_ExternalPrice_Redeeming_v1} from
-    "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
-
-// Oracle
-import {LM_ManualExternalPriceSetter_v1} from
-    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {ILM_ManualExternalPriceSetter_v1} from
-    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
 
 contract E2EModuleRegistry is Test {
     // General Storage and QOL-constants
@@ -333,10 +323,10 @@ contract E2EModuleRegistry is Test {
     //--------------------------------------------------------------------------
 
     // PP_Queue_v1
-    PP_Queue_v1 queue;
-    InverterBeacon_v1 streamingPaymentProcessorQueueBeacon;
+    PP_Queue_v1 queueBasedPaymentProcessor;
+    InverterBeacon_v1 queueBasedPaymentProcessorBeacon;
 
-    IModule_v1.Metadata paymentProcessorMetadata = IModule_v1.Metadata(
+    IModule_v1.Metadata queueBasedPaymentProcessorMetadata = IModule_v1.Metadata(
         1, // major version
         0, // minor version
         0, // patch version
@@ -344,27 +334,63 @@ contract E2EModuleRegistry is Test {
         "PP_Queue_v1"
     );
 
-    function setUpQueuePaymentProcessor() internal {
+    function setUpQueueBasedPaymentProcessor() internal {
         // Deploy module implementations.
-        queue = new PP_Queue_v1();
+        queueBasedPaymentProcessor = new PP_Queue_v1();
 
         // Deploy module beacons.
-        streamingPaymentProcessorQueueBeacon = new InverterBeacon_v1(
+        queueBasedPaymentProcessorBeacon = new InverterBeacon_v1(
             moduleFactory.reverter(),
             DEFAULT_BEACON_OWNER,
-            paymentProcessorMetadata.majorVersion,
-            address(queue),
-            paymentProcessorMetadata.minorVersion,
-            paymentProcessorMetadata.patchVersion
+            queueBasedPaymentProcessorMetadata.majorVersion,
+            address(queueBasedPaymentProcessor),
+            queueBasedPaymentProcessorMetadata.minorVersion,
+            queueBasedPaymentProcessorMetadata.patchVersion
         );
 
         // Register modules at moduleFactory.
         vm.prank(teamMultisig);
         gov.registerMetadataInModuleFactory(
-            paymentProcessorMetadata,
-            IInverterBeacon_v1(streamingPaymentProcessorQueueBeacon)
+            queueBasedPaymentProcessorMetadata,
+            IInverterBeacon_v1(queueBasedPaymentProcessorBeacon)
         );
     }
+    // PP_Queue_ManualExecution_v1
+
+    PP_Queue_ManualExecution_v1 manualQueueBasedPaymentProcessor;
+    InverterBeacon_v1 manualQueueBasedPaymentProcessorBeacon;
+
+    IModule_v1.Metadata manualQueueBasedPaymentProcessorMetadata = IModule_v1
+        .Metadata(
+        1, // major version
+        0, // minor version
+        0, // patch version
+        "https://github.com/inverter/payment-processor",
+        "PP_Queue_v1"
+    );
+
+    function setUpManualQueueBasedPaymentProcessor() internal {
+        // Deploy module implementations.
+        manualQueueBasedPaymentProcessor = new PP_Queue_ManualExecution_v1();
+
+        // Deploy module beacons.
+        manualQueueBasedPaymentProcessorBeacon = new InverterBeacon_v1(
+            moduleFactory.reverter(),
+            DEFAULT_BEACON_OWNER,
+            manualQueueBasedPaymentProcessorMetadata.majorVersion,
+            address(manualQueueBasedPaymentProcessor),
+            manualQueueBasedPaymentProcessorMetadata.minorVersion,
+            manualQueueBasedPaymentProcessorMetadata.patchVersion
+        );
+
+        // Register modules at moduleFactory.
+        vm.prank(teamMultisig);
+        gov.registerMetadataInModuleFactory(
+            manualQueueBasedPaymentProcessorMetadata,
+            IInverterBeacon_v1(manualQueueBasedPaymentProcessorBeacon)
+        );
+    }
+
     // PP_Simple_v1
 
     PP_Simple_v1 simplePaymentProcessorImpl;

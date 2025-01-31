@@ -94,7 +94,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     mapping(address client => LinkedIdList.List queue) private _queue;
 
     /// @notice Payment orders.
-    mapping(uint orderId => QueuedOrder order) private _orders;
+    mapping(address client => mapping(uint orderId => QueuedOrder order))
+        private _orders;
 
     /// @notice Current order ID per client.
     mapping(address client => uint currentOrderId) private _currentOrderId;
@@ -108,6 +109,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
                     => mapping(address receiver => uint unclaimableAmount)
             )
     ) private _unclaimableAmountsForRecipient;
+
+    /// @notice Treasury address which receives the collateral of canceled orders.
+    address private _canceledOrdersTreasury;
+
+    /// @notice Treasury address which receives the collateral of failed orders.
+    address private _failedOrdersTreasury;
 
     // -------------------------------------------------------------------------
     // Modifiers
@@ -133,13 +140,37 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
-        bytes memory /*configData_*/
+        bytes memory configData_
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata_);
+        // Decode config data.
+        (address canceledOrdersTreasury_, address failedOrdersTreasury_) =
+            abi.decode(configData_, (address, address));
+
+        _setCanceledOrdersTreasury(canceledOrdersTreasury_);
+        _setFailedOrdersTreasury(failedOrdersTreasury_);
     }
 
     //--------------------------------------------------------------------------
     // Public View Functions
+
+    /// @inheritdoc IPP_Queue_v1
+    function getCanceledOrdersTreasury()
+        external
+        view
+        returns (address treasury_)
+    {
+        treasury_ = _canceledOrdersTreasury;
+    }
+
+    /// @inheritdoc IPP_Queue_v1
+    function getFailedOrdersTreasury()
+        external
+        view
+        returns (address treasury_)
+    {
+        treasury_ = _failedOrdersTreasury;
+    }
 
     /// @inheritdoc IPP_Queue_v1
     function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
@@ -150,7 +181,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         if (!_orderExists(orderId_, client_)) {
             revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
         }
-        order_ = _orders[orderId_];
+        order_ = _orders[address(client_)][orderId_];
     }
 
     /// @inheritdoc IPP_Queue_v1
@@ -207,7 +238,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueOperatorAdminRole()
+    function getQueueOperatorRoleAdmin()
         external
         pure
         returns (bytes32 role_)
@@ -217,6 +248,22 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     //--------------------------------------------------------------------------
     // Public Mutating Functions
+
+    /// @inheritdoc IPP_Queue_v1
+    function setCanceledOrdersTreasury(address treasury_)
+        external
+        onlyOrchestratorAdmin
+    {
+        _setCanceledOrdersTreasury(treasury_);
+    }
+
+    /// @inheritdoc IPP_Queue_v1
+    function setFailedOrdersTreasury(address treasury_)
+        external
+        onlyOrchestratorAdmin
+    {
+        _setFailedOrdersTreasury(treasury_);
+    }
 
     /// @inheritdoc IPaymentProcessor_v1
     function processPayments(IERC20PaymentClientBase_v1 client_)
@@ -279,37 +326,71 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
+    function claimPreviouslyUnclaimableToTreasury(
+        address client_,
+        address token_,
+        address receiver_
+    ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) {
+        if (unclaimable(client_, token_, receiver_) == 0) {
+            revert Module__PaymentProcessor__NothingToClaim(client_, receiver_);
+        }
+        // Get amount to claim.
+        uint amount =
+            _unclaimableAmountsForRecipient[client_][token_][receiver_];
+        // Delete the field.
+        delete _unclaimableAmountsForRecipient[client_][token_][receiver_];
+
+        // Transfer amount to treasury. Call has to succeed otherwise no state
+        // change.
+        IERC20(token_).safeTransferFrom(
+            address(this), _failedOrdersTreasury, amount
+        );
+
+        emit TokensReleased(receiver_, address(token_), amount);
+        emit UnclaimableAmountClaimedToTreasury(
+            receiver_, _failedOrdersTreasury, amount, _msgSender()
+        );
+    }
+
+    /// @inheritdoc IPP_Queue_v1
     function cancelPaymentOrderThroughQueueId(
         uint orderId_,
         IERC20PaymentClientBase_v1 client_
     ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) returns (bool success_) {
-        // Validate queue ID.
+        // Validate that the order exists for the given queue ID and client.
         if (!_orderExists(orderId_, client_)) {
             revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
         }
 
-        QueuedOrder storage order = _orders[orderId_];
+        // Get the order to be cancelled
+        QueuedOrder storage order = _orders[address(client_)][orderId_];
 
-        // Check if the order has an invalid state.
+        // Check if the order is in a valid state for cancellation (must be PENDING).
         if (order.state_ != RedemptionState.PENDING) {
             revert Module__PP_Queue_InvalidState();
         }
 
-        // Update order state and emit event.
-        _updateOrderState(orderId_, RedemptionState.CANCELLED);
+        // Check if the client has enough balance to cancel the order, otherwise revert.
+        if (
+            IERC20(order.order_.paymentToken).balanceOf(order.client_)
+                < order.order_.amount
+        ) {
+            revert Module__PP_Queue_InvalidAmount(order.order_.amount);
+        }
 
-        // Add amount to unclaimable.
-        _addToUnclaimableAmount(
-            _msgSender(),
+        // Update the order state to CANCELLED.
+        _updateOrderState(orderId_, address(client_), RedemptionState.CANCELLED);
+
+        // Remove the cancelled order from the queue.
+        _removeFromQueue(orderId_, address(client_));
+
+        // Try to transfer the amount to the treasury.
+        bool success = _tryPaymentTransfer(
             order.order_.paymentToken,
-            order.order_.recipient,
+            order.client_,
+            _canceledOrdersTreasury,
             order.order_.amount
         );
-
-        // Remove from queue if present.
-        _removeFromQueue(orderId_);
-
-        success_ = true;
     }
 
     // -------------------------------------------------------------------------
@@ -327,11 +408,11 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
             return false;
         }
 
-        QueuedOrder storage order = _orders[firstId];
+        QueuedOrder storage order = _orders[client_][firstId];
 
         // Skip if order is not in PENDING state.
         if (order.state_ != RedemptionState.PENDING) {
-            _removeFromQueue(firstId);
+            _removeFromQueue(firstId, client_);
             return false;
         }
 
@@ -355,79 +436,116 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         internal
         returns (bool success_)
     {
-        // Process payment.
-        (bool success, bytes memory data) = order_.order_.paymentToken.call(
+        // Try to transfer payment from client to recipient
+        success_ = _tryPaymentTransfer(
+            order_.order_.paymentToken,
+            order_.client_,
+            order_.order_.recipient,
+            order_.order_.amount
+        );
+
+        // Update order state based on transfer success
+        if (success_) {
+            _updateOrderState(
+                orderId_, address(order_.client_), RedemptionState.PROCESSED
+            );
+        } else {
+            _updateOrderState(
+                orderId_, address(order_.client_), RedemptionState.FAILED
+            );
+        }
+
+        // Remove processed order from queue
+        _removeFromQueue(orderId_, address(order_.client_));
+    }
+
+    /// @notice	This function does a low lever call to transfer
+    ///         funds to prevent reverts. Instead it will return a
+    ///         boolean value indicating whether the transfer was
+    ///         successful.
+    /// @param	token_ The token address.
+    /// @param	client_ The client address.
+    /// @param	recipient_ The recipient address.
+    /// @param	amount_ The amount to transfer.
+    /// @return	success_ True if the transfer was successful.
+    function _lowLevelTransfer(
+        address token_,
+        address client_,
+        address recipient_,
+        uint amount_
+    ) internal returns (bool success_) {
+        // Make a low-level call to the token contract to execute transferFrom
+        (bool success, bytes memory data) = token_.call(
             abi.encodeWithSelector(
-                IERC20(order_.order_.paymentToken).transferFrom.selector,
-                order_.client_,
-                order_.order_.recipient,
-                order_.order_.amount
+                IERC20(token_).transferFrom.selector,
+                client_,
+                recipient_,
+                amount_
             )
         );
 
-        // If transfer was successful.
+        // Check if transfer was successful:
+        // 1. Call must succeed
+        // 2. Return data must either be empty or decode to true
+        // 3. Token must be a contract (have code)
         if (
             success && (data.length == 0 || abi.decode(data, (bool)))
-                && order_.order_.paymentToken.code.length != 0
+                && token_.code.length != 0
         ) {
-            _updateOrderState(orderId_, RedemptionState.PROCESSED);
-            _removeFromQueue(orderId_);
-
-            // Notify client about successful payment.
-            IERC20PaymentClientBase_v1(order_.client_).amountPaid(
-                order_.order_.paymentToken, order_.order_.amount
-            );
-
-            emit TokensReleased(
-                order_.order_.recipient,
-                order_.order_.paymentToken,
-                order_.order_.amount
-            );
-
             return true;
+        }
+        return false;
+    }
+
+    /// @notice  This function tries to transfer funds from client to recipient.
+    ///          If the transfer fails, then the funds are transferred to this
+    ///          module and made accesible for the recipient to claim through the
+    ///          the unclaimable amounts.
+    /// @param	token_ The token address.
+    /// @param	client_ The client address.
+    /// @param	recipient_ The recipient address.
+    /// @param	amount_ The amount to transfer.
+    /// @return	success_ True if the transfer was successful.
+    function _tryPaymentTransfer(
+        address token_,
+        address client_,
+        address recipient_,
+        uint amount_
+    ) internal returns (bool success_) {
+        // Try direct transfer to recipient
+        (bool success) = _lowLevelTransfer(token_, client_, recipient_, amount_);
+
+        if (success) {
+            emit TokensReleased(recipient_, token_, amount_);
+            success_ = true;
         } else {
-            // Process payment.
-            (bool success, bytes memory data) = order_.order_.paymentToken.call(
-                abi.encodeWithSelector(
-                    IERC20(order_.order_.paymentToken).transferFrom.selector,
-                    order_.client_,
-                    address(this),
-                    order_.order_.amount
-                )
-            );
+            // If direct transfer failed, try transferring to this module
+            (success) =
+                _lowLevelTransfer(token_, client_, address(this), amount_);
+
             if (!success) {
+                // If tranfer to this module fails than this would mean that this module
+                // is blacklisted, which shouldn't happen.
                 revert Module_PP_Queue_PaymentFailed(
-                    order_.client_,
-                    order_.order_.recipient,
-                    order_.order_.paymentToken,
-                    order_.order_.amount
+                    client_, recipient_, token_, amount_
                 );
             }
-            // Notify client about successful payment.
-            IERC20PaymentClientBase_v1(order_.client_).amountPaid(
-                order_.order_.paymentToken, order_.order_.amount
-            );
-            // Store as unclaimable and update state.
-            _unclaimableAmountsForRecipient[order_.client_][order_
-                .order_
-                .paymentToken][order_.order_.recipient] += order_.order_.amount;
 
-            emit UnclaimableAmountAdded(
-                order_.client_,
-                order_.order_.paymentToken,
-                order_.order_.recipient,
-                order_.order_.amount
-            );
+            _unclaimableAmountsForRecipient[client_][token_][recipient_] +=
+                amount_;
 
-            _updateOrderState(orderId_, RedemptionState.FAILED);
-            _removeFromQueue(orderId_);
+            emit UnclaimableAmountAdded(client_, token_, recipient_, amount_);
 
-            return false;
+            success_ = false;
         }
+
+        // Update client accounting
+        IERC20PaymentClientBase_v1(client_).amountPaid(token_, amount_);
     }
-    // @todo add a way for the admin to re-direct unclaimable amounts from blacklisted recipients to himself
 
     /// @notice	Executes all pending orders in the queue.
+    /// @dev    This function is only callable by the client.
+    /// @param  client_ The client address.
     function _executePaymentQueue(address client_)
         internal
         clientIsValid(client_)
@@ -463,7 +581,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
         // Create new order
-        _orders[queueId_] = QueuedOrder({
+        _orders[client_][queueId_] = QueuedOrder({
             order_: order_,
             state_: RedemptionState.PENDING,
             orderId_: queueId_,
@@ -494,8 +612,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice	Removes an order from the queue.
     /// @param	orderId_ ID of the order to remove.
-    function _removeFromQueue(uint orderId_) internal {
-        address client_ = _orders[orderId_].client_;
+    /// @param	client_ The client address.
+    function _removeFromQueue(uint orderId_, address client_) internal {
         uint prevId = _queue[client_].getPreviousId(orderId_);
         _queue[client_].removeId(prevId, orderId_);
     }
@@ -685,10 +803,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice Updates the state of a payment order.
     /// @param  orderId_ ID of the order to update.
     /// @param  state_ New state of the order.
-    function _updateOrderState(uint orderId_, RedemptionState state_)
-        internal
-    {
-        QueuedOrder storage order = _orders[orderId_];
+    /// @param  client_ The client address.
+    function _updateOrderState(
+        uint orderId_,
+        address client_,
+        RedemptionState state_
+    ) internal {
+        QueuedOrder storage order = _orders[client_][orderId_];
         _validStateTransition(orderId_, order.state_, state_);
         order.state_ = state_;
         emit PaymentOrderStateChanged(
@@ -752,8 +873,22 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         view
         returns (bool exists_)
     {
-        QueuedOrder storage order = _orders[orderId_];
+        QueuedOrder storage order = _orders[address(client_)][orderId_];
         return order.client_ == address(client_) && order.timestamp_ != 0;
+    }
+
+    function _setCanceledOrdersTreasury(address treasury_) internal {
+        if (treasury_ == address(0) || treasury_ == address(this)) {
+            revert Module__PP_Queue_InvalidTreasuryAddress(treasury_);
+        }
+        _canceledOrdersTreasury = treasury_;
+    }
+
+    function _setFailedOrdersTreasury(address treasury_) internal {
+        if (treasury_ == address(0) || treasury_ == address(this)) {
+            revert Module__PP_Queue_InvalidTreasuryAddress(treasury_);
+        }
+        _failedOrdersTreasury = treasury_;
     }
 
     /// @dev    Gap for possible future upgrades.

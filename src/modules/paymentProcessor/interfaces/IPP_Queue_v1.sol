@@ -116,6 +116,19 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         address indexed executor_, address indexed client_, uint count_
     );
 
+    /// @notice  Emitted when unclaimable amounts are claimed to the treasury.
+    /// @param   originalReceiver_ Address that received the unclaimable amounts.
+    /// @param   treasury_ Address of the treasury.
+    /// @param   amount_ Amount of tokens claimed.
+    /// @param   queueOperator_ Address of the queue operator who called the
+    ///                         function.
+    event UnclaimableAmountClaimedToTreasury(
+        address indexed originalReceiver_,
+        address indexed treasury_,
+        uint indexed amount_,
+        address queueOperator_
+    );
+
     // -------------------------------------------------------------------------
     // Errors
 
@@ -188,6 +201,10 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  client_ The invalid client address.
     error Module__PP_Queue_InvalidClientAddress(address client_);
 
+    /// @notice	Invalid treasury address.
+    /// @param  treasury_ The invalid treasury address.
+    error Module__PP_Queue_InvalidTreasuryAddress(address treasury_);
+
     // -------------------------------------------------------------------------
     // Functions
 
@@ -232,12 +249,19 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
 
     /// @notice  Gets the role identifier for queue operator admin.
     /// @return  role_ The queue operator role admin identifier.
-    function getQueueOperatorAdminRole()
+    function getQueueOperatorRoleAdmin()
         external
         pure
         returns (bytes32 role_);
 
-    /// @notice	Cancels a payment order by its queue ID.
+    /// @notice Cancels a payment order by its queue ID and sends the funds
+    ///         from the cancelled order to the canceled orders treasury.
+    /// @dev    This function can only be excuted if the payment client
+    ///         has enough collateral to transfer the funds to the
+    ///         canceled orders treasury. Additionally, the caller
+    ///         must have the queue operator role. If the transfer fails,
+    ///         then the amount is added to the unclaimable amounts for
+    ///         the canceled orders treasury.
     /// @param	orderId_ The ID of the order to cancel.
     /// @param	client_ The client associated with the order.
     /// @return	success_ True if cancellation was successful.
@@ -245,4 +269,40 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
         uint orderId_,
         IERC20PaymentClientBase_v1 client_
     ) external returns (bool success_);
+
+    /// @notice Get the treasury address for canceled orders.
+    /// @return treasury_ The treasury address for canceled orders.
+    function getCanceledOrdersTreasury()
+        external
+        view
+        returns (address treasury_);
+
+    /// @notice Get the treasury address for failed orders.
+    /// @return treasury_ The treasury address for failed orders.
+    function getFailedOrdersTreasury()
+        external
+        view
+        returns (address treasury_);
+
+    /// @notice Set the treasury address which receives the collateral
+    ///         of canceled orders.
+    /// @param treasury_ The treasury address for canceled orders.
+    function setCanceledOrdersTreasury(address treasury_) external;
+
+    /// @notice Set the treasury address which receives the collateral
+    ///         of failed orders.
+    /// @param treasury_ The treasury address for failed orders.
+    function setFailedOrdersTreasury(address treasury_) external;
+
+    /// @notice Claim previously unclaimable amounts from a receiver to
+    ///         the failed orders treasury.
+    /// @dev    This function is only callable by the queue operator.
+    /// @param client_ The client address.
+    /// @param token_ The token address.
+    /// @param receiver_ The receiver address.
+    function claimPreviouslyUnclaimableToTreasury(
+        address client_,
+        address token_,
+        address receiver_
+    ) external;
 }

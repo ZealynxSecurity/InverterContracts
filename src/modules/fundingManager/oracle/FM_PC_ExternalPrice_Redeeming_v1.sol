@@ -520,8 +520,13 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         onlyModuleRole(QUEUE_EXECUTOR_ROLE)
     {
         (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
-            abi.encodeWithSignature("executeRedemptionQueue()")
+            abi.encodeWithSignature(
+                "executePaymentQueue(address)", address(this)
+            )
         );
+        if (!success) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_QueueExecutionFailed();
+        }
     }
 
     // -------------------------------------------------------------------------

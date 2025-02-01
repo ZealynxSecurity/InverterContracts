@@ -476,7 +476,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         assertEq(
             paymentOrder.paymentToken,
             address(collateralToken),
-            "Collateral token should be collateral token"
+            "Should be the same"
         );
 
         //--------------------------------------------------------------------------
@@ -491,27 +491,30 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
             paymentOrder.amount,
             "Open redemption amount should be equal to the payment amount of the 1 order that got created"
         );
-        // Deposit reserve back into the funding manager
+        // Approve collateral token to funding manager
         vm.prank(projectTreasury);
         collateralToken.approve(address(fundingManager), openRedemptionAmount);
+
+        // Verify allowance is set correctly
         assertEq(
             collateralToken.allowance(projectTreasury, address(fundingManager)),
             openRedemptionAmount,
             "Allowance should be equal to the open redemption amount"
         );
 
+        // Deposit reserve back into the funding manager
         vm.prank(projectTreasury);
         fundingManager.depositReserve(openRedemptionAmount);
 
         //--------------------------------------------------------------------------
         // Post-deposit assertions
 
-        // Verify project treasury has all depoisted all the collateral
+        // Verify project treasury has all the collateral minus fee
         // back into the funding manager
         assertEq(
             collateralToken.balanceOf(projectTreasury),
-            0,
-            "project treasury should have no collateral left"
+            buyAmount - openRedemptionAmount,
+            "project treasury should have only the sell fee in collateral"
         );
 
         // Verify funding manager has all the reserve back, deposited through
@@ -519,7 +522,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         assertEq(
             collateralToken.balanceOf(address(fundingManager)),
             openRedemptionAmount,
-            "project treasury should have no collateral left"
+            "funding manager should have the reserve amount needed to execute the queue"
         );
 
         //--------------------------------------------------------------------------
@@ -529,11 +532,11 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         //--------------------------------------------------------------------------
         // Pre-execute assertions
 
-        // Verify user has no issuance tokens before queue execution
+        // Verify user has no collateral tokens before queue execution
         assertEq(
-            issuanceToken.balanceOf(whitelistedUser),
+            collateralToken.balanceOf(whitelistedUser),
             0,
-            "User should have 0 issuance tokens after sell"
+            "User should have 0 collateral tokens before queue execution"
         );
 
         vm.startPrank(queueExecutor);
@@ -542,13 +545,13 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         //--------------------------------------------------------------------------
         // Post-execute assertions
 
+        // Verify user has the right amount of collateral tokens after queue execution
         assertEq(
-            issuanceToken.balanceOf(whitelistedUser),
+            collateralToken.balanceOf(whitelistedUser),
             paymentOrder.amount,
-            "User should have the right amount of issuance tokens after queue execution"
+            "User should have the right amount of collateral tokens after queue execution"
         );
     }
-    // In your test file
 
     function _prepareBuyConditions(address buyer, uint buyAmount) internal {
         // Mint tokens to buyer

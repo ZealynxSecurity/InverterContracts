@@ -7,7 +7,7 @@ import {IERC20PaymentClientBase_v1} from
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 
-contract PP_Queue_v1Mock is PP_Queue_v1 {
+contract PP_Queue_v1_Exposed is PP_Queue_v1 {
     using LinkedIdList for LinkedIdList.List;
 
     // Override _msgSender para simplificar testing

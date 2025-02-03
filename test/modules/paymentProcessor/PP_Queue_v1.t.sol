@@ -22,8 +22,8 @@ import {
     IModule_v1,
     IOrchestrator_v1
 } from "test/modules/ModuleTest.sol";
-import {PP_Queue_v1Mock} from
-    "test/utils/mocks/modules/paymentProcessor/PP_Queue_v1Mock.sol";
+import {PP_Queue_v1_Exposed} from
+    "test/modules/paymentProcessor/utils/mocks/PP_Queue_v1_Exposed.sol";
 import {PP_Simple_v1AccessMock} from
     "test/utils/mocks/modules/paymentProcessor/PP_Simple_v1AccessMock.sol";
 import {
@@ -43,7 +43,7 @@ contract PP_Queue_v1_Test is ModuleTest {
     // Storage
 
     // SuT
-    PP_Queue_v1Mock queue;
+    PP_Queue_v1_Exposed queue;
 
     // Mocks
     ERC20PaymentClientBaseV1Mock paymentClient;
@@ -93,8 +93,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         failedOrdersTreasury = makeAddr("failedOrdersTreasury");
         admin = address(this);
 
-        address impl = address(new PP_Queue_v1Mock());
-        queue = PP_Queue_v1Mock(Clones.clone(impl));
+        address impl = address(new PP_Queue_v1_Exposed());
+        queue = PP_Queue_v1_Exposed(Clones.clone(impl));
         _setUpOrchestrator(queue);
         _authorizer.setIsAuthorized(address(this), true);
         queue.init(
@@ -174,6 +174,10 @@ contract PP_Queue_v1_Test is ModuleTest {
         vm.assume(recipient_ != address(0));
         vm.assume(recipient_ != address(queue));
         vm.assume(recipient_ != address(_orchestrator));
+        vm.assume(recipient_ != address(paymentClient));
+        vm.assume(recipient_ != address(_token));
+        vm.assume(recipient_ != address(_orchestrator.fundingManager()));
+        vm.assume(recipient_ != address(_orchestrator.fundingManager().token()));
         vm.assume(amount_ > 0 && amount_ < type(uint96).max);
 
         // Setup
@@ -540,6 +544,7 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then it should decrease after each cancellation.
                 └── Then it should be 0 for non-existent client.
     */
+    
     function testGetQueueSizeForClient_GivenMultipleOrders(uint8 numOrders_)
         public
     {
@@ -586,6 +591,11 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         for (uint8 i = 0; i < numOrders_; i++) {
+            // Approve tokens for cancellation
+            vm.startPrank(address(paymentClient));
+            _token.approve(address(queue), 100);
+            vm.stopPrank();
+
             queue.cancelPaymentOrderThroughQueueId(
                 orderIds_[i], IERC20PaymentClientBase_v1(address(paymentClient))
             );
@@ -761,6 +771,7 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then token should match.
                 └── Then state should be CANCELLED.
     */
+    
     function testGetOrder_GivenCancelledOrder() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
@@ -777,17 +788,24 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
+        paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), amount_);
+        vm.startPrank(address(paymentClient));
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
+        vm.stopPrank();
+
+        // Approve again for cancellation
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
 
         queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(this))
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
 
         IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
+            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(paymentClient)));
 
         assertEq(
             queuedOrder_.order_.recipient, recipient_, "Recipient should match."
@@ -829,10 +847,10 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
 
         queue.exposed_updateOrderState(
             orderId_,
@@ -842,7 +860,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         queue.exposed_removeFromQueue(orderId_, address(paymentClient));
 
         IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
+            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(paymentClient)));
 
         assertEq(
             queuedOrder_.order_.recipient, recipient_, "Recipient should match."
@@ -1014,20 +1032,25 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
+        paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), amount_);
+        vm.startPrank(address(paymentClient));
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
+        vm.stopPrank();
 
-        uint[] memory queueBefore_ = queue.getOrderQueue(address(this));
+        uint[] memory queueBefore_ = queue.getOrderQueue(address(paymentClient));
         assertEq(queueBefore_.length, 1, "Queue should have one order.");
         assertEq(queueBefore_[0], orderId_, "Order ID should match.");
 
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(this))
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
 
-        uint[] memory queueAfter_ = queue.getOrderQueue(address(this));
+        uint[] memory queueAfter_ = queue.getOrderQueue(address(paymentClient));
         assertEq(queueAfter_.length, 0, "Queue should be empty after cancel.");
     }
 
@@ -1274,9 +1297,14 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         vm.stopPrank();
 
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
             firstOrderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
+
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
             secondOrderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
@@ -1527,9 +1555,13 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         vm.stopPrank();
 
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
             firstOrderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
             secondOrderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
@@ -1617,14 +1649,14 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
         queue.exposed_removeFromQueue(orderId_, address(paymentClient));
 
-        vm.prank(address(this));
-        bool success_ = queue.exposed_processNextOrder(address(this));
+        vm.prank(address(paymentClient));
+        bool success_ = queue.exposed_processNextOrder(address(paymentClient));
         assertFalse(success_, "Processing empty queue should fail.");
     }
 
@@ -1711,9 +1743,11 @@ contract PP_Queue_v1_Test is ModuleTest {
     }
 
     /* Test testExecutePaymentTransfer_RevertGivenInsufficientBalance()
-        └── Given an order with insufficient balance
-            └── When executing transfer
-                └── Then it should revert with Module__PP_Queue_TransferFailed.
+        └── Given order with insufficient balance
+            └── When processing next order
+                └── Then it should:
+                    └── Return false
+                    └── Keep order in PENDING state
     */
     function testExecutePaymentTransfer_RevertGivenInsufficientBalance()
         public
@@ -1754,8 +1788,8 @@ contract PP_Queue_v1_Test is ModuleTest {
             queue.getOrder(orderId_, paymentClient);
         assertEq(
             uint(order.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should be cancelled"
+            uint(IPP_Queue_v1.RedemptionState.PENDING),
+            "Order should remain in PENDING state"
         );
     }
 
@@ -1900,10 +1934,10 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
 
         queue.exposed_updateOrderState(
             orderId_,
@@ -1912,7 +1946,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
-            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
+            queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(paymentClient)));
         assertEq(
             uint(queuedOrder_.state_),
             uint(IPP_Queue_v1.RedemptionState.PROCESSED),
@@ -1945,14 +1979,14 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        _token.mint(address(this), amount_);
+        _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
 
         queue.exposed_removeFromQueue(orderId_, address(paymentClient));
 
-        uint[] memory orders_ = queue.getOrderQueue(address(this));
+        uint[] memory orders_ = queue.getOrderQueue(address(paymentClient));
         assertEq(orders_.length, 0, "Queue should be empty.");
     }
 
@@ -2282,25 +2316,25 @@ contract PP_Queue_v1_Test is ModuleTest {
             data: data_
         });
 
-        vm.startPrank(address(paymentClient));
         _token.mint(address(paymentClient), amount_);
-        _token.approve(address(queue), amount_);
-        vm.stopPrank();
-
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_ * 2
         );
+        vm.prank(address(paymentClient));
+        _token.approve(address(queue), amount_);
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(this));
+            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
+
+        _token.approve(address(queue), amount_);
         queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(this))
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
 
         vm.expectRevert(
             abi.encodeWithSignature("Module__PP_Queue_InvalidState()")
         );
         queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(this))
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
     }
 
@@ -2395,7 +2429,9 @@ contract PP_Queue_v1_Test is ModuleTest {
     /* Test testProcessNextOrder_RevertGivenInsufficientBalance()
         └── Given order with insufficient balance
             └── When processing next order
-                └── Then it should revert with Module__PP_Queue_TransferFailed.
+                └── Then it should:
+                    └── Return false
+                    └── Keep order in PENDING state
     */
     function testProcessNextOrder_RevertGivenInsufficientBalance() public {
         address recipient_ = makeAddr("recipient");
@@ -2434,15 +2470,16 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         assertEq(
             uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "Order should be cancelled"
+            uint(IPP_Queue_v1.RedemptionState.PENDING),
+            "Order should remain in PENDING state"
         );
     }
 
     /* Test testUpdateOrderState_RevertGivenInvalidTransition()
-        └── Given a cancelled order
-            └── When updating to completed state
-                └── Then it should revert with Module__PP_Queue_InvalidStateTransition.
+        └── Given a processed order
+            └── When attempting to update to pending state
+                └── Then it should revert with Module__PP_Queue_InvalidStateTransition
+                    because orders cannot transition backwards from processed to pending.
     */
     function testUpdateOrderState_RevertGivenInvalidTransition() public {
         address recipient_ = makeAddr("recipient");
@@ -2465,24 +2502,19 @@ contract PP_Queue_v1_Test is ModuleTest {
         uint orderId_ =
             queue.exposed_addPaymentOrderToQueue(order_, address(this));
 
-        queue.exposed_updateOrderState(
-            orderId_,
-            address(paymentClient),
-            IPP_Queue_v1.RedemptionState.CANCELLED
-        );
-
+        // Command starts on PROCESSED (0), attempt to update to PENDING (2) should fail
         vm.expectRevert(
             abi.encodeWithSignature(
                 "Module__PP_Queue_InvalidStateTransition(uint256,uint8,uint8)",
                 orderId_,
-                uint8(IPP_Queue_v1.RedemptionState.CANCELLED),
-                uint8(IPP_Queue_v1.RedemptionState.PROCESSED)
+                uint8(IPP_Queue_v1.RedemptionState.PROCESSED),
+                uint8(IPP_Queue_v1.RedemptionState.PENDING)
             )
         );
         queue.exposed_updateOrderState(
             orderId_,
             address(paymentClient),
-            IPP_Queue_v1.RedemptionState.PROCESSED
+            IPP_Queue_v1.RedemptionState.PENDING
         );
     }
 

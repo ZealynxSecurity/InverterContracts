@@ -22,7 +22,7 @@ contract OraclePrice_Mock is IOraclePrice_v1, Module_v1 {
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata,
-        bytes memory configData
+        bytes memory /* configData */
     ) public override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata);
         _priceForIssuance = 1e6; // Default price 1:1

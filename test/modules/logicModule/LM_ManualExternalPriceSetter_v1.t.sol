@@ -71,7 +71,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     // ================================================================================
     // Test Init
 
-    // This function also tests all the gettersx
+    // This function also tests all the getters
     function testInit() public override(ModuleTest) {
         assertEq(
             manualExternalPriceSetter.getCollateralTokenDecimals(),

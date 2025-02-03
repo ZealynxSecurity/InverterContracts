@@ -20,31 +20,24 @@ import {
     PP_Queue_ManualExecution_v1,
     IPP_Queue_ManualExecution_v1
 } from "@pp/PP_Queue_ManualExecution_v1.sol";
-import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
-//
-import {FM_PC_ExternalPrice_Redeeming_v1} from
-    "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
-import {IFM_PC_ExternalPrice_Redeeming_v1} from
-    "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+import {
+    FM_PC_ExternalPrice_Redeeming_v1,
+    IFM_PC_ExternalPrice_Redeeming_v1
+} from "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
 
-import {LM_ManualExternalPriceSetter_v1} from
-    "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
-import {LM_ManualExternalPriceSetter_v1_Exposed} from
-    "test/modules/fundingManager/oracle/utils/mocks/LM_ManualExternalPriceSetter_v1_exposed.sol";
-import {ILM_ManualExternalPriceSetter_v1} from
-    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
+import {
+    LM_ManualExternalPriceSetter_v1,
+    ILM_ManualExternalPriceSetter_v1
+} from "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
 
 import {ERC20Issuance_Blacklist_v1} from
     "@ex/token/ERC20Issuance_Blacklist_v1.sol";
 import {ERC165Upgradeable} from
     "@oz-up/utils/introspection/ERC165Upgradeable.sol";
 
-import {
-    InverterBeacon_v1,
-    IInverterBeacon_v1
-} from "src/proxies/InverterBeacon_v1.sol";
+import {InverterBeacon_v1} from "src/proxies/InverterBeacon_v1.sol";
 
-import {ERC20DecimalsMock} from "test/utils/mocks/ERC20DecimalsMock.sol";
+import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 
 import {IERC20PaymentClientBase_v1} from
     "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
@@ -119,7 +112,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
     address projectTreasury = makeAddr("projectTreasury");
 
     // Contracts
-    ERC20DecimalsMock collateralToken;
+    ERC20Decimals_Mock collateralToken;
     ERC20Issuance_Blacklist_v1 issuanceToken;
     FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
     PP_Queue_ManualExecution_v1 paymentProcessor;
@@ -160,7 +153,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         );
 
         // Create collateral token with 6 decimals to simulate USDC
-        collateralToken = new ERC20DecimalsMock(
+        collateralToken = new ERC20Decimals_Mock(
             COLLATERAL_NAME, COLLATERAL_SYMBOL, COLLATERAL_DECIMALS
         );
 

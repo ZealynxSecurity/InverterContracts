@@ -253,26 +253,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Initialize base functionality (should handle token settings).
         _setIssuanceToken(issuanceToken_);
 
-        // Checking for valid fees.
-        if (buyFee_ > maxProjectBuyFee_) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-                buyFee_, maxProjectBuyFee_
-            );
-        }
-        if (sellFee_ > maxSellFee_) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-                sellFee_, maxSellFee_
-            );
-        }
-        // Set project treasury.
-        _setProjectTreasury(projectTreasury_);
+        // Set max fees.
+        _setMaxProjectBuyFee(maxProjectBuyFee_);
+        _setMaxProjectSellFee(maxSellFee_);
 
         // Set fees.
         _setBuyFee(buyFee_);
         _setSellFee(sellFee_);
 
-        _setMaxProjectBuyFee(maxProjectBuyFee_);
-        _setMaxProjectSellFee(maxSellFee_);
+        // Set project treasury.
+        _setProjectTreasury(projectTreasury_);
 
         // Set direct operations only flag.
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
@@ -358,6 +348,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _isDirectOperationsOnly;
     }
 
+    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    function getOracle() external view returns (address oracle_) {
+        return address(_oracle);
+    }
+
     // -------------------------------------------------------------------------
     // External Functions
 
@@ -439,14 +434,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyOrchestratorAdmin
     {
-        // Check that fee doesn't exceed maximum allowed
-        if (fee_ > _maxProjectSellFee) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-                fee_, _maxProjectSellFee
-            );
-        }
-
-        super._setSellFee(fee_);
+        _setSellFee(fee_);
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -460,14 +448,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(BondingCurveBase_v1)
         onlyOrchestratorAdmin
     {
-        // Check that fee doesn't exceed maximum allowed.
-        if (fee_ > _maxProjectBuyFee) {
-            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
-                fee_, _maxProjectBuyFee
-            );
-        }
-
-        super._setBuyFee(fee_);
+        _setBuyFee(fee_);
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
@@ -550,12 +531,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  receiver_ The address that will receive the redeemed tokens.
     /// @param  depositAmount_ The amount of tokens to be sold.
     /// @param  collateralRedeemAmount_ The amount of collateral to redeem.
-    /// @param  issuanceFeeAmount_ The amount of issuance fee to charge.
+    /// @param  projectSellFeeAmount_ The amount of redemption fee to charge.
     function _createAndEmitOrder(
         address receiver_,
         uint depositAmount_,
         uint collateralRedeemAmount_,
-        uint issuanceFeeAmount_
+        uint projectSellFeeAmount_
     ) internal {
         // Generate new order ID.
         _orderId = ++_orderId;
@@ -600,7 +581,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             depositAmount_,
             _oracle.getPriceForRedemption(),
             sellFee,
-            issuanceFeeAmount_,
+            projectSellFeeAmount_,
             collateralRedeemAmount_,
             address(token()),
             RedemptionState.PENDING
@@ -709,12 +690,46 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectBuyFee(uint fee_) internal {
         _maxProjectBuyFee = fee_;
+        emit MaxProjectBuyFeeSet(_maxProjectBuyFee);
     }
 
     /// @notice Sets the maximum fee that can be charged for sell operations.
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectSellFee(uint fee_) internal {
         _maxProjectSellFee = fee_;
+        emit MaxProjectSellFeeSet(_maxProjectSellFee);
+    }
+
+    /// @notice Sets the sell fee.
+    /// @dev    Overrides the internal function from RedeemingBondingCurveBase_v1.
+    ///         Revert if sell fee exceeds max project sell fee.
+    /// @param  fee_ The fee percentage to set.
+    function _setSellFee(uint fee_)
+        internal
+        override(RedeemingBondingCurveBase_v1)
+    {
+        // Check that fee doesn't exceed maximum allowed
+        if (fee_ > _maxProjectSellFee) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, _maxProjectSellFee
+            );
+        }
+
+        super._setSellFee(fee_);
+    }
+
+    /// @notice Sets the buy fee.
+    /// @dev    Overrides the internal function from BondingCurveBase_v1.
+    ///         Revert if buy fee exceeds max project buy fee.
+    /// @param  fee_ The fee percentage to set.
+    function _setBuyFee(uint fee_) internal override(BondingCurveBase_v1) {
+        // Check that fee doesn't exceed maximum allowed.
+        if (fee_ > _maxProjectBuyFee) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, _maxProjectBuyFee
+            );
+        }
+        super._setBuyFee(fee_);
     }
 
     /// @param  depositAmount_ The amount being deposited.
@@ -778,7 +793,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  oracleAddress_ The address of the oracle.
     function _setOracleAddress(address oracleAddress_) internal {
         if (
-            !ERC165Upgradeable(address(oracleAddress_)).supportsInterface(
+            !ERC165Upgradeable(oracleAddress_).supportsInterface(
                 type(IOraclePrice_v1).interfaceId
             )
         ) {

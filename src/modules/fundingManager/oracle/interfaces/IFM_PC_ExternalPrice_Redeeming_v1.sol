@@ -143,6 +143,14 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @param	_openRedemptionAmount The new open redemption amount.
     event RedemptionAmountUpdated(uint _openRedemptionAmount);
 
+    /// @notice Emitted when the maximum buy fee is set.
+    /// @param  maxProjectBuyFee_ The maximum project buy fee.
+    event MaxProjectBuyFeeSet(uint maxProjectBuyFee_);
+
+    /// @notice Emitted when the maximum sell fee is set.
+    /// @param  maxProjectSellFee_ The maximum project sell fee.
+    event MaxProjectSellFeeSet(uint maxProjectSellFee_);
+
     // -------------------------------------------------------------------------
     // View Functions
 
@@ -206,6 +214,10 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
         external
         pure
         returns (bytes32 role_);
+
+    /// @notice Gets the oracle address.
+    /// @return oracle_ The address of the oracle.
+    function getOracle() external view returns (address oracle_);
 
     // -------------------------------------------------------------------------
     // External Functions

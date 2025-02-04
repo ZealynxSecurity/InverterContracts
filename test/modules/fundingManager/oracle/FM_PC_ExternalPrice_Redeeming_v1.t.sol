@@ -509,6 +509,187 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // );
     }
 
+    /* Test: Function testInternalSetIsDirectOperationsOnly_worksGivenValidValue()
+        └── Given a valid value
+            └── When the function exposed_setIsDirectOperationsOnly() is called
+                └── Then the value should be set correctly
+    */
+    function testInternalSetIsDirectOperationsOnly_worksGivenValidValue(
+        bool isDirect_
+    ) public {
+        // Test
+        fundingManager.exposed_setIsDirectOperationsOnly(isDirect_);
+
+        // Assert
+        assertEq(
+            fundingManager.getIsDirectOperationsOnly(),
+            isDirect_,
+            "IsDirect not set correctly"
+        );
+    }
+
+    /* Test: Function testInternalSetMaxProjectBuyFee_worksGivenValidFee()
+        └── Given a valid fee
+            └── When the function exposed_setMaxProjectBuyFee() is called
+                └── Then the fee should be set correctly
+    */
+    function testInternalSetMaxProjectBuyFee_worksGivenValidFee(uint fee_)
+        public
+    {
+        // Setup
+        fee_ = bound(fee_, fundingManager.getBuyFee(), type(uint128).max);
+
+        // Test
+        fundingManager.exposed_setMaxProjectBuyFee(fee_);
+
+        // Assert
+        assertEq(
+            fundingManager.getMaxProjectBuyFee(), fee_, "Fee not set correctly"
+        );
+    }
+
+    /* Test: Function testInternalSetMaxProjectBuyFee_RevertGivenFeeBelowCurrentBuyFee()
+        └── Given a fee below current buy fee
+            └── When the function exposed_setMaxProjectBuyFee() is called
+                └── Then it should revert with Module__BondingCurveBase__InvalidMaxFee
+    */
+    function testInternalSetMaxProjectBuyFee_revertGivenFeeBelowCurrentBuyFee()
+        public
+    {
+        // Setup
+        uint currentBuyFee_ = 500; // 5%
+        uint maxFee_ = 400; // 4%
+
+        // Set current buy fee
+        fundingManager.exposed_setBuyFee(currentBuyFee_);
+
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee()"
+            )
+        );
+        fundingManager.exposed_setMaxProjectBuyFee(maxFee_);
+    }
+
+    /* Test: Function testInternalSetMaxProjectSellFee_worksGivenValidFee()
+        └── Given a valid fee
+            └── When the function exposed_setMaxProjectSellFee() is called
+                └── Then the fee should be set correctly
+    */
+    function testInternalSetMaxProjectSellFee_worksGivenValidFee(uint fee_)
+        public
+    {
+        // Setup
+        fee_ = bound(fee_, 1, fundingManager.getMaxProjectSellFee());
+
+        // Test
+        fundingManager.exposed_setMaxProjectSellFee(fee_);
+
+        // Assert
+        assertEq(
+            fundingManager.getMaxProjectSellFee(), fee_, "Fee not set correctly"
+        );
+    }
+
+    /* Test: Function testInternalSetMaxProjectSellFee_RevertGivenFeeAboveCurrentSellFee()
+        └── Given a fee above current sell fee
+            └── When the function exposed_setMaxProjectSellFee() is called
+                └── Then it should revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee
+    */
+    function testInternalSetMaxProjectSellFee_revertGivenFeeAboveCurrentSellFee(
+    ) public {
+        // Setup
+        uint currentSellFee_ = 500; // 5%
+        uint maxFee_ = 600; // 6%
+
+        // Set current sell fee
+        fundingManager.exposed_setSellFee(currentSellFee_);
+
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee()"
+            )
+        );
+        fundingManager.exposed_setMaxProjectSellFee(maxFee_);
+    }
+
+    /* Test: Function testInternalSetBuyFee_worksGivenValidFee()
+        └── Given a valid fee
+            └── When the function exposed_setBuyFee() is called
+                └── Then the fee should be set correctly
+    */
+    function testInternalSetBuyFee_worksGivenValidFee(uint fee_) public {
+        // Setup
+        fee_ = bound(fee_, 1, fundingManager.getMaxProjectBuyFee());
+
+        // Test
+        fundingManager.exposed_setBuyFee(fee_);
+
+        // Assert
+        assertEq(fundingManager.getBuyFee(), fee_, "Fee not set correctly");
+    }
+
+    /* Test: Function testInternalSetBuyFee_RevertGivenFeeAboveMaxProjectBuyFee()
+        └── Given a fee above max project buy fee
+            └── When the function exposed_setBuyFee() is called
+                └── Then it should revert with Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum
+    */
+    function testInternalSetBuyFee_revertGivenFeeAboveMaxProjectBuyFee()
+        public
+    {
+        // Setup
+        uint maxFee_ = 400;
+        uint fee_ = maxFee_ + 1;
+
+        fundingManager.exposed_setMaxProjectBuyFee(maxFee_);
+
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(uint256,uint256)",
+                fee_,
+                maxFee_
+            )
+        );
+        fundingManager.exposed_setBuyFee(fee_);
+    }
+
+    /* Test: Function testInternalSetSellFee_worksGivenValidFee()
+        └── Given a valid fee
+            └── When the function exposed_setSellFee() is called
+                └── Then the fee should be set correctly
+    */
+    function testInternalSetSellFee_worksGivenValidFee(uint fee_) public {
+        // Setup
+        fee_ = bound(fee_, 1, fundingManager.getMaxProjectSellFee());
+
+        // Test
+        fundingManager.exposed_setSellFee(fee_);
+
+        // Assert
+        assertEq(fundingManager.getSellFee(), fee_, "Fee not set correctly");
+    }
+
+    function testInternalSetSellFee_revertGivenFeeAboveMaxSellFee() public {
+        // Setup
+        uint maxSellFee_ = 500;
+        uint fee_ = maxSellFee_ + 1;
+
+        fundingManager.exposed_setMaxProjectSellFee(maxSellFee_);
+
+        // Test
+        vm.expectRevert(
+            abi.encodeWithSignature(
+                "Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(uint256,uint256)",
+                fee_,
+                maxSellFee_
+            )
+        );
+        fundingManager.exposed_setSellFee(fee_);
+    }
+
     // /* Test: Function  oracle configuration and validation
     //     ├── Given a valid oracle implementation
     //     │   └── When checking oracle interface and prices

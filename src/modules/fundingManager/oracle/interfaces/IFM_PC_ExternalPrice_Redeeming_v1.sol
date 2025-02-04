@@ -78,6 +78,9 @@ interface IFM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Thrown when the project treasury address is invalid.
     error Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury();
 
+    /// @notice Thrown when the maximum buy/sell fee is invalid.
+    error Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee();
+
     // -------------------------------------------------------------------------
     // Events
 

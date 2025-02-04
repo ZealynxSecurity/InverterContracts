@@ -199,7 +199,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     uint private _openRedemptionAmount;
 
     /// @notice Flag indicating if direct operations are only allowed.
-    bool private _isDirectOperationsOnly;
+    bool internal _isDirectOperationsOnly;
 
     /// @notice Address of the project treasury which will receive the
     ///         collateral tokens.
@@ -689,6 +689,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the maximum fee that can be charged for buy operations.
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectBuyFee(uint fee_) internal {
+        if (fee_ < buyFee) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee();
+        }
         _maxProjectBuyFee = fee_;
         emit MaxProjectBuyFeeSet(_maxProjectBuyFee);
     }
@@ -696,6 +699,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the maximum fee that can be charged for sell operations.
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectSellFee(uint fee_) internal {
+        if (fee_ < sellFee) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee();
+        }
         _maxProjectSellFee = fee_;
         emit MaxProjectSellFeeSet(_maxProjectSellFee);
     }

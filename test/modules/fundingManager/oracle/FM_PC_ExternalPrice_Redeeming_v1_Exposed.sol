@@ -41,6 +41,26 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Exposed is
         _handleCollateralTokensBeforeBuy(recipient_, amount_);
     }
 
+    function exposed_setIsDirectOperationsOnly(bool isDirectional_) public {
+        _setIsDirectOperationsOnly(isDirectional_);
+    }
+
+    function exposed_setMaxProjectBuyFee(uint fee_) public {
+        _setMaxProjectBuyFee(fee_);
+    }
+
+    function exposed_setMaxProjectSellFee(uint fee_) public {
+        _setMaxProjectSellFee(fee_);
+    }
+
+    function exposed_setBuyFee(uint fee_) public {
+        _setBuyFee(fee_);
+    }
+
+    function exposed_setSellFee(uint fee_) public {
+        _setSellFee(fee_);
+    }
+
     // -------------------------------------------------------------------------
     // Helper function
 }

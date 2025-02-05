@@ -1120,6 +1120,172 @@ contract PP_StreamingV1Test is ModuleTest {
         paymentProcessor.processPayments(otherERC20PaymentClient);
     }
 
+    function test_processPayments_FailsIfPaymentOrderRecipientIsInvalid()
+        public
+    {
+        // Values to use for testing.
+        address recipient = address(paymentClient); // Wrong Value
+        address paymentToken = address(_token);
+        uint amount = 1e18;
+        uint start = block.timestamp;
+        uint cliff = 100;
+        uint end = block.timestamp + 200;
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20PaymentClientBase_v1
+                    .Module__ERC20PaymentClientBase__InvalidPaymentOrder
+                    .selector
+            )
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
+    function test_processPayments_FailsIfPaymentOrderTokenIsInvalid() public {
+        // Values to use for testing.
+        address recipient = address(0x1234);
+        address paymentToken = address(paymentClient); // Wrong Value
+        uint amount = 1e18;
+        uint start = block.timestamp;
+        uint cliff = 100;
+        uint end = block.timestamp + 200;
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            // The call to check if it's an ERC20 reverts
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
+    function test_processPayments_FailsIfPaymentOrderAmountsInvalid() public {
+        // Values to use for testing.
+        address recipient = address(0x1234);
+        address paymentToken = address(_token);
+        uint amount = 0; // Wrong value
+        uint start = block.timestamp;
+        uint cliff = 100;
+        uint end = block.timestamp + 200;
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20PaymentClientBase_v1
+                    .Module__ERC20PaymentClientBase__InvalidPaymentOrder
+                    .selector
+            )
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
+    function test_processPayments_FailsIfPaymentOrderStartIsInvalid() public {
+        // Values to use for testing.
+        address recipient = address(0x1234);
+        address paymentToken = address(_token);
+        uint amount = 1e18;
+        uint start = block.timestamp + 300; // Wrong Value
+        uint cliff = 100;
+        uint end = block.timestamp + 200;
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20PaymentClientBase_v1
+                    .Module__ERC20PaymentClientBase__InvalidPaymentOrder
+                    .selector
+            )
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
+    function test_processPayments_FailsIfPaymentOrderCliffIsInvalid() public {
+        // Values to use for testing.
+        address recipient = address(0x1234);
+        address paymentToken = address(_token);
+        uint amount = 1e18;
+        uint start = block.timestamp;
+        uint cliff = 300; // Wrong Value
+        uint end = block.timestamp + 200;
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20PaymentClientBase_v1
+                    .Module__ERC20PaymentClientBase__InvalidPaymentOrder
+                    .selector
+            )
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
+    function test_processPayments_FailsIfPaymentOrderEndIsInvalid() public {
+        // Values to use for testing.
+        address recipient = address(0x1234);
+        address paymentToken = address(_token);
+        uint amount = 1e18;
+        uint start = block.timestamp;
+        uint cliff = 100;
+        uint end = block.timestamp - 100; // Wrong Value
+
+        // Add payment order to client.
+        paymentClient.exposed_addPaymentOrder(
+            createPaymentOrder(
+                recipient, paymentToken, amount, start, cliff, end
+            )
+        );
+
+        vm.prank(address(paymentClient));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20PaymentClientBase_v1
+                    .Module__ERC20PaymentClientBase__InvalidPaymentOrder
+                    .selector
+            )
+        );
+
+        paymentProcessor.processPayments(paymentClient);
+    }
+
     function test_cancelRunningPayments_allCreatedOrdersGetCancelled(
         address[] memory recipients,
         uint128[] memory amounts

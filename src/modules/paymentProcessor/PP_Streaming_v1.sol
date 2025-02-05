@@ -233,6 +233,12 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
             uint numOrders = orders.length;
 
             for (uint i; i < numOrders;) {
+                if (!validPaymentOrder(orders[i])) {
+                    revert
+                        IERC20PaymentClientBase_v1
+                        .Module__ERC20PaymentClientBase__InvalidPaymentOrder();
+                }
+
                 _addPayment(
                     address(client),
                     orders[i],
@@ -420,7 +426,7 @@ contract PP_Streaming_v1 is Module_v1, IPP_Streaming_v1 {
     /// @inheritdoc IPaymentProcessor_v1
     function validPaymentOrder(
         IERC20PaymentClientBase_v1.PaymentOrder memory order
-    ) external returns (bool) {
+    ) public returns (bool) {
         (uint start, uint cliff, uint end) =
             _getStreamingDetails(order.flags, order.data);
 

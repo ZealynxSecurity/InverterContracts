@@ -112,6 +112,10 @@ contract LM_PC_RecurringPayments_v1 is
     /// @dev	List of RecurringPayment id's.
     LinkedIdList.List _paymentList;
 
+    /// @dev	Flags used for the payment order.
+    uint8 constant FLAG_START = 1;
+    uint8 constant FLAG_END = 3;
+
     /// @dev	Storage gap for future upgrades.
     uint[50] private __gap;
 
@@ -139,10 +143,9 @@ contract LM_PC_RecurringPayments_v1 is
 
         emit EpochLengthSet(newEpochLength);
 
-        // Set the flags for the PaymentOrders (this module uses 2 flags).
-        uint8[] memory flags = new uint8[](2);
-        flags[0] = 1; // start, flag_ID 1
-        flags[1] = 3; // end, flag_ID 3
+        bytes32 flags;
+        flags |= bytes32(1 << FLAG_START);
+        flags |= bytes32(1 << FLAG_END);
 
         __ERC20PaymentClientBase_v1_init(flags);
     }

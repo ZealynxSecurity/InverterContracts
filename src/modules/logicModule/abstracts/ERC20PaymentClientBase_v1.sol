@@ -102,7 +102,7 @@ abstract contract ERC20PaymentClientBase_v1 is
     /// @dev	Initializes the staking contract.
     /// @param  flags_ The flags, represented as an array of uint8 containing
     ///         the flag IDs between 0 and 255.
-    function __ERC20PaymentClientBase_v1_init(uint8[] memory flags_)
+    function __ERC20PaymentClientBase_v1_init(bytes32 flags_)
         internal
         onlyInitializing
     {
@@ -147,19 +147,17 @@ abstract contract ERC20PaymentClientBase_v1 is
     /// @dev    Sets the flags for the PaymentOrders.
     /// @param  flags_ The flags, represented as an array of uint8 containing
     ///         the flag IDs between 0 and 255.
-    function _setFlags(uint8[] memory flags_) internal virtual {
-        uint amountOfFlags = flags_.length;
+    function _setFlags(bytes32 flags_) internal virtual {
+        uint8 amountOfFlags = 0;
 
-        if (amountOfFlags > type(uint8).max) {
-            revert Module__ERC20PaymentClientBase_v1__FlagAmountTooHigh();
+        for (uint i = 0; i <= type(uint8).max; i++) {
+            if (flags_ & bytes32((1 << i)) != 0) {
+                amountOfFlags++;
+            }
         }
 
-        _flagCount = uint8(amountOfFlags);
-
-        _flags = 0;
-        for (uint8 i = 0; i < amountOfFlags; i++) {
-            _flags |= bytes32((1 << flags_[i]));
-        }
+        _flags = flags_;
+        _flagCount = amountOfFlags;
 
         emit FlagsSet(uint8(amountOfFlags), _flags);
     }

@@ -114,7 +114,7 @@ contract LM_PC_Staking_v1 is
         address _stakingToken = abi.decode(configData, (address));
         __LM_PC_Staking_v1_init(_stakingToken);
 
-        __ERC20PaymentClientBase_v1_init(new uint8[](0)); // This module does not use any PaymentOrder flags
+        __ERC20PaymentClientBase_v1_init(bytes32(0)); // This module does not use any PaymentOrder flags
     }
 
     /// @dev	Initializes the staking contract.

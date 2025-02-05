@@ -89,7 +89,7 @@ contract ERC20PaymentClientBaseV1AccessMock is ERC20PaymentClientBase_v1 {
         _outstandingTokenAmounts[token] = amount;
     }
 
-    function exposed_setFlags(uint8[] memory flags_) external {
+    function exposed_setFlags(bytes32 flags_) external {
         _setFlags(flags_);
     }
 

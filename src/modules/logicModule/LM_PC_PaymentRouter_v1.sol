@@ -60,6 +60,10 @@ contract LM_PC_PaymentRouter_v1 is
     /// @dev	The role that allows the pushing of payments.
     bytes32 public constant PAYMENT_PUSHER_ROLE = "PAYMENT_PUSHER";
 
+    uint8 public constant FLAG_START = 1;
+    uint8 public constant FLAG_CLIFF = 2;
+    uint8 public constant FLAG_END = 3;
+
     //--------------------------------------------------------------------------
     // Initializer
     function init(
@@ -70,10 +74,10 @@ contract LM_PC_PaymentRouter_v1 is
         __Module_init(orchestrator_, metadata);
 
         // Set the flags for the PaymentOrders (this module uses 3 flags).
-        uint8[] memory flags = new uint8[](3);
-        flags[0] = 1; // start, flag_ID 1
-        flags[1] = 2; // cliff, flag_ID 2
-        flags[2] = 3; // end, flag_ID 3
+        bytes32 flags;
+        flags |= bytes32(1 << FLAG_START);
+        flags |= bytes32(1 << FLAG_CLIFF);
+        flags |= bytes32(1 << FLAG_END);
 
         __ERC20PaymentClientBase_v1_init(flags);
     }

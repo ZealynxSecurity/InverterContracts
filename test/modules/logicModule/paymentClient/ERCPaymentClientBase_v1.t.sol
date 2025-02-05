@@ -478,21 +478,21 @@ contract ERC20PaymentClientBaseV1Test is ModuleTest {
         }
     }
 
-    function test_setFlags(uint8 flagCount_) public {
-        bytes32 newFlags = 0;
-        uint8[] memory flags = new uint8[](flagCount_);
+    function test_setFlags(bytes32 newFlags_) public {
+        uint8 flagCounter;
 
-        for (uint i = 0; i < flagCount_; i++) {
-            newFlags |= bytes32((1 << i));
-            flags[i] = uint8(i);
+        for (uint i = 0; i < type(uint8).max; i++) {
+            if (uint(newFlags_) & (1 << i) != 0) {
+                flagCounter++;
+            }
         }
 
-        paymentClient.exposed_setFlags(flags);
+        paymentClient.exposed_setFlags(newFlags_);
 
-        assertEq(paymentClient.getFlagCount(), flagCount_);
+        assertEq(paymentClient.getFlagCount(), flagCounter);
         assertEq(
             abi.encodePacked(paymentClient.getFlags()),
-            abi.encodePacked(newFlags)
+            abi.encodePacked(newFlags_)
         );
     }
 

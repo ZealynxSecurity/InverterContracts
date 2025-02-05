@@ -66,16 +66,6 @@ contract PP_Queue_v1_Test is ModuleTest {
 
     bytes32 public constant QUEUE_OPERATOR_ROLE = "QUEUE_OPERATOR";
 
-    // Module Constants
-    uint8 private constant FLAG_ORDER_ID = 0;
-    uint8 private constant FLAG_START_TIME = 1;
-    uint8 private constant FLAG_CLIFF_PERIOD = 2;
-    uint8 private constant FLAG_END_TIME = 3;
-
-    uint8 private constant SKIP_NOT_STARTED = 1;
-    uint8 private constant SKIP_IN_CLIFF = 2;
-    uint8 private constant SKIP_EXPIRED = 3;
-
     //Role
     bytes32 internal roleIDqueue;
 

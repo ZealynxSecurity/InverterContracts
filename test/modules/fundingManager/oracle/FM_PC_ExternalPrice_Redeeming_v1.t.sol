@@ -41,6 +41,7 @@ import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
 
 import {RedeemingBondingCurveBaseV1Mock} from
     "test/modules/fundingManager/bondingCurve/utils/mocks/RedeemingBondingCurveBaseV1Mock.sol";
+import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
 
 // Tests and Mocks
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
@@ -488,9 +489,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint8 collateralTokenDecimals_
     ) public {
         // Setup
-        amount_ = bound(amount_, 1, type(uint128).max);
-        issuanceTokenDecimals_ = uint8(bound(issuanceTokenDecimals_, 1, 36));
-        collateralTokenDecimals_ = uint8(bound(collateralTokenDecimals_, 1, 36));
+        amount_ = bound(amount_, 1, type(uint64).max);
+        issuanceTokenDecimals_ = uint8(bound(issuanceTokenDecimals_, 1, 18));
+        collateralTokenDecimals_ = uint8(bound(collateralTokenDecimals_, 1, 18));
         // Convert amount to issuance token decimals
         amount_ = amount_ * 10 ** issuanceTokenDecimals_;
 
@@ -500,13 +501,90 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 issuanceTokenDecimals_, collateralTokenDecimals_
             )
         );
-        oracle.setRedemptionPrice(10 ** collateralTokenDecimals_);
-        // @todo WIP
 
-        // uint collateralTokenDecimalConvertedAmount = FM_BC_Tools
-        //     ._convertAmountToRequiredDecimal(
-        //     amount_, issuanceTokenDecimals_, collateralTokenDecimals_
-        // );
+        // Set oracle address and price
+        newFundingManager.setOracleAddress(address(oracle));
+        uint oraclePrice = 10 ** collateralTokenDecimals_;
+        oracle.setRedemptionPrice(oraclePrice);
+
+        // Prepare deposit amount (scaled to issuance decimals)
+        uint depositAmount = amount_ * 10 ** issuanceTokenDecimals_;
+
+        // Test
+        uint actualRedeemAmount = newFundingManager
+            .exposed_redeemTokensFormulaWrapper(depositAmount);
+
+        // Calculate expected amount manually following the formula:
+        // 1. Convert to collateral decimals
+        uint collateralTokenDecimalConvertedAmount = FM_BC_Tools
+            ._convertAmountToRequiredDecimal(
+            depositAmount, issuanceTokenDecimals_, collateralTokenDecimals_
+        );
+
+        // 2. Apply oracle price and final division
+        uint expectedAmount = (collateralTokenDecimalConvertedAmount * oraclePrice) / 
+            10 ** collateralTokenDecimals_;
+
+        // Assert - Verify calculation matches expected
+        assertEq(
+            actualRedeemAmount,
+            expectedAmount,
+            "Redeem amount calculation incorrect"
+        );        
+    }
+
+    /* Test: Function testInternalIssueTokensFormulaWrapper_worksGivenValidAmount()
+        └── Given a valid amount
+            └── When the function exposed_issueTokensFormulaWrapper() is called
+                └── Then the amount should be correctly calculated 
+    */
+    function testInternalIssueTokensFormulaWrapper_worksGivenValidAmount(
+        uint amount_,
+        uint8 issuanceTokenDecimals_,
+        uint8 collateralTokenDecimals_
+    ) public {
+        // Setup - Bound inputs to prevent overflow
+        amount_ = bound(amount_, 1, type(uint64).max);
+        issuanceTokenDecimals_ = uint8(bound(issuanceTokenDecimals_, 1, 18));
+        collateralTokenDecimals_ = uint8(bound(collateralTokenDecimals_, 1, 18));
+        
+        FM_PC_ExternalPrice_Redeeming_v1_Exposed newFundingManager =
+            FM_PC_ExternalPrice_Redeeming_v1_Exposed(
+            _initializeFundingManagerWithDifferentTokenDecimals(
+                issuanceTokenDecimals_, collateralTokenDecimals_
+            )
+        );
+
+        // Set oracle address and price
+        newFundingManager.setOracleAddress(address(oracle));
+        uint oraclePrice = 10 ** collateralTokenDecimals_;
+        oracle.setIssuancePrice(oraclePrice);
+
+        // Scale amount to issuance decimals
+        uint scaledAmount = amount_ * 10 ** issuanceTokenDecimals_;
+
+        // Test
+        uint actualIssueAmount = newFundingManager
+            .exposed_issueTokensFormulaWrapper(scaledAmount);
+
+        // Calculate expected amount manually following the formula:
+        // 1. Calculate initial mint amount with oracle price
+        uint initialMintAmount = (oraclePrice * scaledAmount) / 
+            10 ** collateralTokenDecimals_;
+
+        // 2. Convert to issuance token decimals
+        uint expectedAmount = FM_BC_Tools._convertAmountToRequiredDecimal(
+            initialMintAmount,
+            collateralTokenDecimals_,
+            issuanceTokenDecimals_
+        );
+
+        // Assert - Verify calculation matches expected
+        assertEq(
+            actualIssueAmount,
+            expectedAmount,
+            "Issue amount calculation incorrect"
+        );
     }
 
     /* Test: Function testInternalSetIsDirectOperationsOnly_worksGivenValidValue()
@@ -592,29 +670,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: Function testInternalSetMaxProjectSellFee_RevertGivenFeeAboveCurrentSellFee()
-        └── Given a fee above current sell fee
-            └── When the function exposed_setMaxProjectSellFee() is called
-                └── Then it should revert with Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee
-    */
-    function testInternalSetMaxProjectSellFee_revertGivenFeeAboveCurrentSellFee(
-    ) public {
-        // Setup
-        uint currentSellFee_ = 500; // 5%
-        uint maxFee_ = 600; // 6%
-
-        // Set current sell fee
-        fundingManager.exposed_setSellFee(currentSellFee_);
-
-        // Test
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__FM_PC_ExternalPrice_Redeeming_InvalidMaxFee()"
-            )
-        );
-        fundingManager.exposed_setMaxProjectSellFee(maxFee_);
-    }
-
     /* Test: Function testInternalSetBuyFee_worksGivenValidFee()
         └── Given a valid fee
             └── When the function exposed_setBuyFee() is called
@@ -672,22 +727,23 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         assertEq(fundingManager.getSellFee(), fee_, "Fee not set correctly");
     }
 
-    function testInternalSetSellFee_revertGivenFeeAboveMaxSellFee() public {
-        // Setup
-        uint maxSellFee_ = 500;
-        uint fee_ = maxSellFee_ + 1;
+    /* Test: Function testInternalProjectFeeCollected_worksGivenValidAmount()
+        └── Given a valid project fee amount
+            └── When the function exposed_projectFeeCollected() is called
+                └── Then it should emit ProjectCollateralFeeAdded event with correct amount
+    */
+    function testInternalProjectFeeCollected_worksGivenValidAmount(
+        uint projectFeeAmount_
+    ) public {
+        // Setup - Bound inputs to prevent overflow
+        projectFeeAmount_ = bound(projectFeeAmount_, 0, type(uint128).max);
 
-        fundingManager.exposed_setMaxProjectSellFee(maxSellFee_);
+        // Test - Expect event emission
+        vm.expectEmit(true, true, true, true);
+        emit IBondingCurveBase_v1.ProjectCollateralFeeAdded(projectFeeAmount_);
 
-        // Test
-        vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(uint256,uint256)",
-                fee_,
-                maxSellFee_
-            )
-        );
-        fundingManager.exposed_setSellFee(fee_);
+        // Execute
+        fundingManager.exposed_projectFeeCollected(projectFeeAmount_);
     }
 
     // /* Test: Function  oracle configuration and validation

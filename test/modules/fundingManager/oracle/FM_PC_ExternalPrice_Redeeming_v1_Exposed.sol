@@ -61,6 +61,18 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Exposed is
         _setSellFee(fee_);
     }
 
+    function exposed_redeemTokensFormulaWrapper(uint amount_) public view returns (uint) {
+        return _redeemTokensFormulaWrapper(amount_);
+    }
+
+    function exposed_issueTokensFormulaWrapper(uint amount_) public view returns (uint) {
+        return _issueTokensFormulaWrapper(amount_);
+    }
+
+    function exposed_projectFeeCollected(uint amount_) public {
+        _projectFeeCollected(amount_);
+    }
+
     // -------------------------------------------------------------------------
     // Helper function
 }

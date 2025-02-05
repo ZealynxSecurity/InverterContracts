@@ -481,7 +481,7 @@ contract ERC20PaymentClientBaseV1Test is ModuleTest {
     function test_setFlags(bytes32 newFlags_) public {
         uint8 flagCounter;
 
-        for (uint i = 0; i < type(uint8).max; i++) {
+        for (uint i = 0; i <= type(uint8).max; i++) {
             if (uint(newFlags_) & (1 << i) != 0) {
                 flagCounter++;
             }

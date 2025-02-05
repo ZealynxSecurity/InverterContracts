@@ -38,7 +38,8 @@ import {OZErrors} from "test/utils/errors/OZErrors.sol";
 // System under testing
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {PP_Queue_ManualExecution_v1} from "@pp/PP_Queue_ManualExecution_v1.sol";
-import {PP_Queue_ManualExecution_v1_Exposed} from "test/modules/paymentProcessor/utils/mocks/PP_Queue_ManualExecution_v1_Exposed.sol";
+import {PP_Queue_ManualExecution_v1_Exposed} from
+    "test/modules/paymentProcessor/utils/mocks/PP_Queue_ManualExecution_v1_Exposed.sol";
 import {PP_Queue_v1_Test} from "./PP_Queue_v1.t.sol";
 
 contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
@@ -46,14 +47,14 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
     PP_Queue_ManualExecution_v1_Exposed queueManualExecution;
 
     function init() public {
-
         address impl = address(new PP_Queue_ManualExecution_v1_Exposed());
-        queueManualExecution = PP_Queue_ManualExecution_v1_Exposed(Clones.clone(impl));
-        
+        queueManualExecution =
+            PP_Queue_ManualExecution_v1_Exposed(Clones.clone(impl));
+
         // Setup orchestrator once
         _setUpOrchestrator(queueManualExecution);
         _authorizer.setIsAuthorized(address(this), true);
-        
+
         // Initialize queue manual execution
         queueManualExecution.init(
             _orchestrator,
@@ -73,7 +74,6 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
         paymentClient.init(_orchestrator, _METADATA, bytes(""));
         paymentClient.setIsAuthorized(address(queueManualExecution), true);
         paymentClient.setToken(_token);
-
     }
 
     /* Test testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrder() function
@@ -84,39 +84,43 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
     │           └── And no tokens should be transferred yet
     │           └── And attempting to remove a non-existent order should revert
     │           └── And removing the actual order should succeed
-*/
-    function testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrder() public {
+    */
+    function testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrder()
+        public
+    {
         init();
         // Setup payment client with orders
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
-        uint256 amount = 1000;
-        uint256 originChainId = block.chainid;
-        uint256 targetChainId = block.chainid;
-
+        uint amount = 1000;
+        uint originChainId = block.chainid;
+        uint targetChainId = block.chainid;
 
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory orders =
-            IERC20PaymentClientBase_v1.PaymentOrder({
-                recipient: recipient,
-                amount: amount,
-                paymentToken: paymentToken,
-                originChainId: originChainId,
-                targetChainId: targetChainId,
-                flags: flags_,
-                data: data_
-            });
+        IERC20PaymentClientBase_v1.PaymentOrder({
+            recipient: recipient,
+            amount: amount,
+            paymentToken: paymentToken,
+            originChainId: originChainId,
+            targetChainId: targetChainId,
+            flags: flags_,
+            data: data_
+        });
 
         // Setup initial state
         _token.mint(address(paymentClient), amount);
-        paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), amount);
+        paymentClient.exposed_addToOutstandingTokenAmounts(
+            address(_token), amount
+        );
         vm.startPrank(address(paymentClient));
         _token.approve(address(queueManualExecution), amount);
-        
+
         // Add payment order to queue
-        uint orderId_ =
-            queueManualExecution.exposed_addPaymentOrderToQueue(orders, address(paymentClient));
+        uint orderId_ = queueManualExecution.exposed_addPaymentOrderToQueue(
+            orders, address(paymentClient)
+        );
         vm.stopPrank();
 
         // Call processPayments as the module to add to queue
@@ -125,28 +129,37 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
 
         // Verify order was added correctly to the queue
         assertEq(orderId_, 1, "Order ID should be 1");
-        
+
         // Verify no tokens were transferred yet (they are transferred on executePaymentQueue)
-        assertEq(_token.balanceOf(address(queueManualExecution)), 0, "Queue should not have tokens yet");
-        assertEq(_token.balanceOf(address(paymentClient)), amount, "Payment client should still have tokens");
-        
+        assertEq(
+            _token.balanceOf(address(queueManualExecution)),
+            0,
+            "Queue should not have tokens yet"
+        );
+        assertEq(
+            _token.balanceOf(address(paymentClient)),
+            amount,
+            "Payment client should still have tokens"
+        );
+
         // Try to remove non-existent order - should revert
         vm.expectRevert();
-        queueManualExecution.exposed_removeFromQueue(orderId_ + 1, address(paymentClient));
-        
-        // Remove the actual order
-        queueManualExecution.exposed_removeFromQueue(orderId_, address(paymentClient));
-    }
+        queueManualExecution.exposed_removeFromQueue(
+            orderId_ + 1, address(paymentClient)
+        );
 
+        // Remove the actual order
+        queueManualExecution.exposed_removeFromQueue(
+            orderId_, address(paymentClient)
+        );
+    }
 
     /* Test testPublicProcessPayments_failsGivenUnregisteredClient() function
         ├── Given an unregistered payment client
         │   └── When processPayments is called with this client
         │       └── Then the transaction should revert with "Module__PP_Queue_OnlyCallableByClient()"
     */
-    function testPublicProcessPayments_failsGivenUnregisteredClient()
-        public
-    {
+    function testPublicProcessPayments_failsGivenUnregisteredClient() public {
         init();
         // Create another payment client that is not registered
         ERC20PaymentClientBaseV1Mock otherPaymentClient =
@@ -155,13 +168,10 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
         // Try to call processPayments with unregistered client
         vm.prank(address(paymentClient));
         vm.expectRevert(
-            abi.encodeWithSignature(
-                "Module__PP_Queue_OnlyCallableByClient()"
-            )
+            abi.encodeWithSignature("Module__PP_Queue_OnlyCallableByClient()")
         );
         queueManualExecution.processPayments(otherPaymentClient);
     }
-}
 
     /* Test testPublicExecutePaymentQueue_succeedsGivenValidOrderAndSetup() function
         ├── Given a valid payment order setup and queued
@@ -171,48 +181,66 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
         │       └── And the queue should have no tokens left
         │       └── And the payment client should have no tokens left
     */
-    function testPublicExecutePaymentQueue_succeedsGivenValidOrderAndSetup() public {
+    function testPublicExecutePaymentQueue_succeedsGivenValidOrderAndSetup()
+        public
+    {
         init();
         // Setup payment client and token
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
-        uint256 amount = 1000;
-        uint256 originChainId = block.chainid;
-        uint256 targetChainId = block.chainid;
+        uint amount = 1000;
+        uint originChainId = block.chainid;
+        uint targetChainId = block.chainid;
 
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
 
         IERC20PaymentClientBase_v1.PaymentOrder memory order =
-            IERC20PaymentClientBase_v1.PaymentOrder({
-                recipient: recipient,
-                amount: amount,
-                paymentToken: paymentToken,
-                originChainId: originChainId,
-                targetChainId: targetChainId,
-                flags: flags_,
-                data: data_
-            });
+        IERC20PaymentClientBase_v1.PaymentOrder({
+            recipient: recipient,
+            amount: amount,
+            paymentToken: paymentToken,
+            originChainId: originChainId,
+            targetChainId: targetChainId,
+            flags: flags_,
+            data: data_
+        });
 
         // Setup token balances and approvals
         _token.mint(address(paymentClient), amount);
-        paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), amount);
+        paymentClient.exposed_addToOutstandingTokenAmounts(
+            address(_token), amount
+        );
         vm.startPrank(address(paymentClient));
         _token.approve(address(queueManualExecution), amount);
-        
+
         // Add order to queue
-        uint orderId = queueManualExecution.exposed_addPaymentOrderToQueue(order, address(paymentClient));
+        uint orderId = queueManualExecution.exposed_addPaymentOrderToQueue(
+            order, address(paymentClient)
+        );
         vm.stopPrank();
-        
+
         assertGt(orderId, 0, "Order should be added with valid ID");
 
-        
         // Call executePaymentQueue from the payment client (which is a module)
         vm.prank(address(paymentClient));
         queueManualExecution.executePaymentQueue(paymentClient);
 
         // Verify final state
-        assertEq(_token.balanceOf(recipient), amount, "Recipient should receive tokens");
-        assertEq(_token.balanceOf(address(queueManualExecution)), 0, "Queue should have no tokens");
-        assertEq(_token.balanceOf(address(paymentClient)), 0, "Payment client should have no tokens");
+        assertEq(
+            _token.balanceOf(recipient),
+            amount,
+            "Recipient should receive tokens"
+        );
+        assertEq(
+            _token.balanceOf(address(queueManualExecution)),
+            0,
+            "Queue should have no tokens"
+        );
+        assertEq(
+            _token.balanceOf(address(paymentClient)),
+            0,
+            "Payment client should have no tokens"
+        );
     }
+}

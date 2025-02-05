@@ -173,9 +173,19 @@ contract PP_Queue_v1_Test is ModuleTest {
         // Setup
         _authorizer.setIsAuthorized(address(queue), true);
 
-        // Create payment order using our new helper
+
+        (bytes32 flags_, bytes32[] memory data_) =
+            helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order =
-            _createTestPaymentOrder(recipient_, amount_, 1);
+        IERC20PaymentClientBase_v1.PaymentOrder({
+            recipient: recipient_,
+            amount: amount_,
+            paymentToken: address(_token),
+            originChainId: block.chainid,
+            targetChainId: block.chainid,
+            flags: flags_,
+            data: data_
+        });
 
         // First add the order to the payment client
         paymentClient.addPaymentOrderUnchecked(order);

@@ -481,26 +481,16 @@ contract PP_Queue_v1_Test is ModuleTest {
             "Initial queue size should be 0."
         );
 
-        (bytes32 flags_, bytes32[] memory data_) =
-            helper_encodePaymentOrderData(1);
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: makeAddr("recipient"),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
 
-        _token.mint(address(paymentClient), 100);
-        paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), 100);
-        vm.startPrank(address(paymentClient));
-        _token.approve(address(queue), 100);
+        IERC20PaymentClientBase_v1.PaymentOrder memory order =
+            _createTestPaymentOrder(recipient_, amount_, 1);
+
+        _setupTokens(recipient_, amount_);
+        vm.prank(address(paymentClient));
         uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
-        vm.stopPrank();
+            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
 
         assertEq(
             queue.getQueueSizeForClient(address(paymentClient)),
@@ -527,7 +517,6 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then it should decrease after each cancellation.
                 └── Then it should be 0 for non-existent client.
     */
-
     function testGetQueueSizeForClient_GivenMultipleOrders(uint8 numOrders_)
         public
     {
@@ -542,29 +531,18 @@ contract PP_Queue_v1_Test is ModuleTest {
         uint[] memory orderIds_ = new uint[](numOrders_);
 
         for (uint8 i = 0; i < numOrders_; i++) {
-            (bytes32 flags_, bytes32[] memory data_) =
-                helper_encodePaymentOrderData(i + 1);
-            IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-            IERC20PaymentClientBase_v1.PaymentOrder({
-                recipient: makeAddr(string.concat("recipient", vm.toString(i))),
-                amount: 100,
-                paymentToken: address(_token),
-                originChainId: block.chainid,
-                targetChainId: block.chainid,
-                flags: flags_,
-                data: data_
-            });
+            IERC20PaymentClientBase_v1.PaymentOrder memory order =
+            _createTestPaymentOrder(
+                makeAddr(string.concat("recipient", vm.toString(i))), 100, i + 1
+            );
 
-            _token.mint(address(paymentClient), 100);
-            paymentClient.exposed_addToOutstandingTokenAmounts(
-                address(_token), 100
+            _setupTokens(
+                makeAddr(string.concat("recipient", vm.toString(i))), 100
             );
-            vm.startPrank(address(paymentClient));
-            _token.approve(address(queue), 100);
+            vm.prank(address(paymentClient));
             orderIds_[i] = queue.exposed_addPaymentOrderToQueue(
-                order_, address(paymentClient)
+                order, address(paymentClient)
             );
-            vm.stopPrank();
         }
 
         assertEq(
@@ -574,10 +552,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         for (uint8 i = 0; i < numOrders_; i++) {
-            // Approve tokens for cancellation
-            vm.startPrank(address(paymentClient));
+            vm.prank(address(paymentClient));
             _token.approve(address(queue), 100);
-            vm.stopPrank();
 
             queue.cancelPaymentOrderThroughQueueId(
                 orderIds_[i], IERC20PaymentClientBase_v1(address(paymentClient))
@@ -633,6 +609,51 @@ contract PP_Queue_v1_Test is ModuleTest {
             uint(queuedOrder_.state_),
             uint(IPP_Queue_v1.RedemptionState.PENDING),
             "State should be PENDING."
+        );
+    }
+
+    /* Test testGetOrder_GivenCancelledOrder()
+        └── Given a cancelled order
+            └── When retrieving the order
+                ├── Then recipient should match.
+                ├── Then amount should match.
+                ├── Then token should match.
+                └── Then state should be CANCELLED.
+    */
+
+    function testGetOrder_GivenCancelledOrder() public {
+        address recipient_ = makeAddr("recipient");
+        uint96 amount_ = 100;
+
+        IERC20PaymentClientBase_v1.PaymentOrder memory order =
+            _createTestPaymentOrder(recipient_, amount_, 1);
+
+        _setupTokens(recipient_, amount_);
+        vm.prank(address(paymentClient));
+        uint orderId_ =
+            queue.exposed_addPaymentOrderToQueue(order, address(paymentClient));
+
+        queue.cancelPaymentOrderThroughQueueId(
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
+        );
+
+        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
+            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
+        );
+
+        assertEq(
+            queuedOrder_.order_.recipient, recipient_, "Recipient should match."
+        );
+        assertEq(queuedOrder_.order_.amount, amount_, "Amount should match.");
+        assertEq(
+            queuedOrder_.order_.paymentToken,
+            address(_token),
+            "Token should match."
+        );
+        assertEq(
+            uint(queuedOrder_.state_),
+            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
+            "State should be CANCELLED."
         );
     }
 
@@ -723,84 +744,14 @@ contract PP_Queue_v1_Test is ModuleTest {
                 ├── Then token should match.
                 └── Then state should be CANCELLED.
     */
-
-    function testGetOrder_GivenCancelledOrder() public {
-        address recipient_ = makeAddr("recipient");
-        uint96 amount_ = 100;
-        (bytes32 flags_, bytes32[] memory data_) =
-            helper_encodePaymentOrderData(1);
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
-
-        _token.mint(address(paymentClient), amount_);
-        paymentClient.exposed_addToOutstandingTokenAmounts(
-            address(_token), amount_
-        );
-        vm.startPrank(address(paymentClient));
-        _token.approve(address(queue), amount_);
-        uint orderId_ =
-            queue.exposed_addPaymentOrderToQueue(order_, address(paymentClient));
-        vm.stopPrank();
-
-        // Approve again for cancellation
-        vm.prank(address(paymentClient));
-        _token.approve(address(queue), amount_);
-
-        queue.cancelPaymentOrderThroughQueueId(
-            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-
-        IPP_Queue_v1.QueuedOrder memory queuedOrder_ = queue.getOrder(
-            orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
-        );
-
-        assertEq(
-            queuedOrder_.order_.recipient, recipient_, "Recipient should match."
-        );
-        assertEq(queuedOrder_.order_.amount, amount_, "Amount should match.");
-        assertEq(
-            queuedOrder_.order_.paymentToken,
-            address(_token),
-            "Token should match."
-        );
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "State should be CANCELLED."
-        );
-    }
-
-    /* Test testGetOrder_GivenProcessedOrder()
-        └── Given a processed order
-            └── When retrieving the order
-                ├── Then recipient should match.
-                ├── Then amount should match.
-                ├── Then token should match.
-                └── Then state should be PROCESSED.
-    */
     function testGetOrder_GivenProcessedOrder() public {
         address recipient_ = makeAddr("recipient");
         uint96 amount_ = 100;
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
+
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
@@ -921,15 +872,7 @@ contract PP_Queue_v1_Test is ModuleTest {
     */
     function testAddPaymentOrderToQueue_RevertGivenInvalidOrder() public {
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: address(0),
-            amount: 100,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: bytes32(0),
-            data: new bytes32[](0)
-        });
+            _createTestPaymentOrder(address(0), 100, 1);
 
         vm.expectRevert(
             abi.encodeWithSignature(
@@ -955,15 +898,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -1017,15 +952,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
@@ -1052,16 +979,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags1_, bytes32[] memory data1_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order1_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags1_,
-            data: data1_
-        });
-
+            _createTestPaymentOrder(recipient_, amount_, 1);
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_
@@ -1077,15 +995,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags2_, bytes32[] memory data2_) =
             helper_encodePaymentOrderData(2);
         IERC20PaymentClientBase_v1.PaymentOrder memory order2_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags2_,
-            data: data2_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 2);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -1116,15 +1026,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags1_, bytes32[] memory data1_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order1_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags1_,
-            data: data1_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -1141,15 +1043,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags2_, bytes32[] memory data2_) =
             helper_encodePaymentOrderData(2);
         IERC20PaymentClientBase_v1.PaymentOrder memory order2_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags2_,
-            data: data2_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 2);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -1275,16 +1169,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
-
+            _createTestPaymentOrder(recipient_, amount_, 1);
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
         uint orderId_ =
@@ -1310,16 +1195,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags1_, bytes32[] memory data1_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order1_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags1_,
-            data: data1_
-        });
-
+            _createTestPaymentOrder(recipient_, amount_, 1);
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_
@@ -1333,16 +1209,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags2_, bytes32[] memory data2_) =
             helper_encodePaymentOrderData(2);
         IERC20PaymentClientBase_v1.PaymentOrder memory order2_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags2_,
-            data: data2_
-        });
-
+            _createTestPaymentOrder(recipient_, amount_, 2);
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_
@@ -1374,15 +1241,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags1_, bytes32[] memory data1_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order1_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags1_,
-            data: data1_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -1399,17 +1258,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags2_, bytes32[] memory data2_) =
             helper_encodePaymentOrderData(2);
         IERC20PaymentClientBase_v1.PaymentOrder memory order2_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags2_,
-            data: data2_
-        });
-
-        _token.mint(address(paymentClient), amount_);
+            _createTestPaymentOrder(recipient_, amount_, 2);
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_
         );
@@ -1444,16 +1293,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags1_, bytes32[] memory data1_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order1_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags1_,
-            data: data1_
-        });
-
+            _createTestPaymentOrder(recipient_, amount_, 1);
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
             address(_token), amount_
@@ -1561,15 +1401,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         _token.approve(address(queue), amount_);
@@ -1628,15 +1460,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(0);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 0);
 
         vm.expectRevert(
             abi.encodeWithSignature(
@@ -1710,15 +1534,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
@@ -1758,15 +1574,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(this), amount_);
         _token.approve(address(queue), amount_);
@@ -2178,15 +1986,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -2311,15 +2111,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory order_ =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient_,
-            amount: amount_,
-            paymentToken: address(_token),
-            originChainId: block.chainid,
-            targetChainId: block.chainid,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient_, amount_, 1);
 
         _token.mint(address(paymentClient), amount_ - 1);
         paymentClient.exposed_addToOutstandingTokenAmounts(

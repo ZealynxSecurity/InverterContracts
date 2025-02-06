@@ -85,7 +85,7 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
     │           └── And attempting to remove a non-existent order should revert
     │           └── And removing the actual order should succeed
     */
-    function testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrder()
+    function testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrderInManualExecution()
         public
     {
         init();

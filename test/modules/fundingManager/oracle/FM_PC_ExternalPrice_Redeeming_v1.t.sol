@@ -16,6 +16,7 @@ import {ERC1967Proxy} from
     "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
 import {ERC165} from "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+import {IERC165} from "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import {
     BondingCurveBase_v1,
     IBondingCurveBase_v1
@@ -34,8 +35,6 @@ import {
     ERC20PaymentClientBaseV1Mock,
     ERC20Mock
 } from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
-import {PP_Streaming_v1AccessMock} from
-    "test/utils/mocks/modules/paymentProcessor/PP_Streaming_v1AccessMock.sol";
 import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
 
@@ -79,12 +78,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     FM_PC_ExternalPrice_Redeeming_v1_Exposed fundingManager;
     ERC20Issuance_v1 issuanceToken;
     OraclePrice_Mock oracle;
+    ERC20PaymentClientBaseV1Mock paymentClient;
 
     // Test addresses
     address projectTreasury;
-
-    // Payment processor
-    PP_Streaming_v1AccessMock paymentProcessor; // @note why do we use a streaming payment processor mock?
 
     // ================================================================================
     // Setup
@@ -212,7 +209,544 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
     // ================================================================================
     // Test External (public + external)
+    
+    /* Test: Function supportsInterface()
+        └── Given different interface ids
+            └── When the function supportsInterface() is called
+                ├── Then it should return true for supported interfaces
+                └── Then it should return false for unsupported interfaces
+    */
+    function testExternalSupportsInterface_worksGivenDifferentInterfaces() public {
+        // Test - Verify supported interfaces
+        assertTrue(
+            fundingManager.supportsInterface(
+                type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+            ),
+            "Should support IFM_PC_ExternalPrice_Redeeming_v1"
+        );
 
+        assertTrue(
+            fundingManager.supportsInterface(
+                type(IFundingManager_v1).interfaceId
+            ),
+            "Should support IFundingManager_v1"
+        );
+
+        assertTrue(
+            fundingManager.supportsInterface(
+                type(IERC165).interfaceId
+            ),
+            "Should support IERC165"
+        );
+
+        // Test - Verify unsupported interface
+        bytes4 unsupportedInterfaceId = bytes4(keccak256("unsupported()"));
+        assertFalse(
+            fundingManager.supportsInterface(unsupportedInterfaceId),
+            "Should not support random interface"
+        );
+    }
+
+    /* Test: Function getWhitelistRole()
+        └── Given we want to get the whitelist role
+            └── When the function getWhitelistRole() is called
+                └── Then it should return the correct whitelist role identifier
+    */
+    function testGetWhitelistRole_worksGivenWhitelistRoleRetrieved() public {
+        // Test - Verify whitelist role
+        bytes32 expectedRole = bytes32("WHITELIST_ROLE");
+        assertEq(
+            fundingManager.getWhitelistRole(),
+            expectedRole,
+            "Incorrect whitelist role identifier"
+        );
+    }
+
+    /* Test: Function: getWhitelistRoleAdmin()
+        └── Given we want to get the whitelist role admin
+            └── When the function getWhitelistRoleAdmin() is called
+                └── Then it should return the correct whitelist role admin identifier
+    */
+    function testGetWhitelistRoleAdmin_worksGivenWhitelistRoleAdminRetrieved() public {
+        // Test - Verify whitelist role admin
+        bytes32 expectedRole = bytes32("WHITELIST_ROLE_ADMIN");
+        assertEq(
+            fundingManager.getWhitelistRoleAdmin(),
+            expectedRole,
+            "Incorrect whitelist role admin identifier"
+        );
+    }
+
+    /* Test: Function getQueueExecutorRole()
+        └── Given we want to get the queue executor role
+            └── When the function getQueueExecutorRole() is called
+                └── Then it should return the correct queue executor role identifier
+    */
+    function testGetQueueExecutorRole_worksGivenQueueExecutorRoleRetrieved() public {
+        // Test - Verify queue executor role
+        bytes32 expectedRole = bytes32("QUEUE_EXECUTOR_ROLE");
+        assertEq(
+            fundingManager.getQueueExecutorRole(),
+            expectedRole,
+            "Incorrect queue executor role identifier"
+        );
+    }
+
+    /* Test: Function getQueueExecutorRoleAdmin()
+        └── Given we want to get the queue executor role admin
+            └── When the function getQueueExecutorRoleAdmin() is called
+                └── Then it should return the correct queue executor role admin identifier
+    */
+    function testGetQueueExecutorRoleAdmin_worksGivenQueueExecutorRoleAdminRetrieved() public {
+        // Test - Verify queue executor role admin
+        bytes32 expectedRole = bytes32("QUEUE_EXECUTOR_ROLE_ADMIN");
+        assertEq(
+            fundingManager.getQueueExecutorRoleAdmin(),
+            expectedRole,
+            "Incorrect queue executor role admin identifier"
+        );
+    }
+
+    /* Test: Function getStaticPriceForBuying()
+        ├── Given we want to get the static price for buying
+            └── When the function getStaticPriceForBuying() is called
+                └── Then it should return the correct static price for buying
+    */
+    function testGetStaticPriceForBuying_worksGivenStaticPriceForBuyingRetrieved() public {
+        // Test - Verify static price for buying
+        uint256 expectedPrice = 1e6;
+        assertEq(
+            fundingManager.getStaticPriceForBuying(),
+            expectedPrice,
+            "Incorrect static price for buying"
+        );
+    }
+
+    /* Test: Function getStaticPriceForSelling()
+        ├── Given we want to get the static price for selling
+            └── When the function getStaticPriceForSelling() is called
+                └── Then it should return the correct static price for selling
+    */
+    function testGetStaticPriceForSelling_worksGivenStaticPriceForSellingRetrieved() public {
+        // Test - Verify static price for selling
+        uint256 expectedPrice = 1e6;
+        assertEq(
+            fundingManager.getStaticPriceForSelling(),
+            expectedPrice,
+            "Incorrect static price for selling"
+        );
+    }
+
+    /* Test: Function depositReserve()
+        └── Given a valid amount of tokens to deposit
+            └── When depositReserve() is called
+                └── Then it should transfer tokens to the funding manager
+                └── And emit a ReserveDeposited event
+    */
+    function testDepositReserve_worksGivenValidAmount(uint256 amount_) public {
+        // Setup - Bound amount to reasonable values and ensure non-zero
+        amount_ = bound(amount_, 1, 1000e18);
+        
+        // Setup - Fund test contract with tokens
+        deal(address(_token), address(this), amount_);
+        
+        // Setup - Approve funding manager to spend tokens
+        _token.approve(address(fundingManager), amount_);
+        
+        // Test - Record balances before deposit
+        uint256 balanceBefore = _token.balanceOf(address(this));
+        uint256 fmBalanceBefore = _token.balanceOf(address(fundingManager));
+        
+        // Test - Expect ReserveDeposited event
+        vm.expectEmit(true, true, true, true);
+        emit IFM_PC_ExternalPrice_Redeeming_v1.
+        ReserveDeposited(address(this), amount_);
+        
+        // Test - Deposit reserve
+        fundingManager.depositReserve(amount_);
+        
+        // Verify - Check balances after deposit
+        assertEq(
+            _token.balanceOf(address(this)),
+            balanceBefore - amount_,
+            "Sender balance not decreased correctly"
+        );
+        assertEq(
+            _token.balanceOf(address(fundingManager)),
+            fmBalanceBefore + amount_,
+            "FM balance not increased correctly"
+        );
+    }
+
+    /* Test: Function depositReserve()
+        └── Given a zero amount
+            └── When depositReserve() is called
+                └── Then it should revert with InvalidAmount error
+    */
+    function testDepositReserve_revertGivenZeroAmount() public {
+        // Test - Expect revert on zero amount
+        vm.expectRevert(
+            IFM_PC_ExternalPrice_Redeeming_v1
+            .Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount
+            .selector
+        );
+        fundingManager.depositReserve(0);
+    }
+
+   /* Test: Function depositReserve()
+        └── Given insufficient allowance
+            └── When depositReserve() is called
+                └── Then it should revert with ERC20InsufficientAllowance error
+    */
+    function testDepositReserve_revertGivenInsufficientAllowance() public {
+        // Setup
+        uint256 amount = 100e18;
+        deal(address(_token), address(this), amount);
+        
+        // Test - Don't approve, expect ERC20InsufficientAllowance error
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                address(fundingManager),
+                0,
+                amount
+            )
+        );
+        fundingManager.depositReserve(amount);
+    }
+
+    /* Test: Function buy()
+        └── Given a user with WHITELIST_ROLE and buying is open
+            └── When buy() is called with valid minAmountOut
+                └── Then it should execute successfully
+    */
+    function testBuy_worksGivenWhitelistedUser() public {
+        // Setup 
+        uint256 amount_ = 1e18;
+        deal(address(_token), address(this), amount_);
+        _token.approve(address(fundingManager), amount_);
+        
+        // Setup - Open buy operations
+        fundingManager.openBuy();
+        
+        // Setup - Calculate minimum amount out
+        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        
+        // Test - Should not revert
+        fundingManager.buy(amount_, minAmountOut_);
+    }
+
+    /* Test: Function buy()
+        └── Given a user without WHITELIST_ROLE but buying is open
+            └── When buy() is called with valid minAmountOut
+                └── Then it should revert with Module__CallerNotAuthorized error
+    */
+    function testBuy_revertGivenNonWhitelistedUser() public {
+        // Setup
+        address nonWhitelisted_ = makeAddr("nonWhitelisted");
+        uint256 amount_ = 1e18;
+        deal(address(_token), nonWhitelisted_, amount_);
+        
+        // Setup - Open buy operations
+        fundingManager.openBuy();
+        
+        // Setup - Calculate minimum amount out
+        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+
+        vm.startPrank(nonWhitelisted_);
+        vm.expectRevert();
+        fundingManager.buy(amount_, minAmountOut_);
+        vm.stopPrank();
+    }
+
+    /* Test: Function buyFor()
+        └── Given a user with WHITELIST_ROLE and third party operations enabled
+            └── When buyFor() is called
+                └── Then it should execute successfully
+    */
+    function testBuyFor_worksGivenWhitelistedUserAndTPOEnabled() public {
+        // Setup
+        address receiver_ = makeAddr("receiver");
+        uint256 amount_ = 1e18;
+        deal(address(_token), address(this), amount_);
+        _token.approve(address(fundingManager), amount_);
+        
+        // Setup - Open buy operations and enable TPO
+        fundingManager.openBuy();
+        fundingManager.exposed_setIsDirectOperationsOnly(false);
+        
+        // Setup - Calculate minimum amount out
+        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        
+        // Test - Should not revert
+        fundingManager.buyFor(receiver_, amount_, minAmountOut_);
+    }
+
+    /* Test: Function buyFor()
+        └── Given a user without WHITELIST_ROLE but TPO enabled
+            └── When buyFor() is called
+                └── Then it should revert
+    */
+    function testBuyFor_revertGivenNonWhitelistedUserAndTPOEnabled() public {
+        // Setup
+        address nonWhitelisted_ = makeAddr("nonWhitelisted");
+        address receiver_ = makeAddr("receiver");
+        uint256 amount_ = 1e18;
+        deal(address(_token), nonWhitelisted_, amount_);
+        
+        // Setup - Open buy operations
+        fundingManager.openBuy();
+        fundingManager.exposed_setIsDirectOperationsOnly(false);
+        
+        // Setup - Calculate minimum amount out
+        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+
+        // Test - Switch to non-whitelisted user and expect revert
+        vm.startPrank(nonWhitelisted_);
+        vm.expectRevert();
+        fundingManager.buyFor(receiver_, amount_, minAmountOut_);
+        vm.stopPrank();
+    }
+
+    /* Test: Function buyFor()
+        └── Given a whitelisted user but TPO disabled
+            └── When buyFor() is called
+                └── Then it should revert
+    */
+    function testBuyFor_revertGivenTPODisabled() public {
+        // Setup
+        address receiver_ = makeAddr("receiver");
+        uint256 amount_ = 1e18;
+        deal(address(_token), address(this), amount_);
+        _token.approve(address(fundingManager), amount_);
+        
+        // Setup - Open buy operations but leave TPO disabled
+        fundingManager.openBuy();
+        
+        // Setup - Calculate minimum amount out
+        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        
+        // Test - Should revert as TPO is disabled
+        vm.expectRevert();
+        fundingManager.buyFor(receiver_, amount_, minAmountOut_);
+    }
+
+    // /* Test: Function sell()
+    //     └── Given a user with WHITELIST_ROLE and selling is open
+    //         └── When sell() is called
+    //             └── Then it should execute successfully
+    // */
+    // function testSell_worksGivenWhitelistedUser() public {
+    //     // Setup
+    //     uint256 amount_ = 1e18;
+    //     deal(address(_token), address(this), amount_);
+    //     _token.approve(address(fundingManager), amount_);
+        
+    //     // Setup - Open buy operations
+    //     fundingManager.openBuy();
+        
+    //     // Setup - Calculate minimum amount out
+    //     uint256 minBuyAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        
+    //     // Test - Should not revert
+    //     fundingManager.buy(amount_, minBuyAmountOut_);
+
+    //     fundingManager.openSell();
+        
+    //     uint256 minSellAmountOut_ = fundingManager.calculateSaleReturn(minBuyAmountOut_);
+        
+    //     // Test - Should not revert - sell the tokens we received from buying
+    //     fundingManager.sell(minBuyAmountOut_, minSellAmountOut_);
+    // }
+
+    // /* Test: Function sell()
+    //     └── Given a user without WHITELIST_ROLE but selling is open
+    //         └── When sell() is called
+    //             └── Then it should revert
+    // */
+    // function testSell_revertGivenNonWhitelistedUser() public {
+    //     // Setup
+    //     address nonWhitelisted_ = makeAddr("nonWhitelisted");
+    //     uint256 amount_ = 1e18;
+    //     deal(address(_token), nonWhitelisted_, amount_);
+        
+    //     // Setup - Open sell operations
+    //     fundingManager.openSell();
+        
+    //     // Setup - Calculate minimum amount out
+    //     uint256 minAmountOut_ = fundingManager.calculateSaleReturn(amount_);
+
+    //     // Test - Switch to non-whitelisted user and expect revert
+    //     vm.startPrank(nonWhitelisted_);
+    //     vm.expectRevert();
+    //     fundingManager.sell(amount_, minAmountOut_);
+    //     vm.stopPrank();
+    // }
+
+    // /* Test: Function transferOrchestratorToken()
+    //     ├── Given caller is not the payment client
+    //     │   └── When transferOrchestratorToken() is called
+    //     │       └── Then it should revert
+    //     */
+    // function testTransferOrchestratorToken_revertGivenNonPaymentClient() public {
+    //     // Setup
+    //     address receiver_ = makeAddr("receiver");
+    //     uint amount_ = 100;
+        
+    //     // Test - Should revert if not called by payment client
+    //     vm.expectRevert(
+    //         IModule_v1.Module__OnlyCallableByPaymentClient.selector
+    //     );
+    //     fundingManager.transferOrchestratorToken(receiver_, amount_);
+    // }
+
+    // /* Test: Function transferOrchestratorToken()
+    //     ├── Given caller is the payment client
+    //     │   └── When transferOrchestratorToken() is called
+    //     │       ├── Then it should transfer the tokens
+    //     │       └── And it should emit the TransferOrchestratorToken event
+    //     */
+    // function testTransferOrchestratorToken_worksGivenPaymentClient() public {
+    //     // Setup
+    //     address receiver_ = makeAddr("receiver");
+    //     uint amount_ = 100;
+        
+    //     // Setup - Mint tokens to funding manager
+    //     deal(address(_token), address(fundingManager), amount_);
+        
+    //     // Setup - Create and register payment client
+    //     paymentClient = new ERC20PaymentClientBaseV1Mock();
+        
+    //     // Setup - Mock payment client call
+    //     vm.startPrank(address(paymentClient));
+        
+    //     // Test - Expect event
+    //     vm.expectEmit(true, true, true, true, address(fundingManager));
+    //     emit IFundingManager_v1.TransferOrchestratorToken(receiver_, amount_);
+        
+    //     // Test - Transfer tokens
+    //     fundingManager.transferOrchestratorToken(receiver_, amount_);
+    //     vm.stopPrank();
+        
+    //     // Test - Verify balances
+    //     assertEq(_token.balanceOf(receiver_), amount_);
+    //     assertEq(_token.balanceOf(address(fundingManager)), 0);
+    // }
+
+    /* Test: Function setSellFee()
+        ├── Given the sell fee is 0
+        │   └── When the function setSellFee() is called
+        │       └── Then it should set the sell fee correctly
+    */
+    function testSetSellFee_worksGivenZeroSellFee() public {
+        // Test
+        fundingManager.setSellFee(0);
+        
+        // Test - Verify state
+        assertEq(fundingManager.sellFee(), 0);
+    }
+
+    /* Test: Function setSellFee()
+        ├── Given the sell fee is not 0
+        │   └── When the function setSellFee() is called
+        │       └── Then it should set the sell fee correctly
+    */
+    function testSetSellFee_worksGivenNonZeroSellFee() public {
+        // Test
+        fundingManager.setSellFee(100);
+        
+        // Test - Verify state
+        assertEq(fundingManager.sellFee(), 100);
+    }
+
+    /* Test: Function setBuyFee()
+        ├── Given the buy fee is not 0
+        │   └── When the function setSellFee() is called
+        │       └── Then it should set the sell fee correctly
+    */
+    function testSetBuyFee_worksGivenNonZeroBuyFee() public {
+        // Test
+        fundingManager.setBuyFee(100);
+        
+        // Test - Verify state
+        assertEq(fundingManager.buyFee(), 100);
+    }
+
+    /* Test: Function setBuyFee()
+        ├── Given the buy fee is 0
+        │   └── When the function setSellFee() is called
+        │       └── Then it should revert
+    */
+    function testSetBuyFee_worksGivenZeroBuyFee() public {
+        // Test
+        fundingManager.setBuyFee(0);
+        
+        // Test - Verify state
+        assertEq(fundingManager.buyFee(), 0);
+    }
+
+    /* Test: Function setProjectTreasury()
+        ├── Given the project treasury is a valid address
+        │   └── When the function setProjectTreasury() is called
+        │       └── Then it should set the project treasury correctly
+    */
+    function testSetProjectTreasury_worksGivenValidAddress(
+        address projectTreasury_
+    ) public {
+        // Setup
+        vm.assume(projectTreasury_ != address(0));
+
+        // Test
+        fundingManager.setProjectTreasury(projectTreasury_);
+
+        // Test - Verify state
+        assertEq(fundingManager.getProjectTreasury(), projectTreasury_);
+    }
+
+    /* Test: Function setOracleAddress()
+        ├── Given the oracle supports the IOraclePrice_v1 interface
+        │   └── When the function _setOracleAddress() is called
+        │       └── Then it should set the oracle address correctly
+        └── Given the oracle does not support the IOraclePrice_v1 interface
+            └── When the function _setOracleAddress() is called
+                └── Then it should revert
+    */
+    function testSetOracleAddress_worksGivenValidOracle(address _oracle) public {
+        // Setup
+        vm.assume(address(_oracle) != address(0));
+
+        OraclePrice_Mock newOracle = new OraclePrice_Mock();
+
+        // Test
+        fundingManager.setOracleAddress(address(newOracle));
+
+        // Assert
+        assertEq(
+            fundingManager.getOracle(),
+            address(newOracle),
+            "Oracle address not set correctly"
+        );
+    }
+
+    /* Test: setIsDirectOperationsOnly()
+        └── Given a valid value
+            └── When the function exposed_setIsDirectOperationsOnly() is called
+                └── Then the value should be set correctly
+    */
+    function testSetIsDirectOperationsOnly_worksGivenValidValue(
+        bool _isDirectOperationsOnly
+    ) public {
+        // Test
+        fundingManager.setIsDirectOperationsOnly(_isDirectOperationsOnly);
+        
+        // Test - Verify state
+        assertEq(
+            fundingManager.getIsDirectOperationsOnly(),
+            _isDirectOperationsOnly,
+            "Is direct operations only not set correctly"
+        );
+    }
+    
     // ================================================================================
     // Test Internal
 
@@ -587,7 +1121,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: Function testInternalSetIsDirectOperationsOnly_worksGivenValidValue()
+    /* Test: Function _setIsDirectOperationsOnly()
         └── Given a valid value
             └── When the function exposed_setIsDirectOperationsOnly() is called
                 └── Then the value should be set correctly
@@ -606,7 +1140,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: Function testInternalSetMaxProjectBuyFee_worksGivenValidFee()
+    /* Test: Function _setMaxProjectBuyFee()
         └── Given a valid fee
             └── When the function exposed_setMaxProjectBuyFee() is called
                 └── Then the fee should be set correctly
@@ -626,7 +1160,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: Function testInternalSetMaxProjectBuyFee_RevertGivenFeeBelowCurrentBuyFee()
+    /* Test: Function _setBuyFee()
         └── Given a fee below current buy fee
             └── When the function exposed_setMaxProjectBuyFee() is called
                 └── Then it should revert with Module__BondingCurveBase__InvalidMaxFee
@@ -650,7 +1184,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.exposed_setMaxProjectBuyFee(maxFee_);
     }
 
-    /* Test: Function testInternalSetMaxProjectSellFee_worksGivenValidFee()
+    /* Test: Function _setMaxProjectSellFee()
         └── Given a valid fee
             └── When the function exposed_setMaxProjectSellFee() is called
                 └── Then the fee should be set correctly
@@ -670,7 +1204,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: Function testInternalSetBuyFee_worksGivenValidFee()
+    /* Test: Function _setBuyFee()
         └── Given a valid fee
             └── When the function exposed_setBuyFee() is called
                 └── Then the fee should be set correctly
@@ -686,7 +1220,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         assertEq(fundingManager.getBuyFee(), fee_, "Fee not set correctly");
     }
 
-    /* Test: Function testInternalSetBuyFee_RevertGivenFeeAboveMaxProjectBuyFee()
+    /* Test: Function _setMaxProjectBuyFee()
         └── Given a fee above max project buy fee
             └── When the function exposed_setBuyFee() is called
                 └── Then it should revert with Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum
@@ -711,7 +1245,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         fundingManager.exposed_setBuyFee(fee_);
     }
 
-    /* Test: Function testInternalSetSellFee_worksGivenValidFee()
+    /* Test: Function _setSellFee()
         └── Given a valid fee
             └── When the function exposed_setSellFee() is called
                 └── Then the fee should be set correctly
@@ -727,7 +1261,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         assertEq(fundingManager.getSellFee(), fee_, "Fee not set correctly");
     }
 
-    /* Test: Function testInternalProjectFeeCollected_worksGivenValidAmount()
+    /* Test: Function _projectFeeCollected()
         └── Given a valid project fee amount
             └── When the function exposed_projectFeeCollected() is called
                 └── Then it should emit ProjectCollateralFeeAdded event with correct amount

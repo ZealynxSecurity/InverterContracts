@@ -388,6 +388,9 @@ contract PP_Queue_v1_Test is ModuleTest {
         vm.assume(receiver_ != address(0));
         vm.assume(receiver_ != address(queue));
         vm.assume(receiver_ != address(_orchestrator));
+        vm.assume(receiver_ != address(msg.sender));
+        vm.assume(receiver_ != address(this));
+        vm.assume(receiver_ != address(_orchestrator.fundingManager()));
         vm.assume(receiver_ != address(_orchestrator.fundingManager().token()));
 
         assertTrue(
@@ -654,6 +657,11 @@ contract PP_Queue_v1_Test is ModuleTest {
     {
         vm.assume(recipient_ != address(0));
         vm.assume(recipient_ != address(queue));
+        vm.assume(recipient_ != address(msg.sender));
+        vm.assume(recipient_ != address(this));
+        vm.assume(recipient_ != address(_orchestrator));
+        vm.assume(recipient_ != address(_orchestrator.fundingManager()));
+        vm.assume(recipient_ != address(_orchestrator.fundingManager().token()));
         vm.assume(address(paymentClient) != recipient_);
         amount_ = uint96(bound(uint(amount_), 1, 1e30));
 
@@ -2441,30 +2449,27 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
     }
 
-
-/*
+    /*
     cancelRunningPayments = 1
     processPayments = 1
 
 
- */
+    */
     /* Test testPublicCancelPayments_failsGivenNonModuleCaller() function
         ├── Given a caller that is not a module
         │   └── When cancelRunningPayments is called
         │       └── Then the transaction should revert with "Module__PP_Queue_OnlyCallableByClient()"
     */
-    function testPublicCancelPayments_failsGivenNonModuleCaller(address nonModule)
-        public
-    {
+    function testPublicCancelPayments_failsGivenNonModuleCaller(
+        address nonModule
+    ) public {
         vm.assume(nonModule != address(queue));
         vm.assume(nonModule != address(paymentClient));
         vm.assume(nonModule != address(_authorizer));
 
         vm.prank(nonModule);
         vm.expectRevert(
-            abi.encodeWithSignature(
-                   "Module__PP_Queue_OnlyCallableByClient()"
-            )
+            abi.encodeWithSignature("Module__PP_Queue_OnlyCallableByClient()")
         );
         queue.cancelRunningPayments(paymentClient);
     }
@@ -2480,7 +2485,6 @@ contract PP_Queue_v1_Test is ModuleTest {
     function testPublicProcessPayments_succeedsGivenValidSetupAndPaymentOrder()
         public
     {
-        
         // Setup payment client with orders
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
@@ -2510,9 +2514,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         _token.approve(address(queue), amount);
 
         // Add payment order to queue
-        uint orderId_ = queue.exposed_addPaymentOrderToQueue(
-            orders, address(paymentClient)
-        );
+        uint orderId_ =
+            queue.exposed_addPaymentOrderToQueue(orders, address(paymentClient));
         vm.stopPrank();
 
         // Call processPayments as the module to add to queue
@@ -2527,9 +2530,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         assertEq(
-            _token.balanceOf(address(queue)),
-            0,
-            "Queue should have no tokens"
+            _token.balanceOf(address(queue)), 0, "Queue should have no tokens"
         );
         assertEq(
             _token.balanceOf(address(paymentClient)),
@@ -2548,9 +2549,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         │               └── And the payment client should have no tokens left
         │               └── And attempting to cancel should revert with "Module__PP_Queue_InvalidState()"
     */
-    function testPublicProcessAndCancelPayments_succeedsGivenValidSetupAndPaymentOrder()
-        public
-    {
+    function testPublicProcessAndCancelPayments_succeedsGivenValidSetupAndPaymentOrder(
+    ) public {
         // Setup payment client with orders
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
@@ -2580,9 +2580,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         _token.approve(address(queue), amount);
 
         // Add payment order to queue
-        uint orderId_ = queue.exposed_addPaymentOrderToQueue(
-            orders, address(paymentClient)
-        );
+        uint orderId_ =
+            queue.exposed_addPaymentOrderToQueue(orders, address(paymentClient));
         vm.stopPrank();
 
         // Call processPayments as the module to add to queue
@@ -2598,9 +2597,7 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         assertEq(
-            _token.balanceOf(address(queue)),
-            0,
-            "Queue should have no tokens"
+            _token.balanceOf(address(queue)), 0, "Queue should have no tokens"
         );
         assertEq(
             _token.balanceOf(address(paymentClient)),
@@ -2616,7 +2613,6 @@ contract PP_Queue_v1_Test is ModuleTest {
         queue.cancelPaymentOrderThroughQueueId(
             orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
-
     }
 
     /* Test testPublicClaimPreviouslyUnclaimableToTreasury_revertsGivenUnauthorizedCaller() function
@@ -2625,7 +2621,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         │       └── When claimPreviouslyUnclaimableToTreasury is called by an unauthorized caller
         │           └── Then the transaction should revert with "Module__CallerNotAuthorized"
     */
-    function testPublicClaimPreviouslyUnclaimableToTreasury_revertsGivenUnauthorizedCaller() public {
+    function testPublicClaimPreviouslyUnclaimableToTreasury_revertsGivenUnauthorizedCaller(
+    ) public {
         paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), 200);
 
         address recipient_ = makeAddr("recipient");
@@ -2650,9 +2647,11 @@ contract PP_Queue_v1_Test is ModuleTest {
 
         vm.prank(address(paymentClient));
         vm.expectRevert(
-            abi.encodeWithSignature("Module__CallerNotAuthorized(bytes32,address)",
-            0x5d97d4d42ba6fe9c9c1a1451385e8b1e735e94d33a05d1e7fae480933f0db4e0,
-            address(paymentClient))
+            abi.encodeWithSignature(
+                "Module__CallerNotAuthorized(bytes32,address)",
+                0x5d97d4d42ba6fe9c9c1a1451385e8b1e735e94d33a05d1e7fae480933f0db4e0,
+                address(paymentClient)
+            )
         );
         queue.claimPreviouslyUnclaimableToTreasury(
             address(paymentClient), address(_token), recipient_
@@ -2667,7 +2666,8 @@ contract PP_Queue_v1_Test is ModuleTest {
         │           └── And the tokens should be transferred to the failed orders treasury
         │           └── And the canceled orders treasury should not receive any tokens
     */
-    function testPublicClaimPreviouslyUnclaimableToTreasury_succeedsGivenValidConditions() public {
+    function testPublicClaimPreviouslyUnclaimableToTreasury_succeedsGivenValidConditions(
+    ) public {
         paymentClient.exposed_addToOutstandingTokenAmounts(address(_token), 200);
 
         address recipient_ = makeAddr("recipient");
@@ -2693,7 +2693,9 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
 
         assertEq(
-            queue.unclaimable(address(paymentClient), address(_token), recipient_),
+            queue.unclaimable(
+                address(paymentClient), address(_token), recipient_
+            ),
             0,
             "Unclaimable amount should be zero after claiming"
         );
@@ -2719,7 +2721,9 @@ contract PP_Queue_v1_Test is ModuleTest {
         │       └── And when called by an authorized caller
         │           └── Then the treasury address should be updated
     */
-    function testPublicSetCanceledOrdersTreasury_succeedsGivenAuthorizedCaller() public {
+    function testPublicSetCanceledOrdersTreasury_succeedsGivenAuthorizedCaller()
+        public
+    {
         address newTreasury = makeAddr("newTreasury");
 
         assertNotEq(
@@ -2728,7 +2732,8 @@ contract PP_Queue_v1_Test is ModuleTest {
             "New treasury should be different from current"
         );
 
-        bytes32 ORCHESTRATOR_ADMIN_ROLE = 0x3078303000000000000000000000000000000000000000000000000000000000;
+        bytes32 ORCHESTRATOR_ADMIN_ROLE =
+            0x3078303000000000000000000000000000000000000000000000000000000000;
         address unauthorized = makeAddr("unauthorized");
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -2758,16 +2763,19 @@ contract PP_Queue_v1_Test is ModuleTest {
         │       └── And when called by an authorized caller
         │           └── Then the failed orders treasury address should be updated
     */
-    function testPublicSetFailedOrdersTreasury_succeedsGivenAuthorizedCaller() public {
+    function testPublicSetFailedOrdersTreasury_succeedsGivenAuthorizedCaller()
+        public
+    {
         address newTreasury = makeAddr("newFailedTreasury");
-        
+
         assertNotEq(
             queue.getFailedOrdersTreasury(),
             newTreasury,
             "New treasury should be different from current"
         );
 
-        bytes32 ORCHESTRATOR_ADMIN_ROLE = 0x3078303000000000000000000000000000000000000000000000000000000000;
+        bytes32 ORCHESTRATOR_ADMIN_ROLE =
+            0x3078303000000000000000000000000000000000000000000000000000000000;
         address unauthorized = makeAddr("unauthorized");
         vm.prank(unauthorized);
         vm.expectRevert(
@@ -2799,27 +2807,29 @@ contract PP_Queue_v1_Test is ModuleTest {
         └── Given an invalid payment order with zero token address
             └── Then validPaymentOrder should return false
     */
-    function testPublicValidPaymentOrder_succeedsGivenValidConditions() public {
+    function testPublicValidPaymentOrder_succeedsGivenValidConditions()
+        public
+    {
         address recipient = makeAddr("recipient");
         uint96 amount = 100;
-        IERC20PaymentClientBase_v1.PaymentOrder memory validOrder = 
+        IERC20PaymentClientBase_v1.PaymentOrder memory validOrder =
             _createTestPaymentOrder(recipient, amount, 1);
-        
+
         assertTrue(
             queue.validPaymentOrder(validOrder),
             "Valid payment order should return true"
         );
 
-        IERC20PaymentClientBase_v1.PaymentOrder memory invalidOrder = 
+        IERC20PaymentClientBase_v1.PaymentOrder memory invalidOrder =
             _createTestPaymentOrder(address(0), amount, 1);
-        
+
         assertFalse(
             queue.validPaymentOrder(invalidOrder),
             "Payment order with zero address recipient should return false"
         );
 
         invalidOrder = _createTestPaymentOrder(recipient, 0, 1);
-        
+
         assertFalse(
             queue.validPaymentOrder(invalidOrder),
             "Payment order with zero amount should return false"
@@ -2827,12 +2837,13 @@ contract PP_Queue_v1_Test is ModuleTest {
 
         invalidOrder = validOrder;
         invalidOrder.paymentToken = address(0);
-        
+
         assertFalse(
             queue.validPaymentOrder(invalidOrder),
             "Payment order with zero token address should return false"
         );
     }
+
     function helper_encodePaymentOrderData(uint orderId_)
         internal
         returns (bytes32 flags_, bytes32[] memory data_)

@@ -2449,12 +2449,6 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
     }
 
-    /*
-    cancelRunningPayments = 1
-    processPayments = 1
-
-
-    */
     /* Test testPublicCancelPayments_failsGivenNonModuleCaller() function
         ├── Given a caller that is not a module
         │   └── When cancelRunningPayments is called
@@ -2844,6 +2838,17 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
     }
 
+    /* Test testPublicGetQueueOperatorRoleAdmin_succeedsGivenCorrectAdmin() function
+        ├── When getQueueOperatorRoleAdmin is called
+        │   └── Then it should return "QUEUE_OPERATOR_ROLE_ADMIN"
+    */
+    function testPublicGetQueueOperatorRoleAdmin_succeedsGivenCorrectAdmin() public {
+        bytes32 operatorRoleAdmin_ = queue.getQueueOperatorRoleAdmin();
+        assertTrue(
+            operatorRoleAdmin_ == "QUEUE_OPERATOR_ROLE_ADMIN",
+            "Queue operator role admin should be the queue address"
+        );
+    }
     function helper_encodePaymentOrderData(uint orderId_)
         internal
         returns (bytes32 flags_, bytes32[] memory data_)

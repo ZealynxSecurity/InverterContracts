@@ -207,18 +207,13 @@ contract PP_Queue_v1_Test is ModuleTest {
         IPP_Queue_v1.QueuedOrder memory queuedOrder = queue.getOrder(
             orderId, IERC20PaymentClientBase_v1(address(paymentClient))
         );
-        assertEq(queuedOrder.order_.recipient, recipient_, "Wrong recipient");
-        assertEq(queuedOrder.order_.amount, amount_, "Wrong amount");
-        assertEq(
-            queuedOrder.order_.paymentToken, address(_token), "Wrong token"
+        _assertOrder(
+            queuedOrder,
+            recipient_,
+            amount_,
+            address(_token),
+            IPP_Queue_v1.RedemptionState.PENDING
         );
-        assertEq(
-            uint(queuedOrder.state_),
-            uint(IPP_Queue_v1.RedemptionState.PENDING),
-            "Wrong state"
-        );
-        assertEq(queuedOrder.orderId_, orderId, "Wrong orderId");
-        assertEq(queuedOrder.client_, address(paymentClient), "Wrong client");
         assertTrue(queuedOrder.timestamp_ > 0, "Invalid timestamp");
     }
 
@@ -596,19 +591,12 @@ contract PP_Queue_v1_Test is ModuleTest {
         IPP_Queue_v1.QueuedOrder memory queuedOrder_ =
             queue.getOrder(orderId_, IERC20PaymentClientBase_v1(address(this)));
 
-        assertEq(
-            queuedOrder_.order_.recipient, recipient_, "Recipient should match."
-        );
-        assertEq(queuedOrder_.order_.amount, amount_, "Amount should match.");
-        assertEq(
-            queuedOrder_.order_.paymentToken,
+        _assertOrder(
+            queuedOrder_,
+            recipient_,
+            amount_,
             address(_token),
-            "Token should match."
-        );
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.PENDING),
-            "State should be PENDING."
+            IPP_Queue_v1.RedemptionState.PENDING
         );
     }
 
@@ -641,19 +629,12 @@ contract PP_Queue_v1_Test is ModuleTest {
             orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
 
-        assertEq(
-            queuedOrder_.order_.recipient, recipient_, "Recipient should match."
-        );
-        assertEq(queuedOrder_.order_.amount, amount_, "Amount should match.");
-        assertEq(
-            queuedOrder_.order_.paymentToken,
+        _assertOrder(
+            queuedOrder_,
+            recipient_,
+            amount_,
             address(_token),
-            "Token should match."
-        );
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.CANCELLED),
-            "State should be CANCELLED."
+            IPP_Queue_v1.RedemptionState.CANCELLED
         );
     }
 
@@ -769,19 +750,12 @@ contract PP_Queue_v1_Test is ModuleTest {
             orderId_, IERC20PaymentClientBase_v1(address(paymentClient))
         );
 
-        assertEq(
-            queuedOrder_.order_.recipient, recipient_, "Recipient should match."
-        );
-        assertEq(queuedOrder_.order_.amount, amount_, "Amount should match.");
-        assertEq(
-            queuedOrder_.order_.paymentToken,
+        _assertOrder(
+            queuedOrder_,
+            recipient_,
+            amount_,
             address(_token),
-            "Token should match."
-        );
-        assertEq(
-            uint(queuedOrder_.state_),
-            uint(IPP_Queue_v1.RedemptionState.PROCESSED),
-            "State should be PROCESSED."
+            IPP_Queue_v1.RedemptionState.PROCESSED
         );
     }
 
@@ -2278,5 +2252,20 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
         vm.prank(address(paymentClient));
         _token.approve(address(queue), amount);
+    }
+
+    function _assertOrder(
+        IPP_Queue_v1.QueuedOrder memory order,
+        address expectedRecipient,
+        uint96 expectedAmount,
+        address expectedToken,
+        IPP_Queue_v1.RedemptionState expectedState
+    ) internal {
+        assertEq(
+            order.order_.recipient, expectedRecipient, "Recipient should match"
+        );
+        assertEq(order.order_.amount, expectedAmount, "Amount should match");
+        assertEq(order.order_.paymentToken, expectedToken, "Token should match");
+        assertEq(uint(order.state_), uint(expectedState), "State should match");
     }
 }

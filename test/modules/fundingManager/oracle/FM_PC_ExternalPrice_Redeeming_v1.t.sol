@@ -52,7 +52,7 @@ import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     // ================================================================================
     // Constants
-    
+
     // Token initial configuration
     string internal constant NAME = "Issuance Token";
     string internal constant SYMBOL = "IST";
@@ -210,14 +210,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
     // ================================================================================
     // Test External (public + external)
-    
+
     /* Test: Function supportsInterface()
         └── Given different interface ids
             └── When the function supportsInterface() is called
                 ├── Then it should return true for supported interfaces
                 └── Then it should return false for unsupported interfaces
     */
-    function testExternalSupportsInterface_worksGivenDifferentInterfaces() public {
+    function testExternalSupportsInterface_worksGivenDifferentInterfaces()
+        public
+    {
         // Test - Verify supported interfaces
         assertTrue(
             fundingManager.supportsInterface(
@@ -234,9 +236,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         assertTrue(
-            fundingManager.supportsInterface(
-                type(IERC165).interfaceId
-            ),
+            fundingManager.supportsInterface(type(IERC165).interfaceId),
             "Should support IERC165"
         );
 
@@ -268,7 +268,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function getWhitelistRoleAdmin() is called
                 └── Then it should return the correct whitelist role admin identifier
     */
-    function testGetWhitelistRoleAdmin_worksGivenWhitelistRoleAdminRetrieved() public {
+    function testGetWhitelistRoleAdmin_worksGivenWhitelistRoleAdminRetrieved()
+        public
+    {
         // Test - Verify whitelist role admin
         bytes32 expectedRole = bytes32("WHITELIST_ROLE_ADMIN");
         assertEq(
@@ -283,7 +285,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function getQueueExecutorRole() is called
                 └── Then it should return the correct queue executor role identifier
     */
-    function testGetQueueExecutorRole_worksGivenQueueExecutorRoleRetrieved() public {
+    function testGetQueueExecutorRole_worksGivenQueueExecutorRoleRetrieved()
+        public
+    {
         // Test - Verify queue executor role
         bytes32 expectedRole = bytes32("QUEUE_EXECUTOR_ROLE");
         assertEq(
@@ -298,7 +302,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function getQueueExecutorRoleAdmin() is called
                 └── Then it should return the correct queue executor role admin identifier
     */
-    function testGetQueueExecutorRoleAdmin_worksGivenQueueExecutorRoleAdminRetrieved() public {
+    function testGetQueueExecutorRoleAdmin_worksGivenQueueExecutorRoleAdminRetrieved(
+    ) public {
         // Test - Verify queue executor role admin
         bytes32 expectedRole = bytes32("QUEUE_EXECUTOR_ROLE_ADMIN");
         assertEq(
@@ -313,9 +318,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function getStaticPriceForBuying() is called
                 └── Then it should return the correct static price for buying
     */
-    function testGetStaticPriceForBuying_worksGivenStaticPriceForBuyingRetrieved() public {
+    function testGetStaticPriceForBuying_worksGivenStaticPriceForBuyingRetrieved(
+    ) public {
         // Test - Verify static price for buying
-        uint256 expectedPrice = 1e6;
+        uint expectedPrice = 1e6;
         assertEq(
             fundingManager.getStaticPriceForBuying(),
             expectedPrice,
@@ -328,9 +334,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function getStaticPriceForSelling() is called
                 └── Then it should return the correct static price for selling
     */
-    function testGetStaticPriceForSelling_worksGivenStaticPriceForSellingRetrieved() public {
+    function testGetStaticPriceForSelling_worksGivenStaticPriceForSellingRetrieved(
+    ) public {
         // Test - Verify static price for selling
-        uint256 expectedPrice = 1e6;
+        uint expectedPrice = 1e6;
         assertEq(
             fundingManager.getStaticPriceForSelling(),
             expectedPrice,
@@ -412,11 +419,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // Test - First order should have ID 1
-        assertEq(
-            fundingManager.getOrderId(),
-            1,
-            "First order should have ID 1"
-        );
+        assertEq(fundingManager.getOrderId(), 1, "First order should have ID 1");
 
         // Setup - Create second order
         address receiver2_ = makeAddr("receiver2");
@@ -433,9 +436,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Test - Second order should have ID 2
         assertEq(
-            fundingManager.getOrderId(),
-            2,
-            "Second order should have ID 2"
+            fundingManager.getOrderId(), 2, "Second order should have ID 2"
         );
     }
 
@@ -445,28 +446,29 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 └── Then it should transfer tokens to the funding manager
                 └── And emit a ReserveDeposited event
     */
-    function testDepositReserve_worksGivenValidAmount(uint256 amount_) public {
+    function testDepositReserve_worksGivenValidAmount(uint amount_) public {
         // Setup - Bound amount to reasonable values and ensure non-zero
         amount_ = bound(amount_, 1, 1000e18);
-        
+
         // Setup - Fund test contract with tokens
         deal(address(_token), address(this), amount_);
-        
+
         // Setup - Approve funding manager to spend tokens
         _token.approve(address(fundingManager), amount_);
-        
+
         // Test - Record balances before deposit
-        uint256 balanceBefore = _token.balanceOf(address(this));
-        uint256 fmBalanceBefore = _token.balanceOf(address(fundingManager));
-        
+        uint balanceBefore = _token.balanceOf(address(this));
+        uint fmBalanceBefore = _token.balanceOf(address(fundingManager));
+
         // Test - Expect ReserveDeposited event
         vm.expectEmit(true, true, true, true);
-        emit IFM_PC_ExternalPrice_Redeeming_v1.
-        ReserveDeposited(address(this), amount_);
-        
+        emit IFM_PC_ExternalPrice_Redeeming_v1.ReserveDeposited(
+            address(this), amount_
+        );
+
         // Test - Deposit reserve
         fundingManager.depositReserve(amount_);
-        
+
         // Verify - Check balances after deposit
         assertEq(
             _token.balanceOf(address(this)),
@@ -489,22 +491,22 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Test - Expect revert on zero amount
         vm.expectRevert(
             IFM_PC_ExternalPrice_Redeeming_v1
-            .Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount
-            .selector
+                .Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount
+                .selector
         );
         fundingManager.depositReserve(0);
     }
 
-   /* Test: Function depositReserve()
+    /* Test: Function depositReserve()
         └── Given insufficient allowance
             └── When depositReserve() is called
                 └── Then it should revert with ERC20InsufficientAllowance error
     */
     function testDepositReserve_revertGivenInsufficientAllowance() public {
         // Setup
-        uint256 amount = 100e18;
+        uint amount = 100e18;
         deal(address(_token), address(this), amount);
-        
+
         // Test - Don't approve, expect ERC20InsufficientAllowance error
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -523,17 +525,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
                 └── Then it should execute successfully
     */
     function testBuy_worksGivenWhitelistedUser() public {
-        // Setup 
-        uint256 amount_ = 1e18;
+        // Setup
+        uint amount_ = 1e18;
         deal(address(_token), address(this), amount_);
         _token.approve(address(fundingManager), amount_);
-        
+
         // Setup - Open buy operations
         fundingManager.openBuy();
-        
+
         // Setup - Calculate minimum amount out
-        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
-        
+        uint minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+
         // Test - Should not revert
         fundingManager.buy(amount_, minAmountOut_);
     }
@@ -546,14 +548,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testBuy_revertGivenNonWhitelistedUser() public {
         // Setup
         address nonWhitelisted_ = makeAddr("nonWhitelisted");
-        uint256 amount_ = 1e18;
+        uint amount_ = 1e18;
         deal(address(_token), nonWhitelisted_, amount_);
-        
+
         // Setup - Open buy operations
         fundingManager.openBuy();
-        
+
         // Setup - Calculate minimum amount out
-        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        uint minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
 
         vm.startPrank(nonWhitelisted_);
         vm.expectRevert();
@@ -569,17 +571,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testBuyFor_worksGivenWhitelistedUserAndTPOEnabled() public {
         // Setup
         address receiver_ = makeAddr("receiver");
-        uint256 amount_ = 1e18;
+        uint amount_ = 1e18;
         deal(address(_token), address(this), amount_);
         _token.approve(address(fundingManager), amount_);
-        
+
         // Setup - Open buy operations and enable TPO
         fundingManager.openBuy();
         fundingManager.exposed_setIsDirectOperationsOnly(false);
-        
+
         // Setup - Calculate minimum amount out
-        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
-        
+        uint minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+
         // Test - Should not revert
         fundingManager.buyFor(receiver_, amount_, minAmountOut_);
     }
@@ -593,15 +595,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         // Setup
         address nonWhitelisted_ = makeAddr("nonWhitelisted");
         address receiver_ = makeAddr("receiver");
-        uint256 amount_ = 1e18;
+        uint amount_ = 1e18;
         deal(address(_token), nonWhitelisted_, amount_);
-        
+
         // Setup - Open buy operations
         fundingManager.openBuy();
         fundingManager.exposed_setIsDirectOperationsOnly(false);
-        
+
         // Setup - Calculate minimum amount out
-        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+        uint minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
 
         // Test - Switch to non-whitelisted user and expect revert
         vm.startPrank(nonWhitelisted_);
@@ -618,16 +620,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testBuyFor_revertGivenTPODisabled() public {
         // Setup
         address receiver_ = makeAddr("receiver");
-        uint256 amount_ = 1e18;
+        uint amount_ = 1e18;
         deal(address(_token), address(this), amount_);
         _token.approve(address(fundingManager), amount_);
-        
+
         // Setup - Open buy operations but leave TPO disabled
         fundingManager.openBuy();
-        
+
         // Setup - Calculate minimum amount out
-        uint256 minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
-        
+        uint minAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
+
         // Test - Should revert as TPO is disabled
         vm.expectRevert();
         fundingManager.buyFor(receiver_, amount_, minAmountOut_);
@@ -643,20 +645,20 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //     uint256 amount_ = 1e18;
     //     deal(address(_token), address(this), amount_);
     //     _token.approve(address(fundingManager), amount_);
-        
+
     //     // Setup - Open buy operations
     //     fundingManager.openBuy();
-        
+
     //     // Setup - Calculate minimum amount out
     //     uint256 minBuyAmountOut_ = fundingManager.calculatePurchaseReturn(amount_);
-        
+
     //     // Test - Should not revert
     //     fundingManager.buy(amount_, minBuyAmountOut_);
 
     //     fundingManager.openSell();
-        
+
     //     uint256 minSellAmountOut_ = fundingManager.calculateSaleReturn(minBuyAmountOut_);
-        
+
     //     // Test - Should not revert - sell the tokens we received from buying
     //     fundingManager.sell(minBuyAmountOut_, minSellAmountOut_);
     // }
@@ -671,10 +673,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //     address nonWhitelisted_ = makeAddr("nonWhitelisted");
     //     uint256 amount_ = 1e18;
     //     deal(address(_token), nonWhitelisted_, amount_);
-        
+
     //     // Setup - Open sell operations
     //     fundingManager.openSell();
-        
+
     //     // Setup - Calculate minimum amount out
     //     uint256 minAmountOut_ = fundingManager.calculateSaleReturn(amount_);
 
@@ -694,7 +696,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //     // Setup
     //     address receiver_ = makeAddr("receiver");
     //     uint amount_ = 100;
-        
+
     //     // Test - Should revert if not called by payment client
     //     vm.expectRevert(
     //         IModule_v1.Module__OnlyCallableByPaymentClient.selector
@@ -712,24 +714,24 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //     // Setup
     //     address receiver_ = makeAddr("receiver");
     //     uint amount_ = 100;
-        
+
     //     // Setup - Mint tokens to funding manager
     //     deal(address(_token), address(fundingManager), amount_);
-        
+
     //     // Setup - Create and register payment client
     //     paymentClient = new ERC20PaymentClientBaseV1Mock();
-        
+
     //     // Setup - Mock payment client call
     //     vm.startPrank(address(paymentClient));
-        
+
     //     // Test - Expect event
     //     vm.expectEmit(true, true, true, true, address(fundingManager));
     //     emit IFundingManager_v1.TransferOrchestratorToken(receiver_, amount_);
-        
+
     //     // Test - Transfer tokens
     //     fundingManager.transferOrchestratorToken(receiver_, amount_);
     //     vm.stopPrank();
-        
+
     //     // Test - Verify balances
     //     assertEq(_token.balanceOf(receiver_), amount_);
     //     assertEq(_token.balanceOf(address(fundingManager)), 0);
@@ -779,7 +781,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testSetSellFee_worksGivenZeroSellFee() public {
         // Test
         fundingManager.setSellFee(0);
-        
+
         // Test - Verify state
         assertEq(fundingManager.sellFee(), 0);
     }
@@ -792,7 +794,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testSetSellFee_worksGivenNonZeroSellFee() public {
         // Test
         fundingManager.setSellFee(100);
-        
+
         // Test - Verify state
         assertEq(fundingManager.sellFee(), 100);
     }
@@ -805,7 +807,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testSetBuyFee_worksGivenNonZeroBuyFee() public {
         // Test
         fundingManager.setBuyFee(100);
-        
+
         // Test - Verify state
         assertEq(fundingManager.buyFee(), 100);
     }
@@ -818,7 +820,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     function testSetBuyFee_worksGivenZeroBuyFee() public {
         // Test
         fundingManager.setBuyFee(0);
-        
+
         // Test - Verify state
         assertEq(fundingManager.buyFee(), 0);
     }
@@ -849,7 +851,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             └── When the function _setOracleAddress() is called
                 └── Then it should revert
     */
-    function testSetOracleAddress_worksGivenValidOracle(address _oracle) public {
+    function testSetOracleAddress_worksGivenValidOracle(address _oracle)
+        public
+    {
         // Setup
         vm.assume(address(_oracle) != address(0));
 
@@ -876,7 +880,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     ) public {
         // Test
         fundingManager.setIsDirectOperationsOnly(_isDirectOperationsOnly);
-        
+
         // Test - Verify state
         assertEq(
             fundingManager.getIsDirectOperationsOnly(),
@@ -919,7 +923,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Payment processor should be triggered once"
         );
     }
-    
+
     // ================================================================================
     // Test Internal
 
@@ -1218,8 +1222,8 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint depositAmount = amount_ * 10 ** issuanceTokenDecimals_;
 
         // Test
-        uint actualRedeemAmount = newFundingManager
-            .exposed_redeemTokensFormulaWrapper(depositAmount);
+        uint actualRedeemAmount =
+            newFundingManager.exposed_redeemTokensFormulaWrapper(depositAmount);
 
         // Calculate expected amount manually following the formula:
         // 1. Convert to collateral decimals
@@ -1229,15 +1233,16 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // 2. Apply oracle price and final division
-        uint expectedAmount = (collateralTokenDecimalConvertedAmount * oraclePrice) / 
-            10 ** collateralTokenDecimals_;
+        uint expectedAmount = (
+            collateralTokenDecimalConvertedAmount * oraclePrice
+        ) / 10 ** collateralTokenDecimals_;
 
         // Assert - Verify calculation matches expected
         assertEq(
             actualRedeemAmount,
             expectedAmount,
             "Redeem amount calculation incorrect"
-        );        
+        );
     }
 
     /* Test: Function testInternalIssueTokensFormulaWrapper_worksGivenValidAmount()
@@ -1254,9 +1259,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         amount_ = bound(amount_, 1, type(uint64).max);
         issuanceTokenDecimals_ = uint8(bound(issuanceTokenDecimals_, 1, 18));
         collateralTokenDecimals_ = uint8(bound(collateralTokenDecimals_, 1, 18));
-        
+
         FM_PC_ExternalPrice_Redeeming_v1_Exposed newFundingManager =
-            FM_PC_ExternalPrice_Redeeming_v1_Exposed(
+        FM_PC_ExternalPrice_Redeeming_v1_Exposed(
             _initializeFundingManagerWithDifferentTokenDecimals(
                 issuanceTokenDecimals_, collateralTokenDecimals_
             )
@@ -1271,19 +1276,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         uint scaledAmount = amount_ * 10 ** issuanceTokenDecimals_;
 
         // Test
-        uint actualIssueAmount = newFundingManager
-            .exposed_issueTokensFormulaWrapper(scaledAmount);
+        uint actualIssueAmount =
+            newFundingManager.exposed_issueTokensFormulaWrapper(scaledAmount);
 
         // Calculate expected amount manually following the formula:
         // 1. Calculate initial mint amount with oracle price
-        uint initialMintAmount = (oraclePrice * scaledAmount) / 
-            10 ** collateralTokenDecimals_;
+        uint initialMintAmount =
+            (oraclePrice * scaledAmount) / 10 ** collateralTokenDecimals_;
 
         // 2. Convert to issuance token decimals
         uint expectedAmount = FM_BC_Tools._convertAmountToRequiredDecimal(
-            initialMintAmount,
-            collateralTokenDecimals_,
-            issuanceTokenDecimals_
+            initialMintAmount, collateralTokenDecimals_, issuanceTokenDecimals_
         );
 
         // Assert - Verify calculation matches expected
@@ -1466,29 +1469,31 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     ) public {
         // Setup
         address receiver_ = makeAddr("receiver");
-        
+
         // Setup - Bound inputs to prevent overflow
         depositAmount_ = bound(depositAmount_, 1, type(uint64).max);
-        collateralRedeemAmount_ = bound(collateralRedeemAmount_, 1, type(uint64).max);
-        projectSellFeeAmount_ = bound(projectSellFeeAmount_, 0, collateralRedeemAmount_);
+        collateralRedeemAmount_ =
+            bound(collateralRedeemAmount_, 1, type(uint64).max);
+        projectSellFeeAmount_ =
+            bound(projectSellFeeAmount_, 0, collateralRedeemAmount_);
 
         // Setup - Get current values
         uint exchangeRate_ = oracle.getPriceForRedemption();
         uint sellFee_ = fundingManager.getSellFee();
-        
+
         // Test - Expect event emission
         vm.expectEmit(true, true, true, true, address(fundingManager));
         emit IFM_PC_ExternalPrice_Redeeming_v1.RedemptionOrderCreated(
             address(fundingManager), // paymentClient_
-            1,                      // orderId_ (first order)
-            address(this),           // seller_
-            receiver_,              // receiver_
-            depositAmount_,         // sellAmount_
-            exchangeRate_,          // exchangeRate_
-            sellFee_,              // feePercentage_
+            1, // orderId_ (first order)
+            address(this), // seller_
+            receiver_, // receiver_
+            depositAmount_, // sellAmount_
+            exchangeRate_, // exchangeRate_
+            sellFee_, // feePercentage_
             projectSellFeeAmount_, // feeAmount_
             collateralRedeemAmount_, // finalRedemptionAmount_
-            address(_token),        // collateralToken_
+            address(_token), // collateralToken_
             IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState.PENDING // state_
         );
 

@@ -2828,13 +2828,16 @@ contract PP_Queue_v1_Test is ModuleTest {
         ├── When getQueueOperatorRoleAdmin is called
         │   └── Then it should return "QUEUE_OPERATOR_ROLE_ADMIN"
     */
-    function testPublicGetQueueOperatorRoleAdmin_succeedsGivenCorrectAdmin() public {
+    function testPublicGetQueueOperatorRoleAdmin_succeedsGivenCorrectAdmin()
+        public
+    {
         bytes32 operatorRoleAdmin_ = queue.getQueueOperatorRoleAdmin();
         assertTrue(
             operatorRoleAdmin_ == "QUEUE_OPERATOR_ROLE_ADMIN",
             "Queue operator role admin should be the queue address"
         );
     }
+
     function helper_encodePaymentOrderData(uint orderId_)
         internal
         returns (bytes32 flags_, bytes32[] memory data_)

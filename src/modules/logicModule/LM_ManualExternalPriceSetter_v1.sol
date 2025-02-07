@@ -141,12 +141,12 @@ contract LM_ManualExternalPriceSetter_v1 is
         return _collateralTokenDecimals;
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc IOraclePrice_v1
     function getPriceForIssuance() external view returns (uint) {
         return _issuancePrice;
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc IOraclePrice_v1
     function getPriceForRedemption() external view returns (uint) {
         return _redemptionPrice;
     }

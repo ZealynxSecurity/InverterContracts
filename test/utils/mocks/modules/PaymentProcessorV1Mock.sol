@@ -33,7 +33,7 @@ contract PaymentProcessorV1Mock is IPaymentProcessor_v1, ERC165 {
     //--------------------------------------------------------------------------
     // IPaymentProcessor_v1 Functions
 
-    function executePaymentQueue(address /*client_*/) external {
+    function executePaymentQueue(address /*client_*/ ) external {
         emit PaymentOrderProcessed(
             address(0),
             address(0),

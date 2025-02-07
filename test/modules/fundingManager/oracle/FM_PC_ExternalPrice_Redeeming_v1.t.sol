@@ -735,6 +735,42 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     //     assertEq(_token.balanceOf(address(fundingManager)), 0);
     // }
 
+    /* Test: Function amountPaid()
+        └── Given a payment is made
+            └── When amountPaid() is called by the payment processor
+                └── Then it should update outstanding token amounts
+                └── And emit PaymentOrderProcessed event
+    */
+    function testAmountPaid_worksGivenPaymentMade() public {
+        // Setup - Create order to generate payment
+        address receiver_ = makeAddr("receiver");
+        uint depositAmount_ = 1e18;
+        uint collateralRedeemAmount_ = 2e18;
+        uint projectSellFeeAmount_ = 1e17;
+
+        fundingManager.exposed_createAndEmitOrder(
+            receiver_,
+            depositAmount_,
+            collateralRedeemAmount_,
+            projectSellFeeAmount_
+        );
+
+        // Setup - Mock payment processor call
+        vm.startPrank(address(_orchestrator.paymentProcessor()));
+
+        // Test - Call amountPaid
+        fundingManager.amountPaid(address(_token), collateralRedeemAmount_);
+
+        // Test - Verify outstanding amount is reduced
+        assertEq(
+            fundingManager.outstandingTokenAmount(address(_token)),
+            0,
+            "Outstanding amount should be reduced"
+        );
+
+        vm.stopPrank();
+    }
+
     /* Test: Function setSellFee()
         ├── Given the sell fee is 0
         │   └── When the function setSellFee() is called

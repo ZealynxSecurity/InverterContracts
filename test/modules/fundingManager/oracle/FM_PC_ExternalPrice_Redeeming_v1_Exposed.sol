@@ -73,6 +73,17 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Exposed is
         _projectFeeCollected(amount_);
     }
 
-    // -------------------------------------------------------------------------
-    // Helper function
+    function exposed_createAndEmitOrder(
+        address receiver_,
+        uint depositAmount_,
+        uint collateralRedeemAmount_,
+        uint projectSellFeeAmount_
+    ) public {
+        _createAndEmitOrder(
+            receiver_,
+            depositAmount_,
+            collateralRedeemAmount_,
+            projectSellFeeAmount_
+        );
+    }
 }

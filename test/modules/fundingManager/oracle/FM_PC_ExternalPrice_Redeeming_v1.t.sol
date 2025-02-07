@@ -52,7 +52,7 @@ import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     // ================================================================================
     // Constants
-
+    
     // Token initial configuration
     string internal constant NAME = "Issuance Token";
     string internal constant SYMBOL = "IST";
@@ -61,6 +61,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     bytes32 constant WHITELIST_ROLE = "WHITELIST_ROLE";
     bytes32 constant ORACLE_ROLE = "ORACLE_ROLE";
     bytes32 constant QUEUE_MANAGER_ROLE = "QUEUE_MANAGER_ROLE";
+    bytes32 constant QUEUE_EXECUTOR_ROLE = "QUEUE_EXECUTOR_ROLE";
     uint8 constant INTERNAL_DECIMALS = 18;
     uint constant BPS = 10_000; // Basis points (100%)
 
@@ -746,6 +747,47 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             "Is direct operations only not set correctly"
         );
     }
+
+    /* Test executeRedemptionQueue()
+        └── Given caller has QUEUE_EXECUTOR_ROLE
+            └── And there are redemption orders in the queue
+            └── When executeRedemptionQueue() is called
+                └── Then it should call payment processor with correct parameters
+                └── Then it should not revert
+    */
+    function testExecuteRedemptionQueue_worksGivenCallerHasQueueExecutorRole()
+        public
+    {
+        // Setup - Create a redemption order
+        address receiver_ = makeAddr("receiver");
+        uint depositAmount_ = 1e18;
+        uint collateralRedeemAmount_ = 2e18;
+        uint projectSellFeeAmount_ = 1e17;
+
+        // Setup - Create order
+        fundingManager.exposed_createAndEmitOrder(
+            receiver_,
+            depositAmount_,
+            collateralRedeemAmount_,
+            projectSellFeeAmount_
+        );
+
+        // Setup - Expect payment processor call
+        vm.expectCall(
+            address(_orchestrator.paymentProcessor()),
+            abi.encodeWithSignature(
+                "executePaymentQueue(address)",
+                address(fundingManager)
+            )
+        );
+
+        // Execute
+        fundingManager.executeRedemptionQueue();
+
+        // Test - Verify payment processor was called with correct parameters
+        // Note: The actual state changes after execution would be handled by
+        // the payment processor, which is mocked in our test environment
+    }
     
     // ================================================================================
     // Test Internal
@@ -1278,6 +1320,61 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
 
         // Execute
         fundingManager.exposed_projectFeeCollected(projectFeeAmount_);
+    }
+
+    /* Test: Function _createAndEmitOrder()
+        └── Given valid parameters
+            └── When the function exposed_createAndEmitOrder() is called
+                └── Then it should emit OrderCreated event with correct parameters
+                └── Then the open redemption amount should be set correctly
+    */
+    function testInternalCreateAndEmitOrder_worksGivenValidParameters(
+        uint depositAmount_,
+        uint collateralRedeemAmount_,
+        uint projectSellFeeAmount_
+    ) public {
+        // Setup
+        address receiver_ = makeAddr("receiver");
+        
+        // Setup - Bound inputs to prevent overflow
+        depositAmount_ = bound(depositAmount_, 1, type(uint64).max);
+        collateralRedeemAmount_ = bound(collateralRedeemAmount_, 1, type(uint64).max);
+        projectSellFeeAmount_ = bound(projectSellFeeAmount_, 0, collateralRedeemAmount_);
+
+        // Setup - Get current values
+        uint exchangeRate_ = oracle.getPriceForRedemption();
+        uint sellFee_ = fundingManager.getSellFee();
+        
+        // Test - Expect event emission
+        vm.expectEmit(true, true, true, true, address(fundingManager));
+        emit IFM_PC_ExternalPrice_Redeeming_v1.RedemptionOrderCreated(
+            address(fundingManager), // paymentClient_
+            1,                      // orderId_ (first order)
+            address(this),           // seller_
+            receiver_,              // receiver_
+            depositAmount_,         // sellAmount_
+            exchangeRate_,          // exchangeRate_
+            sellFee_,              // feePercentage_
+            projectSellFeeAmount_, // feeAmount_
+            collateralRedeemAmount_, // finalRedemptionAmount_
+            address(_token),        // collateralToken_
+            IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState.PENDING // state_
+        );
+
+        // Execute
+        fundingManager.exposed_createAndEmitOrder(
+            receiver_,
+            depositAmount_,
+            collateralRedeemAmount_,
+            projectSellFeeAmount_
+        );
+
+        // Assert
+        assertEq(
+            fundingManager.getOpenRedemptionAmount(),
+            collateralRedeemAmount_,
+            "Open redemption amount not set correctly"
+        );
     }
 
     // /* Test: Function  oracle configuration and validation

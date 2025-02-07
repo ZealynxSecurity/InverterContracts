@@ -36,36 +36,22 @@ interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @notice Gets current price for token issuance (buying tokens).
-    /// @return price_ Current price denominated in the collateral token decimals.
-    /// @dev    The price is denominated in the collateral token decimals. For
-    ///         example, if the collateral token has 6 decimals and the issuance
-    ///         price is 1.5, returns 1500000.
-    function getPriceForIssuance() external view returns (uint);
-
-    /// @notice Gets current price for token redemption (selling tokens).
-    /// @return price_ Current price denominated in the collateral token decimals.
-    /// @dev    The price is denominated in the collateral token decimals. For
-    ///         example, if the collateral token has 6 decimals and the redemption
-    ///         price is 0.5, the price_ parameter should be 500000.
-    function getPriceForRedemption() external view returns (uint);
-
-    /// @notice	Sets the issuance price.
-    /// @dev    The price_ parameter should be provided with the same number
-    ///         of decimals as the collateral token. For example, if the
-    ///         collateral token has 6 decimals and the issuance price is 1.5,
-    ///         the price_ parameter should be 1500000.
-    /// @param	price_ The issuance price to set, denominated in the collateral
-    ///         token decimals.
+    /// @notice Sets the issuance price for token issuance (buying tokens)
+    ///         Price represents how much collateral is paid for 1 issuance token.
+    /// @dev    Must be non-zero and denominated in collateral token decimals.
+    ///         For example: With 6 decimal collateral token,
+    ///         - To price 1 issuance token at 1.5 collateral, use 1_500_000
+    ///         - To price 1 issuance token at 0.5 collateral, use 500_000
+    /// @param  price_ The issuance price in collateral token decimals
     function setIssuancePrice(uint price_) external;
 
-    /// @notice	Sets the redemption price.
-    /// @dev    The price_ parameter should be provided with the same number of
-    ///         of decimals as the collateral token. For example, if the
-    ///         collateral token has 6 decimals and the redemption price is 0.5,
-    ///         the price_ parameter should be 500000.
-    /// @param	price_ The redemption price to set, denominated in the collateral
-    ///         token decimals.
+    /// @notice Sets the redemption price for token redemption (selling tokens)
+    ///         Price represents how much collateral is returned for 1 issuance token.
+    /// @dev    Must be non-zero and denominated in collateral token decimals.
+    ///         For example: With 6 decimal collateral token,
+    ///         - To price 1 issuance token at 1.5 collateral, use 1_500_000
+    ///         - To price 1 issuance token at 0.5 collateral, use 500_000
+    /// @param  price_ The redemption price in collateral token decimals
     function setRedemptionPrice(uint price_) external;
 
     /// @notice	Sets both issuance and redemption prices atomically, denominated

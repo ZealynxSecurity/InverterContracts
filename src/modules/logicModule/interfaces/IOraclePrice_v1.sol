@@ -46,22 +46,21 @@ interface IOraclePrice_v1 {
 
     // -------------------------------------------------------------------------
     // External Functions
-
-    /// @notice	Gets current price for token issuance (buying tokens).
-    /// @return	price_ Current price normalized to issuance token
-    ///         decimals (collateral tokens per 1 issuance token).
-    /// @dev	Example: If collateral is USDC (6 decimals) and issuance
-    ///         is ISS (18 decimals):
-    ///         For a price of 2 USDC/ISS, the function denormalizes to
-    ///         issuance token decimals before returning.
+    /// @notice Gets current price for token issuance (buying tokens)
+    ///         Price represents how much collateral is paid for 1 issuance token.
+    /// @dev    Must be non-zero and denominated in collateral token decimals.
+    ///         For example: With 6 decimal collateral token,
+    ///         - To price 1 issuance token at 1.5 collateral, returns 1_500_000
+    ///         - To price 1 issuance token at 0.5 collateral, returns 500_000
+    /// @return price_ Current issuance price in collateral token decimals
     function getPriceForIssuance() external view returns (uint price_);
 
-    /// @notice	Gets current price for token redemption (selling tokens).
-    /// @return	price_ Current price normalized to issuance token
-    ///         decimals (collateral tokens per 1 issuance token).
-    /// @dev	Example: If collateral is USDC (6 decimals) and issuance
-    ///         is ISS (18 decimals):
-    ///         For a price of 1.9 USDC/ISS, the function denormalizes to
-    ///         issuance token decimals before returning.
+    /// @notice Gets current price for token redemption (selling tokens)
+    ///         Price represents how much collateral is returned for 1 issuance token.
+    /// @dev    Must be non-zero and denominated in collateral token decimals.
+    ///         For example: With 6 decimal collateral token,
+    ///         - To price 1 issuance token at 1.5 collateral, returns 1_500_000
+    ///         - To price 1 issuance token at 0.5 collateral, returns 500_000
+    /// @return price_ Current redemption price in collateral token decimals
     function getPriceForRedemption() external view returns (uint price_);
 }

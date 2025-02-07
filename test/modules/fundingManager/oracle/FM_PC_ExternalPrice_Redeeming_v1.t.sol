@@ -729,7 +729,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test: setIsDirectOperationsOnly()
+    /* Test: Function setIsDirectOperationsOnly()
         └── Given a valid value
             └── When the function exposed_setIsDirectOperationsOnly() is called
                 └── Then the value should be set correctly
@@ -748,7 +748,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
-    /* Test executeRedemptionQueue()
+    /* Test: Function executeRedemptionQueue()
         └── Given caller has QUEUE_EXECUTOR_ROLE
             └── And there are redemption orders in the queue
             └── When executeRedemptionQueue() is called
@@ -772,21 +772,15 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
             projectSellFeeAmount_
         );
 
-        // Setup - Expect payment processor call
-        vm.expectCall(
-            address(_orchestrator.paymentProcessor()),
-            abi.encodeWithSignature(
-                "executePaymentQueue(address)",
-                address(fundingManager)
-            )
-        );
-
         // Execute
         fundingManager.executeRedemptionQueue();
 
-        // Test - Verify payment processor was called with correct parameters
-        // Note: The actual state changes after execution would be handled by
-        // the payment processor, which is mocked in our test environment
+        // Test - Verify payment processor was called
+        assertEq(
+            _paymentProcessor.processPaymentsTriggered(),
+            1,
+            "Payment processor should be triggered once"
+        );
     }
     
     // ================================================================================

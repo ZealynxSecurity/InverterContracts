@@ -338,6 +338,107 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
     }
 
+    /* Test: Function getOpenRedemptionAmount()
+        └── Given multiple redemption orders are created
+            └── When getOpenRedemptionAmount() is called
+                └── Then it should return the total collateral amount pending redemption
+    */
+    function testGetOpenRedemptionAmount_worksGivenMultipleOrders() public {
+        // Setup - Initial amount should be 0
+        assertEq(
+            fundingManager.getOpenRedemptionAmount(),
+            0,
+            "Initial open redemption amount should be 0"
+        );
+
+        // Setup - Create first order
+        address receiver1_ = makeAddr("receiver1");
+        uint depositAmount1_ = 1e18;
+        uint collateralRedeemAmount1_ = 2e18;
+        uint projectSellFeeAmount1_ = 1e17;
+
+        fundingManager.exposed_createAndEmitOrder(
+            receiver1_,
+            depositAmount1_,
+            collateralRedeemAmount1_,
+            projectSellFeeAmount1_
+        );
+
+        // Test - Amount should be updated after first order
+        assertEq(
+            fundingManager.getOpenRedemptionAmount(),
+            collateralRedeemAmount1_,
+            "Open redemption amount should match first collateral amount"
+        );
+
+        // Setup - Create second order
+        address receiver2_ = makeAddr("receiver2");
+        uint depositAmount2_ = 2e18;
+        uint collateralRedeemAmount2_ = 3e18;
+        uint projectSellFeeAmount2_ = 2e17;
+
+        fundingManager.exposed_createAndEmitOrder(
+            receiver2_,
+            depositAmount2_,
+            collateralRedeemAmount2_,
+            projectSellFeeAmount2_
+        );
+
+        // Test - Amount should be updated after second order
+        assertEq(
+            fundingManager.getOpenRedemptionAmount(),
+            collateralRedeemAmount1_ + collateralRedeemAmount2_,
+            "Open redemption amount should be sum of both collateral amounts"
+        );
+    }
+
+    /* Test: Function getOrderId()
+        └── Given a new order is created
+            └── When getOrderId() is called
+                └── Then it should return the correct order ID
+    */
+    function testGetOrderId_worksGivenNewOrderCreated() public {
+        // Setup - Create first order
+        address receiver1_ = makeAddr("receiver1");
+        uint depositAmount1_ = 1e18;
+        uint collateralRedeemAmount1_ = 2e18;
+        uint projectSellFeeAmount1_ = 1e17;
+
+        fundingManager.exposed_createAndEmitOrder(
+            receiver1_,
+            depositAmount1_,
+            collateralRedeemAmount1_,
+            projectSellFeeAmount1_
+        );
+
+        // Test - First order should have ID 1
+        assertEq(
+            fundingManager.getOrderId(),
+            1,
+            "First order should have ID 1"
+        );
+
+        // Setup - Create second order
+        address receiver2_ = makeAddr("receiver2");
+        uint depositAmount2_ = 2e18;
+        uint collateralRedeemAmount2_ = 3e18;
+        uint projectSellFeeAmount2_ = 2e17;
+
+        fundingManager.exposed_createAndEmitOrder(
+            receiver2_,
+            depositAmount2_,
+            collateralRedeemAmount2_,
+            projectSellFeeAmount2_
+        );
+
+        // Test - Second order should have ID 2
+        assertEq(
+            fundingManager.getOrderId(),
+            2,
+            "Second order should have ID 2"
+        );
+    }
+
     /* Test: Function depositReserve()
         └── Given a valid amount of tokens to deposit
             └── When depositReserve() is called

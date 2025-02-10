@@ -12,9 +12,9 @@ import {
 
 // SuT
 import {
-    ERC20PaymentClientBase_v1,
-    IERC20PaymentClientBase_v1
-} from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+    ERC20PaymentClientBase_v2,
+    IERC20PaymentClientBase_v2
+} from "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 
 // Internal Interfaces
 import {IPaymentProcessor_v1} from
@@ -23,7 +23,7 @@ import {IPaymentProcessor_v1} from
 // Mocks
 import {ERC20Mock} from "test/utils/mocks/ERC20Mock.sol";
 
-contract ERC20PaymentClientBaseV1AccessMock is ERC20PaymentClientBase_v1 {
+contract ERC20PaymentClientBaseV2AccessMock is ERC20PaymentClientBase_v2 {
     mapping(address => bool) authorized;
 
     function init(
@@ -35,7 +35,7 @@ contract ERC20PaymentClientBaseV1AccessMock is ERC20PaymentClientBase_v1 {
     }
 
     //--------------------------------------------------------------------------
-    // IERC20PaymentClientBase_v1 Wrapper Functions
+    // IERC20PaymentClientBase_v2 Wrapper Functions
 
     function exposed_addPaymentOrder(PaymentOrder memory order) external {
         _addPaymentOrder(order);

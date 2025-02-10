@@ -5,18 +5,18 @@ pragma solidity 0.8.23;
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IAuthorizer_v1} from "@aut/IAuthorizer_v1.sol";
-import {ILM_PC_PaymentRouter_v1} from
-    "@lm/interfaces/ILM_PC_PaymentRouter_v1.sol";
+import {ILM_PC_PaymentRouter_v2} from
+    "@lm/interfaces/ILM_PC_PaymentRouter_v2.sol";
 import {
-    IERC20PaymentClientBase_v1,
+    IERC20PaymentClientBase_v2,
     IPaymentProcessor_v1
-} from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+} from "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 
 // Internal Dependencies
 import {
-    ERC20PaymentClientBase_v1,
+    ERC20PaymentClientBase_v2,
     Module_v1
-} from "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+} from "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 
 // External Dependencies
 import {ERC165Upgradeable} from
@@ -27,7 +27,7 @@ import {ERC165Upgradeable} from
  *
  * @notice  This module enables pushing payments directly to the Payment Processor.
  *
- * @dev     Extends {ERC20PaymentClientBase_v1} to integrate payment processing with
+ * @dev     Extends {ERC20PaymentClientBase_v2} to integrate payment processing with
  *          bounty management, supporting dynamic additions, updates, and the locking
  *          of bounties. Utilizes roles for managing permissions and maintaining robust
  *          control over bounty operations.
@@ -38,19 +38,19 @@ import {ERC165Upgradeable} from
  *
  * @author  Inverter Network
  */
-contract LM_PC_PaymentRouter_v1 is
-    ILM_PC_PaymentRouter_v1,
-    ERC20PaymentClientBase_v1
+contract LM_PC_PaymentRouter_v2 is
+    ILM_PC_PaymentRouter_v2,
+    ERC20PaymentClientBase_v2
 {
     /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId)
         public
         view
         virtual
-        override(ERC20PaymentClientBase_v1)
+        override(ERC20PaymentClientBase_v2)
         returns (bool)
     {
-        return interfaceId == type(ILM_PC_PaymentRouter_v1).interfaceId
+        return interfaceId == type(ILM_PC_PaymentRouter_v2).interfaceId
             || super.supportsInterface(interfaceId);
     }
 
@@ -79,13 +79,13 @@ contract LM_PC_PaymentRouter_v1 is
         flags |= bytes32(1 << FLAG_CLIFF);
         flags |= bytes32(1 << FLAG_END);
 
-        __ERC20PaymentClientBase_v1_init(flags);
+        __ERC20PaymentClientBase_v2_init(flags);
     }
 
     //--------------------------------------------------------------------------
     // Mutating Functions
 
-    /// @inheritdoc ILM_PC_PaymentRouter_v1
+    /// @inheritdoc ILM_PC_PaymentRouter_v2
     function pushPayment(
         address recipient,
         address paymentToken,
@@ -120,11 +120,11 @@ contract LM_PC_PaymentRouter_v1 is
 
         // call PaymentProcessor
         __Module_orchestrator.paymentProcessor().processPayments(
-            IERC20PaymentClientBase_v1(address(this))
+            IERC20PaymentClientBase_v2(address(this))
         );
     }
 
-    /// @inheritdoc ILM_PC_PaymentRouter_v1
+    /// @inheritdoc ILM_PC_PaymentRouter_v2
     function pushPaymentBatched(
         uint8 numOfOrders,
         address[] calldata recipients,
@@ -140,7 +140,7 @@ contract LM_PC_PaymentRouter_v1 is
                 || paymentTokens.length != numOfOrders
                 || amounts.length != numOfOrders
         ) {
-            revert Module__LM_PC_PaymentRouter_v1__ArrayLengthMismatch();
+            revert Module__LM_PC_PaymentRouter_v2__ArrayLengthMismatch();
         }
 
         bytes32 flags;
@@ -172,7 +172,7 @@ contract LM_PC_PaymentRouter_v1 is
 
         // call PaymentProcessor
         __Module_orchestrator.paymentProcessor().processPayments(
-            IERC20PaymentClientBase_v1(address(this))
+            IERC20PaymentClientBase_v2(address(this))
         );
     }
 }

@@ -17,20 +17,20 @@ import {IPaymentProcessor_v1} from
     "src/modules/paymentProcessor/IPaymentProcessor_v1.sol";
 
 import {
-    PP_Streaming_v1,
-    IPP_Streaming_v1
-} from "src/modules/paymentProcessor/PP_Streaming_v1.sol";
+    PP_Streaming_v2,
+    IPP_Streaming_v2
+} from "src/modules/paymentProcessor/PP_Streaming_v2.sol";
 
 // Mocks
 
-import {PP_Streaming_v1AccessMock} from
-    "test/utils/mocks/modules/paymentProcessor/PP_Streaming_v1AccessMock.sol";
+import {PP_Streaming_v2AccessMock} from
+    "test/utils/mocks/modules/paymentProcessor/PP_Streaming_v2AccessMock.sol";
 
 import {
-    IERC20PaymentClientBase_v1,
-    ERC20PaymentClientBaseV1Mock,
+    IERC20PaymentClientBase_v2,
+    ERC20PaymentClientBaseV2Mock,
     ERC20Mock
-} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
+} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV2Mock.sol";
 
 // Errors
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
@@ -43,10 +43,10 @@ contract PP_StreamingV1Test is ModuleTest {
     uint internal constant defaultEnd = 420;
 
     // SuT
-    PP_Streaming_v1AccessMock paymentProcessor;
+    PP_Streaming_v2AccessMock paymentProcessor;
 
     // Mocks
-    ERC20PaymentClientBaseV1Mock paymentClient;
+    ERC20PaymentClientBaseV2Mock paymentClient;
 
     //--------------------------------------------------------------------------
     // Events
@@ -90,8 +90,8 @@ contract PP_StreamingV1Test is ModuleTest {
     );
 
     function setUp() public {
-        address impl = address(new PP_Streaming_v1AccessMock());
-        paymentProcessor = PP_Streaming_v1AccessMock(Clones.clone(impl));
+        address impl = address(new PP_Streaming_v2AccessMock());
+        paymentProcessor = PP_Streaming_v2AccessMock(Clones.clone(impl));
 
         _setUpOrchestrator(paymentProcessor);
 
@@ -103,8 +103,8 @@ contract PP_StreamingV1Test is ModuleTest {
         _authorizer.setIsAuthorized(address(this), true);
 
         // Set up PaymentClient Correctöy
-        impl = address(new ERC20PaymentClientBaseV1Mock());
-        paymentClient = ERC20PaymentClientBaseV1Mock(Clones.clone(impl));
+        impl = address(new ERC20PaymentClientBaseV2Mock());
+        paymentClient = ERC20PaymentClientBaseV2Mock(Clones.clone(impl));
 
         _orchestrator.initiateAddModuleWithTimelock(address(paymentClient));
         vm.warp(block.timestamp + _orchestrator.MODULE_UPDATE_TIMELOCK());
@@ -127,7 +127,7 @@ contract PP_StreamingV1Test is ModuleTest {
     function testSupportsInterface() public {
         assertTrue(
             paymentProcessor.supportsInterface(
-                type(IPP_Streaming_v1).interfaceId
+                type(IPP_Streaming_v2).interfaceId
             )
         );
     }
@@ -583,7 +583,7 @@ contract PP_StreamingV1Test is ModuleTest {
             );
         }
 
-        IERC20PaymentClientBase_v1.PaymentOrder[] memory orders =
+        IERC20PaymentClientBase_v2.PaymentOrder[] memory orders =
             paymentClient.paymentOrders();
 
         // Call processPayments
@@ -592,7 +592,7 @@ contract PP_StreamingV1Test is ModuleTest {
 
         for (uint i; i < length; i++) {
             address recipient = recipients[i];
-            IERC20PaymentClientBase_v1.PaymentOrder memory order = orders[i];
+            IERC20PaymentClientBase_v2.PaymentOrder memory order = orders[i];
 
             uint end = uint(order.data[2]);
 
@@ -752,7 +752,7 @@ contract PP_StreamingV1Test is ModuleTest {
 
         // Now, let's check whether all streaming informations exist or not
         // checking for paymentReceiver2
-        IPP_Streaming_v1.Stream[] memory paymentReceiverStreams;
+        IPP_Streaming_v2.Stream[] memory paymentReceiverStreams;
         paymentReceiverStreams = paymentProcessor.viewAllPaymentOrders(
             address(paymentClient), paymentReceiver2
         );
@@ -876,7 +876,7 @@ contract PP_StreamingV1Test is ModuleTest {
 
         // This means, that when we call removePaymentForSpecificStream, that should increase the balance of the
         // paymentReceiver by 1/2 of the vested token amount
-        IPP_Streaming_v1.Stream[] memory paymentReceiverStreams =
+        IPP_Streaming_v2.Stream[] memory paymentReceiverStreams =
         paymentProcessor.viewAllPaymentOrders(
             address(paymentClient), paymentReceiver1
         );
@@ -991,7 +991,7 @@ contract PP_StreamingV1Test is ModuleTest {
         // Let's note down the current balance of the paymentReceiver1
         initialPaymentReceiverBalance = _token.balanceOf(paymentReceiver1);
 
-        IPP_Streaming_v1.Stream[] memory paymentReceiverStreams =
+        IPP_Streaming_v2.Stream[] memory paymentReceiverStreams =
         paymentProcessor.viewAllPaymentOrders(
             address(paymentClient), paymentReceiver1
         );
@@ -1106,8 +1106,8 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.assume(nonModule != address(_paymentProcessor));
         vm.assume(nonModule != address(_fundingManager));
 
-        ERC20PaymentClientBaseV1Mock otherERC20PaymentClient =
-            new ERC20PaymentClientBaseV1Mock();
+        ERC20PaymentClientBaseV2Mock otherERC20PaymentClient =
+            new ERC20PaymentClientBaseV2Mock();
 
         vm.prank(address(paymentClient));
         vm.expectRevert(
@@ -1141,7 +1141,7 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.prank(address(paymentClient));
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20PaymentClientBase_v1
+                IERC20PaymentClientBase_v2
                     .Module__ERC20PaymentClientBase__InvalidPaymentOrder
                     .selector
             )
@@ -1193,7 +1193,7 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.prank(address(paymentClient));
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20PaymentClientBase_v1
+                IERC20PaymentClientBase_v2
                     .Module__ERC20PaymentClientBase__InvalidPaymentOrder
                     .selector
             )
@@ -1221,7 +1221,7 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.prank(address(paymentClient));
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20PaymentClientBase_v1
+                IERC20PaymentClientBase_v2
                     .Module__ERC20PaymentClientBase__InvalidPaymentOrder
                     .selector
             )
@@ -1249,7 +1249,7 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.prank(address(paymentClient));
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20PaymentClientBase_v1
+                IERC20PaymentClientBase_v2
                     .Module__ERC20PaymentClientBase__InvalidPaymentOrder
                     .selector
             )
@@ -1277,7 +1277,7 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.prank(address(paymentClient));
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20PaymentClientBase_v1
+                IERC20PaymentClientBase_v2
                     .Module__ERC20PaymentClientBase__InvalidPaymentOrder
                     .selector
             )
@@ -1431,8 +1431,8 @@ contract PP_StreamingV1Test is ModuleTest {
         vm.assume(nonModule != address(_paymentProcessor));
         vm.assume(nonModule != address(_fundingManager));
 
-        ERC20PaymentClientBaseV1Mock otherERC20PaymentClient =
-            new ERC20PaymentClientBaseV1Mock();
+        ERC20PaymentClientBaseV2Mock otherERC20PaymentClient =
+            new ERC20PaymentClientBaseV2Mock();
 
         vm.prank(address(paymentClient));
         vm.expectRevert(
@@ -1742,7 +1742,7 @@ contract PP_StreamingV1Test is ModuleTest {
             );
         }
 
-        // No funds left in the ERC20PaymentClientBase_v1
+        // No funds left in the ERC20PaymentClientBase_v2
         assertEq(_token.balanceOf(address(paymentClient)), 0);
 
         // Invariant: Payment processor does not hold funds.
@@ -1996,7 +1996,7 @@ contract PP_StreamingV1Test is ModuleTest {
     }
 
     function test_ValidPaymentOrder(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order,
+        IERC20PaymentClientBase_v2.PaymentOrder memory order,
         address sender,
         uint start,
         uint cliff,
@@ -2193,7 +2193,7 @@ contract PP_StreamingV1Test is ModuleTest {
 
         vm.expectRevert(
             abi.encodeWithSelector(
-                IPP_Streaming_v1
+                IPP_Streaming_v2
                     .Module__PP_Streaming__InvalidDefaultTimes
                     .selector,
                 defaultStart,
@@ -2277,7 +2277,7 @@ contract PP_StreamingV1Test is ModuleTest {
     )
         internal
         view
-        returns (IERC20PaymentClientBase_v1.PaymentOrder memory paymentOrder)
+        returns (IERC20PaymentClientBase_v2.PaymentOrder memory paymentOrder)
     {
         bytes32 flagsBytes =
             0x000000000000000000000000000000000000000000000000000000000000000e;
@@ -2286,7 +2286,7 @@ contract PP_StreamingV1Test is ModuleTest {
         data[1] = bytes32(cliff);
         data[2] = bytes32(end);
 
-        paymentOrder = IERC20PaymentClientBase_v1.PaymentOrder({
+        paymentOrder = IERC20PaymentClientBase_v2.PaymentOrder({
             recipient: recipient,
             paymentToken: paymentToken,
             amount: amount,

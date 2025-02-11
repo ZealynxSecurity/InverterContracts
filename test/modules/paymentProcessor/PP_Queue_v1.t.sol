@@ -2452,23 +2452,14 @@ contract PP_Queue_v1_Test is ModuleTest {
         // Setup payment client with orders
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
-        uint amount = 1000;
+        uint96 amount = 1000;
         uint originChainId = block.chainid;
         uint targetChainId = block.chainid;
 
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory orders =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: paymentToken,
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: flags_,
-            data: data_
-        });
-
+            _createTestPaymentOrder(recipient, amount, 1);
         // Setup initial state
         _token.mint(address(paymentClient), amount);
         paymentClient.exposed_addToOutstandingTokenAmounts(
@@ -2526,22 +2517,14 @@ contract PP_Queue_v1_Test is ModuleTest {
         // Setup payment client with orders
         address recipient = makeAddr("recipient");
         address paymentToken = address(_token);
-        uint amount = 1000;
+        uint96 amount = 1000;
         uint originChainId = block.chainid;
         uint targetChainId = block.chainid;
 
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
         IERC20PaymentClientBase_v1.PaymentOrder memory orders =
-        IERC20PaymentClientBase_v1.PaymentOrder({
-            recipient: recipient,
-            amount: amount,
-            paymentToken: paymentToken,
-            originChainId: originChainId,
-            targetChainId: targetChainId,
-            flags: flags_,
-            data: data_
-        });
+            _createTestPaymentOrder(recipient, amount, 1);
 
         // Setup initial state
         _token.mint(address(paymentClient), amount);

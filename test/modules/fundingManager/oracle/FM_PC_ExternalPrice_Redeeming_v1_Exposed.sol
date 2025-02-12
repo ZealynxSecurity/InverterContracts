@@ -94,4 +94,29 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Exposed is
             projectSellFeeAmount_
         );
     }
+
+    function exposed_sellOrder(
+        address receiver_,
+        uint sellAmount_,
+        uint minAmountOut_
+    )
+        public
+        returns (
+            uint totalCollateralTokenMovedOut,
+            uint projectCollateralFeeAmount
+        )
+    {
+        return _sellOrder(receiver_, sellAmount_, minAmountOut_);
+    }
+
+    function exposed_ensureTokenBalance(address token_) public {
+        _ensureTokenBalance(token_);
+    }
+
+    function exposed_handleCollateralTokensAfterSell(
+        address recipient_,
+        uint amount_
+    ) public {
+        _handleCollateralTokensAfterSell(recipient_, amount_);
+    }
 }

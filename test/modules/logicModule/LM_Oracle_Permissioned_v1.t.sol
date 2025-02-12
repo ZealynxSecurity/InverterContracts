@@ -15,22 +15,22 @@ import {Clones} from "@oz/proxy/Clones.sol";
 
 // Tests and Mocks
 import {Test} from "forge-std/Test.sol";
-import {LM_ManualExternalPriceSetter_v1_Exposed} from
-    "test/modules/logicModule/LM_ManualExternalPriceSetter_v1_Exposed.sol";
+import {LM_Oracle_Permissioned_v1_Exposed} from
+    "test/modules/logicModule/LM_Oracle_Permissioned_v1_Exposed.sol";
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 
 // System under testing
 import {
-    LM_ManualExternalPriceSetter_v1,
-    ILM_ManualExternalPriceSetter_v1
-} from "@lm/LM_ManualExternalPriceSetter_v1.sol";
+    LM_Oracle_Permissioned_v1,
+    ILM_Oracle_Permissioned_v1
+} from "@lm/LM_Oracle_Permissioned_v1.sol";
 
 /**
- * @title   LM_ManualExternalPriceSetter_v1_Test
- * @dev     Test contract for LM_ManualExternalPriceSetter_v1
+ * @title   LM_Oracle_Permissioned_v1_Test
+ * @dev     Test contract for LM_Oracle_Permissioned_v1
  * @author  Zealynx Security
  */
-contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
+contract LM_Oracle_Permissioned_v1_Test is ModuleTest {
     // ================================================================================
     // Constants
     uint8 constant TOKEN_DECIMALS = 6;
@@ -39,7 +39,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
 
     // ================================================================================
     // State
-    LM_ManualExternalPriceSetter_v1_Exposed manualExternalPriceSetter;
+    LM_Oracle_Permissioned_v1_Exposed manualExternalPriceSetter;
     ERC20Decimals_Mock collateralToken;
 
     // ================================================================================
@@ -50,9 +50,9 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
             new ERC20Decimals_Mock(TOKEN_NAME, TOKEN_SYMBOL, TOKEN_DECIMALS);
 
         // Setup manual external price setter
-        address impl = address(new LM_ManualExternalPriceSetter_v1_Exposed());
+        address impl = address(new LM_Oracle_Permissioned_v1_Exposed());
         manualExternalPriceSetter =
-            LM_ManualExternalPriceSetter_v1_Exposed(Clones.clone(impl));
+            LM_Oracle_Permissioned_v1_Exposed(Clones.clone(impl));
         _setUpOrchestrator(manualExternalPriceSetter);
 
         // Init module
@@ -90,7 +90,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
     function testSupportsInterface_GivenValidInterface() public {
         assertTrue(
             manualExternalPriceSetter.supportsInterface(
-                type(ILM_ManualExternalPriceSetter_v1).interfaceId
+                type(ILM_Oracle_Permissioned_v1).interfaceId
             )
         );
     }
@@ -358,7 +358,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         // Test
         vm.expectRevert(
             abi.encodeWithSelector(
-                ILM_ManualExternalPriceSetter_v1
+                ILM_Oracle_Permissioned_v1
                     .Module__LM_ExternalPriceSetter__InvalidPrice
                     .selector
             )
@@ -398,7 +398,7 @@ contract LM_ManualExternalPriceSetter_v1_Test is ModuleTest {
         // Test
         vm.expectRevert(
             abi.encodeWithSelector(
-                ILM_ManualExternalPriceSetter_v1
+                ILM_Oracle_Permissioned_v1
                     .Module__LM_ExternalPriceSetter__InvalidPrice
                     .selector
             )

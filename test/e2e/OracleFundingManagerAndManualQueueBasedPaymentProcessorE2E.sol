@@ -21,14 +21,14 @@ import {
     IPP_Queue_ManualExecution_v1
 } from "@pp/PP_Queue_ManualExecution_v1.sol";
 import {
-    FM_PC_ExternalPrice_Redeeming_v1,
-    IFM_PC_ExternalPrice_Redeeming_v1
-} from "src/modules/fundingManager/oracle/FM_PC_ExternalPrice_Redeeming_v1.sol";
+    FM_PC_Oracle_Redeeming_v1,
+    IFM_PC_Oracle_Redeeming_v1
+} from "src/modules/fundingManager/oracle/FM_PC_Oracle_Redeeming_v1.sol";
 
 import {
-    LM_ManualExternalPriceSetter_v1,
-    ILM_ManualExternalPriceSetter_v1
-} from "src/modules/logicModule/LM_ManualExternalPriceSetter_v1.sol";
+    LM_Oracle_Permissioned_v1,
+    ILM_Oracle_Permissioned_v1
+} from "src/modules/logicModule/LM_Oracle_Permissioned_v1.sol";
 
 import {ERC20Issuance_Blacklist_v1} from
     "@ex/token/ERC20Issuance_Blacklist_v1.sol";
@@ -114,10 +114,10 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
     // Contracts
     ERC20Decimals_Mock collateralToken;
     ERC20Issuance_Blacklist_v1 issuanceToken;
-    FM_PC_ExternalPrice_Redeeming_v1 fundingManager;
+    FM_PC_Oracle_Redeeming_v1 fundingManager;
     PP_Queue_ManualExecution_v1 paymentProcessor;
     AUT_Roles_v1 authorizer;
-    LM_ManualExternalPriceSetter_v1 permissionedOracle;
+    LM_Oracle_Permissioned_v1 permissionedOracle;
     IOrchestrator_v1 orchestrator;
 
     // Define struct to hold all event parameters
@@ -132,7 +132,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         uint feeAmount_;
         uint finalRedemptionAmount_;
         address collateralToken_;
-        IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState state_;
+        IFM_PC_Oracle_Redeeming_v1.RedemptionState state_;
     }
 
     function setUp() public override {
@@ -214,9 +214,8 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
             _create_E2E_Orchestrator(workflowConfig, moduleConfigurations);
 
         // Get funding manager
-        fundingManager = FM_PC_ExternalPrice_Redeeming_v1(
-            address(orchestrator.fundingManager())
-        );
+        fundingManager =
+            FM_PC_Oracle_Redeeming_v1(address(orchestrator.fundingManager()));
 
         // Get payment processor
         paymentProcessor = PP_Queue_ManualExecution_v1(
@@ -228,11 +227,10 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         for (uint i; i < modulesList.length; ++i) {
             if (
                 ERC165Upgradeable(modulesList[i]).supportsInterface(
-                    type(ILM_ManualExternalPriceSetter_v1).interfaceId
+                    type(ILM_Oracle_Permissioned_v1).interfaceId
                 )
             ) {
-                permissionedOracle =
-                    LM_ManualExternalPriceSetter_v1(modulesList[i]);
+                permissionedOracle = LM_Oracle_Permissioned_v1(modulesList[i]);
                 break;
             }
         }
@@ -580,7 +578,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
                     uint feeAmount,
                     uint finalRedemptionAmount,
                     address collateralToken_,
-                    IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState state
+                    IFM_PC_Oracle_Redeeming_v1.RedemptionState state
                 ) = abi.decode(
                     entry.data,
                     (
@@ -591,7 +589,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
                         uint,
                         uint,
                         address,
-                        IFM_PC_ExternalPrice_Redeeming_v1.RedemptionState
+                        IFM_PC_Oracle_Redeeming_v1.RedemptionState
                     )
                 );
 

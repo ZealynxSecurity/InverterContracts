@@ -111,7 +111,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     ) private _unclaimableAmountsForRecipient;
 
     /// @notice Treasury address which receives the collateral of canceled orders.
-    address private _canceledOrdersTreasury;
+    address private _cancelledOrdersTreasury;
 
     /// @notice Treasury address which receives the collateral of failed orders.
     address private _failedOrdersTreasury;
@@ -136,7 +136,16 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     // -------------------------------------------------------------------------
     // Initialize
 
-    /// @inheritdoc Module_v1
+    /// @notice The module's initializer function.
+    /// @dev	CAN be overridden by downstream contract.
+    /// @dev	MUST call `__Module_init()`.
+    /// @param orchestrator_ The orchestrator contract.
+    /// @param metadata_ The metadata of the module.
+    /// @param configData_ The config data of the module, comprised of:
+    ///     - address: cancelledOrdersTreasury: The treasury address which
+    ///       receives collateral from cancelled orders.
+    ///     - address: failedOrdersTreasury: The treasury address which
+    ///       receives collateral from failed orders.
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
@@ -144,10 +153,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     ) external override(Module_v1) initializer {
         __Module_init(orchestrator_, metadata_);
         // Decode config data.
-        (address canceledOrdersTreasury_, address failedOrdersTreasury_) =
+        (address cancelledOrdersTreasury_, address failedOrdersTreasury_) =
             abi.decode(configData_, (address, address));
 
-        _setCanceledOrdersTreasury(canceledOrdersTreasury_);
+        _setCanceledOrdersTreasury(cancelledOrdersTreasury_);
         _setFailedOrdersTreasury(failedOrdersTreasury_);
     }
 
@@ -161,7 +170,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         virtual
         returns (address treasury_)
     {
-        treasury_ = _canceledOrdersTreasury;
+        treasury_ = _cancelledOrdersTreasury;
     }
 
     /// @inheritdoc IPP_Queue_v1
@@ -416,7 +425,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         success_ = _tryPaymentTransfer(
             order.order_.paymentToken,
             order.client_,
-            _canceledOrdersTreasury,
+            _cancelledOrdersTreasury,
             order.order_.amount
         );
     }
@@ -928,7 +937,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         if (treasury_ == address(0) || treasury_ == address(this)) {
             revert Module__PP_Queue_InvalidTreasuryAddress(treasury_);
         }
-        _canceledOrdersTreasury = treasury_;
+        _cancelledOrdersTreasury = treasury_;
     }
 
     function _setFailedOrdersTreasury(address treasury_) internal virtual {

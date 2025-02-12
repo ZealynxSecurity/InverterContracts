@@ -25,7 +25,7 @@ import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
  *
  * @author  Zealynx Security
  */
-interface ILM_ManualExternalPriceSetter_v1 is IOraclePrice_v1 {
+interface ILM_Oracle_Permissioned_v1 is IOraclePrice_v1 {
     // -------------------------------------------------------------------------
 
     // Errors

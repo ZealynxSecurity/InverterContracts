@@ -2,8 +2,8 @@
 pragma solidity 0.8.23;
 
 // Internal
-import {ILM_ManualExternalPriceSetter_v1} from
-    "@lm/interfaces/ILM_ManualExternalPriceSetter_v1.sol";
+import {ILM_Oracle_Permissioned_v1} from
+    "@lm/interfaces/ILM_Oracle_Permissioned_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
@@ -48,10 +48,7 @@ import {ERC165Upgradeable} from
  *
  * @author  Zealynx Security
  */
-contract LM_ManualExternalPriceSetter_v1 is
-    ILM_ManualExternalPriceSetter_v1,
-    Module_v1
-{
+contract LM_Oracle_Permissioned_v1 is ILM_Oracle_Permissioned_v1, Module_v1 {
     /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId)
         public
@@ -59,7 +56,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         override
         returns (bool)
     {
-        return interfaceId == type(ILM_ManualExternalPriceSetter_v1).interfaceId
+        return interfaceId == type(ILM_Oracle_Permissioned_v1).interfaceId
             || interfaceId == type(IOraclePrice_v1).interfaceId
             || super.supportsInterface(interfaceId);
     }
@@ -93,7 +90,13 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // Initialization
 
-    /// @inheritdoc Module_v1
+    /// @notice The module's initializer function.
+    /// @dev	CAN be overridden by downstream contract.
+    /// @dev	MUST call `__Module_init()`.
+    /// @param orchestrator_ The orchestrator contract.
+    /// @param metadata_ The metadata of the module.
+    /// @param configData_ The config data of the module, comprised of:
+    ///     - address: collateralToken: The collateral token address.
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
@@ -111,7 +114,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function setIssuancePrice(uint price_)
         external
         virtual
@@ -120,7 +123,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         _setIssuancePrice(price_);
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function setRedemptionPrice(uint price_)
         external
         virtual
@@ -129,7 +132,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         _setRedemptionPrice(price_);
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function setIssuanceAndRedemptionPrice(
         uint issuancePrice_,
         uint redemptionPrice_
@@ -138,7 +141,7 @@ contract LM_ManualExternalPriceSetter_v1 is
         _setRedemptionPrice(redemptionPrice_);
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function getCollateralTokenDecimals()
         external
         view
@@ -158,12 +161,12 @@ contract LM_ManualExternalPriceSetter_v1 is
         return _redemptionPrice;
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function getPriceSetterRole() external pure virtual returns (bytes32) {
         return PRICE_SETTER_ROLE;
     }
 
-    /// @inheritdoc ILM_ManualExternalPriceSetter_v1
+    /// @inheritdoc ILM_Oracle_Permissioned_v1
     function getPriceSetterRoleAdmin()
         external
         pure

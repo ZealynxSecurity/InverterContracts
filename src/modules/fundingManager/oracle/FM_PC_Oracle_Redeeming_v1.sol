@@ -2,8 +2,8 @@
 pragma solidity 0.8.23;
 
 // Internal
-import {IFM_PC_ExternalPrice_Redeeming_v1} from
-    "@fm/oracle/interfaces/IFM_PC_ExternalPrice_Redeeming_v1.sol";
+import {IFM_PC_Oracle_Redeeming_v1} from
+    "@fm/oracle/interfaces/IFM_PC_Oracle_Redeeming_v1.sol";
 import {IERC20Issuance_Blacklist_v1} from
     "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
@@ -36,69 +36,132 @@ import {ERC165Upgradeable} from
 /**
  * @title   External Price Oracle Funding Manager with Payment Client
  *
- * @notice  A funding manager implementation that uses external oracle price
- *          feeds for token operations. It integrates payment client
- *          functionality and supports token redemption through a bonding curve
- *          mechanism.
+ * @notice  A funding manager implementation that manages token issuance and
+ *          redemption based on external oracle price feeds. While token
+ *          issuance is processed immediately, redemption requests are added
+ *          to a queue for delayed processing through an integrated payment
+ *          client system.
  *
- * @dev     This contract inherits from:
- *              - IFM_PC_ExternalPrice_Redeeming_v1.
- *              - ERC20PaymentClientBase_v2.
- *              - RedeemingBondingCurveBase_v1.
+ * @dev     Inherits functionality from:
+ *          - IFM_PC_Oracle_Redeeming_v1: Implementation interface
+ *          - ERC20PaymentClientBase_v2: Payment processing capabilities
+ *          - RedeemingBondingCurveBase_v1: Token issuance and redemption logic
+ *
  *          Key features:
- *              - External price integration.
- *              - Payment client functionality.
- *          The contract uses external price feeds for both issuance and
- *          redemption operations, ensuring market-aligned token pricing.
+ *              - Oracle-driven token pricing
+ *                Uses external price feeds to determine token value for all
+ *                issuance and redemption operations
  *
- * @custom:init The config data for initiatlizing this module should be as
- *              follows:
- *              - Project Treasury: address
- *                  - Treasury address which receives the reserve tokens
- *                    collected during buy operations.
- *              - Issuance Token: address
- *                  - The token contract that will issue tokens during buys and
- *                    redeemed during sells. Must support IERC20Issuance_v1.
- *              - Reserve Token: address
- *                  - The token used as collateral for buys and redemptions
- *                    (e.g. USDC, DAI).
- *              - Buy Fee: uint
- *                  - Fee percentage charged on buy operations, denominated in
- *                    basis points (e.g. 100 = 1%)
- *              - Sell Fee: uint
- *                  - Fee percentage charged on sell operations, denominated in
- *                    basis points (e.g. 100 = 1%).
- *              - Max Sell Fee: uint
- *                  - Maximum allowed sell fee percentage in basis points
- *              - Max Buy Fee: uint
- *                  - Maximum allowed buy fee percentage in basis points.
- *              - Direct Operation Only: bool
- *                  - If true, only direct buy/sell operations are allowed.
- *                    If false, both direct and indirect operations enabled.
+ *              - Token issuance and redemption
+ *                Mints new tokens during purchases and burns tokens during
+ *                sell operations at oracle-determined prices
  *
- * @custom:setup    This module requires the following setup steps:
- *                  1. Configure Token Permissions:
- *                     - Add this module as an allowed minter in the Issuance Token
- *                     - Set the workflows Oracle Module address
+ *              - Whitelisting system for controlled token distribution
+ *                Restricts token purchases and sales to approved addresses
  *
- *                  2. Configure Whitelist Roles:
- *                     - In the workflows Authorizer:
- *                       - Set WHITELIST_ROLE_ADMIN as admin for WHITELIST_ROLE
- *                     - In the Module:
- *                       - Grant WHITELIST_ROLE_ADMIN to trusted addresses
- *                       - Grant WHITELIST_ROLE to approved addresses
+ *              - Queue-based redemption and payment processing
+ *                Creates payment orders in a queue and sends them to the payment
+ *                processor for executing token redemptions.
  *
- *                  3. Configure Queue Executor Roles:
- *                     - In the workflows Authorizer:
- *                       - Set QUEUE_EXECUTOR_ROLE_ADMIN as admin for
- *                         QUEUE_EXECUTOR_ROLE
- *                     - In the Module:
- *                       - Grant QUEUE_EXECUTOR_ROLE_ADMIN to trusted addresses
- *                       - Grant QUEUE_EXECUTOR_ROLE to trusted addresses
+ *              - Fee management on buy/sell operations
+ *                Configurable fee structure for trading operations
  *
- *                  4. Enable Operations:
- *                     - Open buy operations
- *                     - Open sell operations
+ * @custom:setup    This module requires the following MANDATORY setup steps:
+ *
+ *                  1. Grant Minting Permission:
+ *                     - Purpose: The module needs direct minting/burning
+ *                                capability to handle token issuance and
+ *                                redemption operations. Without this permission,
+ *                                the module cannot mint or burn tokens.
+ *                     - How:     The owner of the issuance token contract must
+ *                                call the minter setting function to authorize
+ *                                this module
+ *                     - Example: issuanceToken.setMinter(moduleAddress, true);
+ *
+ *                  2. Configure Oracle:
+ *                     - Purpose: Since the Oracle is a separate module, it
+ *                                cannot be set during initialization. The Oracle
+ *                                provides price feed data needed for token
+ *                                valuations during issuance and redemption.
+ *                     - How:     The OrchestratorAdmin must first get the
+ *                                deployed Oracle module's address, then call the
+ *                                setter function
+ *                     - Example: module.setOracleAddress(oracleAddress);
+ *
+ *                  3. Setup Whitelist:
+ *                     - Purpose: Implements access control for buy/sell
+ *                                functions. Only whitelisted addresses can
+ *                                participate in token buy & sell operations to
+ *                                provide a security layer for controlled token
+ *                                distribution and compliance.
+ *                     - How:     The OrchestratorAdmin (or WHITELIST_ROLE_ADMIN
+ *                                if configured) must:
+ *                                1. Retrieve the whitelist role identifier
+ *                                2. Grant the role to desired addresses
+ *                     - Example: module.grantModuleRole(
+ *                                module.getWhitelistRole(),
+ *                                userAddress
+ *                                );
+ *
+ *                  4. Setup Queue Executors:
+ *                     - Purpose: Implements access control for authorized
+ *                                addresses that can process the redemption queue.
+ *                     - How:     The OrchestratorAdmin (or
+ *                                QUEUE_EXECUTOR_ROLE_ADMIN if configured) must:
+ *                                1. Retrieve the executor role identifier
+ *                                2. Grant the role to designated executors
+ *                     - Example: module.grantModuleRole(
+ *                                 module.getQueueExecutorRole(),
+ *                                 executorAddress
+ *                                );
+ *
+ *                  5. Enable Trading:
+ *                     - Purpose: Activates the buy/sell functionality of the
+ *                                contract. Trading must be explicitly enabled.
+ *                     - How:     The OrchestratorAdmin must enable both buying
+ *                                and selling operations separately
+ *                     - Example: module.openBuy();
+ *                                module.openSell();
+ *
+ *                  OPTIONAL setup steps for enhanced administration:
+ *
+ *                  1. Custom Whitelist Admin:
+ *                     - Purpose: Enables delegation of whitelist management to a
+ *                                dedicated admin role instead of relying on the
+ *                                OrchestratorAdmin. This allows for more granular
+ *                                access control and operational flexibility.
+ *                     - How:     The OrchestratorAdmin must:
+ *                                1. Generate the role IDs for both roles
+ *                                2. Transfer admin rights through the Authorizer
+ *                     - Example: authorizer.transferAdminRole(
+ *                                authorizer.generateRoleId(
+ *                                  moduleAddress,
+ *                                   module.getWhitelistRole()
+ *                                ),
+ *                                authorizer.generateRoleId(
+ *                                   moduleAddress,
+ *                                   module.getWhitelistRoleAdmin()
+ *                                 )
+ *                                );
+ *
+ *                  2. Custom Queue Executor Admin:
+ *                     - Purpose: Allows delegation of queue executor management
+ *                                to a dedicated admin role instead of the
+ *                                OrchestratorAdmin. This allows for more granular
+ *                                access control and operational flexibility.
+ *                     - How:     The OrchestratorAdmin must:
+ *                                1. Generate the role IDs for both roles
+ *                                2. Transfer admin rights through the Authorizer
+ *                     - Example: authorizer.transferAdminRole(
+ *                                authorizer.generateRoleId(
+ *                                   moduleAddress,
+ *                                   module.getQueueExecutorRole()
+ *                                ),
+ *                                authorizer.generateRoleId(
+ *                                   moduleAddress,
+ *                                   module.getQueueExecutorRoleAdmin()
+ *                                 )
+ *                                );
  *
  * @custom:security-contact security@inverter.network
  *                          In case of any concerns or findings, please refer to
@@ -111,8 +174,8 @@ import {ERC165Upgradeable} from
  *
  * @author  Zealynx Security
  */
-contract FM_PC_ExternalPrice_Redeeming_v1 is
-    IFM_PC_ExternalPrice_Redeeming_v1,
+contract FM_PC_Oracle_Redeeming_v1 is
+    IFM_PC_Oracle_Redeeming_v1,
     ERC20PaymentClientBase_v2,
     RedeemingBondingCurveBase_v1
 {
@@ -123,8 +186,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         override(ERC20PaymentClientBase_v2, RedeemingBondingCurveBase_v1)
         returns (bool isSupported_)
     {
-        return interfaceId_
-            == type(IFM_PC_ExternalPrice_Redeeming_v1).interfaceId
+        return interfaceId_ == type(IFM_PC_Oracle_Redeeming_v1).interfaceId
             || interfaceId_ == type(IFundingManager_v1).interfaceId
             || super.supportsInterface(interfaceId_);
     }
@@ -223,7 +285,21 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // Initialization Function
 
-    /// @inheritdoc Module_v1
+    /// @notice The module's initializer function.
+    /// @dev	CAN be overridden by downstream contract.
+    /// @dev	MUST call `__Module_init()`.
+    /// @param orchestrator_ The orchestrator contract.
+    /// @param metadata_ The metadata of the module.
+    /// @param configData_ The config data of the module, comprised of:
+    ///     - address: projectTreasury: The project treasury address.
+    ///     - address: issuanceToken: The issuance token address.
+    ///     - address: acceptedToken: The accepted token address.
+    ///     - uint: buyFee: The project buy fee.
+    ///     - uint: sellFee: The project sell fee.
+    ///     - uint: maxSellFee: The maximum project sell fee.
+    ///     - uint: maxProjectBuyFee: The maximum project buy fee.
+    ///     - bool: isDirectOperationsOnly: Whether only direct operations
+    ///       are allowed.
     function init(
         IOrchestrator_v1 orchestrator_,
         Metadata memory metadata_,
@@ -279,12 +355,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // View Functions
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getWhitelistRole() public pure virtual returns (bytes32 role_) {
         return WHITELIST_ROLE;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getWhitelistRoleAdmin()
         public
         pure
@@ -294,7 +370,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return WHITELIST_ROLE_ADMIN;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getQueueExecutorRole()
         public
         pure
@@ -304,7 +380,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return QUEUE_EXECUTOR_ROLE;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getQueueExecutorRoleAdmin()
         public
         pure
@@ -341,7 +417,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _oracle.getPriceForRedemption();
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getOpenRedemptionAmount()
         external
         view
@@ -351,12 +427,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _openRedemptionAmount;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getOrderId() external view virtual returns (uint orderId_) {
         return _orderId;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getProjectTreasury()
         external
         view
@@ -366,7 +442,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _projectTreasury;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getIsDirectOperationsOnly()
         public
         view
@@ -376,7 +452,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _isDirectOperationsOnly;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getOracle() external view virtual returns (address oracle_) {
         return address(_oracle);
     }
@@ -384,7 +460,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // -------------------------------------------------------------------------
     // External Functions
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function depositReserve(uint amount_) external virtual {
         if (amount_ == 0) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
@@ -472,7 +548,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setSellFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getSellFee() public view virtual returns (uint fee_) {
         return sellFee;
     }
@@ -487,7 +563,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setBuyFee(fee_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function setProjectTreasury(address projectTreasury_)
         external
         virtual
@@ -496,7 +572,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setProjectTreasury(projectTreasury_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function setOracleAddress(address oracle_)
         external
         virtual
@@ -505,12 +581,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setOracleAddress(oracle_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getBuyFee() public view virtual returns (uint buyFee_) {
         return buyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getMaxProjectBuyFee()
         public
         view
@@ -520,7 +596,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _maxProjectBuyFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function getMaxProjectSellFee()
         public
         view
@@ -530,7 +606,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         return _maxProjectSellFee;
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         public
         virtual
@@ -539,7 +615,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
     }
 
-    /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
+    /// @inheritdoc IFM_PC_Oracle_Redeeming_v1
     function executeRedemptionQueue()
         external
         virtual

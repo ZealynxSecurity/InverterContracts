@@ -17,7 +17,7 @@ import {IRedeemingBondingCurveBase_v1} from
  *          mechanism.
  *
  * @dev     This contract inherits from:
- *              - IFM_PC_ExternalPrice_Redeeming_v1.
+ *              - IFM_PC_Oracle_Redeeming_v1.
  *              - ERC20PaymentClientBase_v2.
  *              - RedeemingBondingCurveBase_v1.
  *          Key features:
@@ -37,7 +37,7 @@ import {IRedeemingBondingCurveBase_v1} from
  *
  * @author  Zealynx Security
  */
-interface IFM_PC_ExternalPrice_Redeeming_v1 is
+interface IFM_PC_Oracle_Redeeming_v1 is
     IFundingManager_v1,
     IERC20PaymentClientBase_v2,
     IRedeemingBondingCurveBase_v1

@@ -413,7 +413,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         _removeFromQueue(orderId_, address(client_));
 
         // Try to transfer the amount to the treasury.
-        bool success = _tryPaymentTransfer(
+        success_ = _tryPaymentTransfer(
             order.order_.paymentToken,
             order.client_,
             _canceledOrdersTreasury,

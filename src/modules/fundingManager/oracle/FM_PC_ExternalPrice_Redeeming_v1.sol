@@ -531,12 +531,12 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  receiver_ The address that will receive the redeemed tokens.
     /// @param  depositAmount_ The amount of tokens to be sold.
     /// @param  collateralRedeemAmount_ The amount of collateral to redeem.
-    /// @param  projectSellFeeAmount_ The amount of redemption fee to charge.
+    /// @param  projectCollateralFeeAmount_ The amount of redemption fee to charge.
     function _createAndEmitOrder(
         address receiver_,
         uint depositAmount_,
         uint collateralRedeemAmount_,
-        uint projectSellFeeAmount_
+        uint projectCollateralFeeAmount_
     ) internal {
         // Generate new order ID.
         _orderId = ++_orderId;
@@ -581,7 +581,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
             depositAmount_,
             _oracle.getPriceForRedemption(),
             sellFee,
-            projectSellFeeAmount_,
+            projectCollateralFeeAmount_,
             collateralRedeemAmount_,
             address(token()),
             RedemptionState.PENDING
@@ -604,74 +604,89 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     )
         internal
         override(RedeemingBondingCurveBase_v1)
-        returns (uint totalCollateralTokenMovedOut, uint issuanceFeeAmount)
+        returns (
+            uint totalCollateralTokenMovedOut_,
+            uint projectCollateralFeeAmount_
+        )
     {
         _ensureNonZeroTradeParameters(_depositAmount, _minAmountOut);
         // Get protocol fee percentages and treasury addresses.
         (
-            address collateralTreasury,
-            address issuanceTreasury,
-            uint collateralSellFeePercentage,
-            uint issuanceSellFeePercentage
+            address protocolCollateralTreasury,
+            address protocolIssuanceTreasury,
+            uint protocolCollateralSellFeePercentage,
+            uint protocolIssuanceSellFeePercentage
         ) = _getFunctionFeesAndTreasuryAddresses(
             bytes4(keccak256(bytes("_sellOrder(address,uint,uint)")))
         );
 
-        uint protocolFeeAmount;
-        uint projectFeeAmount;
+        uint protocolIssuanceFeeAmount;
+        uint protocolCollateralFeeAmount;
         uint netDeposit;
 
         // Get net amount, protocol and project fee amounts. Currently there is
         // no issuance project fee enabled.
-        (netDeposit, protocolFeeAmount, /* projectFee */ ) =
-        _calculateNetAndSplitFees(_depositAmount, issuanceSellFeePercentage, 0);
-
-        issuanceFeeAmount = protocolFeeAmount;
+        (netDeposit, protocolIssuanceFeeAmount, /* projectFee */ ) =
+        _calculateNetAndSplitFees(
+            _depositAmount, protocolIssuanceSellFeePercentage, 0
+        );
 
         // Calculate redeem amount based on upstream formula.
-        uint collateralRedeemAmount = _redeemTokensFormulaWrapper(netDeposit);
-
-        totalCollateralTokenMovedOut = collateralRedeemAmount;
+        totalCollateralTokenMovedOut_ = _redeemTokensFormulaWrapper(netDeposit);
 
         // Burn issued token from user.
         _burn(_msgSender(), _depositAmount);
 
         // Process the protocol fee. We can re-mint some of the burned tokens,
         // since we aren't paying out the backing collateral.
-        _processProtocolFeeViaMinting(issuanceTreasury, protocolFeeAmount);
+        _processProtocolFeeViaMinting(
+            protocolIssuanceTreasury, protocolIssuanceFeeAmount
+        );
 
         // Cache Collateral Token.
         IERC20 collateralToken = __Module_orchestrator.fundingManager().token();
 
+        uint netCollateralRedeemAmount;
         // Get net amount, protocol and project fee amounts.
-        (collateralRedeemAmount, protocolFeeAmount, projectFeeAmount) =
-        _calculateNetAndSplitFees(
-            collateralRedeemAmount, collateralSellFeePercentage, sellFee
+        (
+            netCollateralRedeemAmount,
+            protocolCollateralFeeAmount,
+            projectCollateralFeeAmount_
+        ) = _calculateNetAndSplitFees(
+            totalCollateralTokenMovedOut_,
+            protocolCollateralSellFeePercentage,
+            sellFee
         );
+
         // Process the protocol fee.
         _processProtocolFeeViaTransfer(
-            collateralTreasury, collateralToken, protocolFeeAmount
+            protocolCollateralTreasury,
+            collateralToken,
+            protocolCollateralFeeAmount
         );
 
         // Add project fee if applicable.
-        if (projectFeeAmount > 0) {
-            _projectFeeCollected(projectFeeAmount);
+        if (projectCollateralFeeAmount_ > 0) {
+            _projectFeeCollected(projectCollateralFeeAmount_);
         }
 
         // Revert when the redeem amount is lower than minimum amount the user
         // expects.
-        if (collateralRedeemAmount < _minAmountOut) {
+        if (netCollateralRedeemAmount < _minAmountOut) {
             revert Module__BondingCurveBase__InsufficientOutputAmount();
         }
 
         // Create and emit the order.
         _createAndEmitOrder(
-            _receiver, _depositAmount, collateralRedeemAmount, projectFeeAmount
+            _receiver,
+            _depositAmount,
+            netCollateralRedeemAmount,
+            projectCollateralFeeAmount_
         );
 
         // Emit event for tokens sold.
         emit TokensSold(
-            _receiver, _depositAmount, collateralRedeemAmount, _msgSender()
+            _receiver, _depositAmount, netCollateralRedeemAmount, _msgSender()
         );
     }
 
@@ -689,6 +704,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the maximum fee that can be charged for buy operations.
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectBuyFee(uint fee_) internal {
+        if (fee_ >= BPS) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, BPS
+            );
+        }
         _maxProjectBuyFee = fee_;
         emit MaxProjectBuyFeeSet(_maxProjectBuyFee);
     }
@@ -696,6 +716,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @notice Sets the maximum fee that can be charged for sell operations.
     /// @param  fee_ The maximum fee percentage to set.
     function _setMaxProjectSellFee(uint fee_) internal {
+        if (fee_ >= BPS) {
+            revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
+                fee_, BPS
+            );
+        }
         _maxProjectSellFee = fee_;
         emit MaxProjectSellFeeSet(_maxProjectSellFee);
     }

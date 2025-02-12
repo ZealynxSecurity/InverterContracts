@@ -7,8 +7,8 @@ import {IFM_PC_ExternalPrice_Redeeming_v1} from
 import {IERC20Issuance_Blacklist_v1} from
     "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
-import {ERC20PaymentClientBase_v1} from
-    "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
+import {ERC20PaymentClientBase_v2} from
+    "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
@@ -22,8 +22,8 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
 // External
@@ -43,7 +43,7 @@ import {ERC165Upgradeable} from
  *
  * @dev     This contract inherits from:
  *              - IFM_PC_ExternalPrice_Redeeming_v1.
- *              - ERC20PaymentClientBase_v1.
+ *              - ERC20PaymentClientBase_v2.
  *              - RedeemingBondingCurveBase_v1.
  *          Key features:
  *              - External price integration.
@@ -113,14 +113,14 @@ import {ERC165Upgradeable} from
  */
 contract FM_PC_ExternalPrice_Redeeming_v1 is
     IFM_PC_ExternalPrice_Redeeming_v1,
-    ERC20PaymentClientBase_v1,
+    ERC20PaymentClientBase_v2,
     RedeemingBondingCurveBase_v1
 {
     /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId_)
         public
         view
-        override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
+        override(ERC20PaymentClientBase_v2, RedeemingBondingCurveBase_v1)
         returns (bool isSupported_)
     {
         return interfaceId_
@@ -154,6 +154,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ///         QUEUE_EXECUTOR_ROLE within the Authorizer module.
     bytes32 private constant QUEUE_EXECUTOR_ROLE_ADMIN =
         "QUEUE_EXECUTOR_ROLE_ADMIN";
+
+    /// @notice Flag used for the payment order.
+    uint private constant FLAG_ORDER_ID = 0;
 
     // -------------------------------------------------------------------------
     // State Variables
@@ -268,39 +271,52 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
 
         // Set the flags for the PaymentOrders
-        // The Module will use 1 flag
-        uint8[] memory flags = new uint8[](1);
-        // The module only uses the OrderId, which is flag_ID 0 (see IERC20PaymentClientBase_v1)
-        flags[0] = 0;
+        bytes32 flags;
+        flags |= bytes32(1 << FLAG_ORDER_ID);
 
-        __ERC20PaymentClientBase_v1_init(flags);
+        __ERC20PaymentClientBase_v2_init(flags);
     }
 
     // -------------------------------------------------------------------------
     // View Functions
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getWhitelistRole() public pure returns (bytes32 role_) {
+    function getWhitelistRole() public pure virtual returns (bytes32 role_) {
         return WHITELIST_ROLE;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getWhitelistRoleAdmin() public pure returns (bytes32 role_) {
+    function getWhitelistRoleAdmin()
+        public
+        pure
+        virtual
+        returns (bytes32 role_)
+    {
         return WHITELIST_ROLE_ADMIN;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getQueueExecutorRole() public pure returns (bytes32 role_) {
+    function getQueueExecutorRole()
+        public
+        pure
+        virtual
+        returns (bytes32 role_)
+    {
         return QUEUE_EXECUTOR_ROLE;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getQueueExecutorRoleAdmin() public pure returns (bytes32 role_) {
+    function getQueueExecutorRoleAdmin()
+        public
+        pure
+        virtual
+        returns (bytes32 role_)
+    {
         return QUEUE_EXECUTOR_ROLE_ADMIN;
     }
 
     /// @inheritdoc IFundingManager_v1
-    function token() public view override returns (IERC20 token_) {
+    function token() public view virtual override returns (IERC20 token_) {
         return _token;
     }
 
@@ -308,6 +324,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function getStaticPriceForBuying()
         public
         view
+        virtual
         override(BondingCurveBase_v1)
         returns (uint buyPrice_)
     {
@@ -318,6 +335,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function getStaticPriceForSelling()
         public
         view
+        virtual
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         returns (uint sellPrice_)
     {
@@ -325,17 +343,27 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getOpenRedemptionAmount() external view returns (uint amount_) {
+    function getOpenRedemptionAmount()
+        external
+        view
+        virtual
+        returns (uint amount_)
+    {
         return _openRedemptionAmount;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getOrderId() external view returns (uint orderId_) {
+    function getOrderId() external view virtual returns (uint orderId_) {
         return _orderId;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getProjectTreasury() external view returns (address treasury_) {
+    function getProjectTreasury()
+        external
+        view
+        virtual
+        returns (address treasury_)
+    {
         return _projectTreasury;
     }
 
@@ -343,13 +371,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function getIsDirectOperationsOnly()
         public
         view
+        virtual
         returns (bool isDirectOnly_)
     {
         return _isDirectOperationsOnly;
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getOracle() external view returns (address oracle_) {
+    function getOracle() external view virtual returns (address oracle_) {
         return address(_oracle);
     }
 
@@ -357,7 +386,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     // External Functions
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function depositReserve(uint amount_) external {
+    function depositReserve(uint amount_) external virtual {
         if (amount_ == 0) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidAmount();
         }
@@ -374,6 +403,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc BondingCurveBase_v1
     function buy(uint collateralAmount_, uint minAmountOut_)
         public
+        virtual
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
     {
@@ -383,6 +413,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc BondingCurveBase_v1
     function buyFor(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
+        virtual
         override(BondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
         thirdPartyOperationsEnabled
@@ -393,6 +424,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc RedeemingBondingCurveBase_v1
     function sell(uint depositAmount_, uint minAmountOut_)
         public
+        virtual
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
     {
@@ -402,6 +434,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc RedeemingBondingCurveBase_v1
     function sellTo(address receiver_, uint depositAmount_, uint minAmountOut_)
         public
+        virtual
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyModuleRole(WHITELIST_ROLE)
         thirdPartyOperationsEnabled
@@ -409,10 +442,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         super.sellTo(receiver_, depositAmount_, minAmountOut_);
     }
 
-    /// @inheritdoc IERC20PaymentClientBase_v1
+    /// @inheritdoc IERC20PaymentClientBase_v2
     function amountPaid(address token_, uint amount_)
         public
-        override(ERC20PaymentClientBase_v1, IERC20PaymentClientBase_v1)
+        virtual
+        override(ERC20PaymentClientBase_v2, IERC20PaymentClientBase_v2)
     {
         _deductFromOpenRedemptionAmount(amount_);
         super.amountPaid(token_, amount_);
@@ -421,6 +455,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFundingManager_v1
     function transferOrchestratorToken(address to_, uint amount_)
         external
+        virtual
         onlyPaymentClient
     {
         token().safeTransfer(to_, amount_);
@@ -431,6 +466,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IRedeemingBondingCurveBase_v1
     function setSellFee(uint fee_)
         public
+        virtual
         override(RedeemingBondingCurveBase_v1, IRedeemingBondingCurveBase_v1)
         onlyOrchestratorAdmin
     {
@@ -438,13 +474,14 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getSellFee() public view returns (uint fee_) {
+    function getSellFee() public view virtual returns (uint fee_) {
         return sellFee;
     }
 
     /// @inheritdoc IBondingCurveBase_v1
     function setBuyFee(uint fee_)
         external
+        virtual
         override(BondingCurveBase_v1)
         onlyOrchestratorAdmin
     {
@@ -454,18 +491,23 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function setProjectTreasury(address projectTreasury_)
         external
+        virtual
         onlyOrchestratorAdmin
     {
         _setProjectTreasury(projectTreasury_);
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function setOracleAddress(address oracle_) external onlyOrchestratorAdmin {
+    function setOracleAddress(address oracle_)
+        external
+        virtual
+        onlyOrchestratorAdmin
+    {
         _setOracleAddress(oracle_);
     }
 
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
-    function getBuyFee() public view returns (uint buyFee_) {
+    function getBuyFee() public view virtual returns (uint buyFee_) {
         return buyFee;
     }
 
@@ -473,6 +515,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function getMaxProjectBuyFee()
         public
         view
+        virtual
         returns (uint maxProjectBuyFee_)
     {
         return _maxProjectBuyFee;
@@ -482,6 +525,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function getMaxProjectSellFee()
         public
         view
+        virtual
         returns (uint maxProjectSellFee_)
     {
         return _maxProjectSellFee;
@@ -490,6 +534,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         public
+        virtual
         onlyOrchestratorAdmin
     {
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
@@ -498,6 +543,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @inheritdoc IFM_PC_ExternalPrice_Redeeming_v1
     function executeRedemptionQueue()
         external
+        virtual
         onlyModuleRole(QUEUE_EXECUTOR_ROLE)
     {
         (bool success,) = address(__Module_orchestrator.paymentProcessor()).call(
@@ -517,6 +563,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  isDirectOperationsOnly_ The new value of the flag.
     function _setIsDirectOperationsOnly(bool isDirectOperationsOnly_)
         internal
+        virtual
     {
         emit DirectOperationsOnlyUpdated(
             _isDirectOperationsOnly, isDirectOperationsOnly_
@@ -537,7 +584,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint depositAmount_,
         uint collateralRedeemAmount_,
         uint projectCollateralFeeAmount_
-    ) internal {
+    ) internal virtual {
         // Generate new order ID.
         _orderId = ++_orderId;
 
@@ -569,7 +616,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Process payments through the payment processor.
         __Module_orchestrator.paymentProcessor().processPayments(
-            IERC20PaymentClientBase_v1(address(this))
+            IERC20PaymentClientBase_v2(address(this))
         );
 
         // Emit event with order details.
@@ -603,6 +650,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         uint _minAmountOut
     )
         internal
+        virtual
         override(RedeemingBondingCurveBase_v1)
         returns (
             uint totalCollateralTokenMovedOut_,
@@ -696,6 +744,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  _projectFeeAmount The amount of fee collected.
     function _projectFeeCollected(uint _projectFeeAmount)
         internal
+        virtual
         override(BondingCurveBase_v1)
     {
         emit ProjectCollateralFeeAdded(_projectFeeAmount);
@@ -703,7 +752,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Sets the maximum fee that can be charged for buy operations.
     /// @param  fee_ The maximum fee percentage to set.
-    function _setMaxProjectBuyFee(uint fee_) internal {
+    function _setMaxProjectBuyFee(uint fee_) internal virtual {
         if (fee_ >= BPS) {
             revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
                 fee_, BPS
@@ -715,7 +764,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @notice Sets the maximum fee that can be charged for sell operations.
     /// @param  fee_ The maximum fee percentage to set.
-    function _setMaxProjectSellFee(uint fee_) internal {
+    function _setMaxProjectSellFee(uint fee_) internal virtual {
         if (fee_ >= BPS) {
             revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
                 fee_, BPS
@@ -731,6 +780,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  fee_ The fee percentage to set.
     function _setSellFee(uint fee_)
         internal
+        virtual
         override(RedeemingBondingCurveBase_v1)
     {
         // Check that fee doesn't exceed maximum allowed
@@ -747,7 +797,11 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    Overrides the internal function from BondingCurveBase_v1.
     ///         Revert if buy fee exceeds max project buy fee.
     /// @param  fee_ The fee percentage to set.
-    function _setBuyFee(uint fee_) internal override(BondingCurveBase_v1) {
+    function _setBuyFee(uint fee_)
+        internal
+        virtual
+        override(BondingCurveBase_v1)
+    {
         // Check that fee doesn't exceed maximum allowed.
         if (fee_ > _maxProjectBuyFee) {
             revert Module__FM_PC_ExternalPrice_Redeeming_FeeExceedsMaximum(
@@ -762,6 +816,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function _issueTokensFormulaWrapper(uint depositAmount_)
         internal
         view
+        virtual
         override(BondingCurveBase_v1)
         returns (uint mintAmount_)
     {
@@ -780,6 +835,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     function _redeemTokensFormulaWrapper(uint depositAmount_)
         internal
         view
+        virtual
         override(RedeemingBondingCurveBase_v1)
         returns (uint redeemAmount_)
     {
@@ -803,6 +859,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  issuanceToken_ The token which will be issued by the Bonding Curve.
     function _setIssuanceToken(address issuanceToken_)
         internal
+        virtual
         override(BondingCurveBase_v1)
     {
         uint8 decimals_ = IERC20Metadata(issuanceToken_).decimals();
@@ -816,7 +873,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    May revert with
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidOracleInterface.
     /// @param  oracleAddress_ The address of the oracle.
-    function _setOracleAddress(address oracleAddress_) internal {
+    function _setOracleAddress(address oracleAddress_) internal virtual {
         if (
             !ERC165Upgradeable(oracleAddress_).supportsInterface(
                 type(IOraclePrice_v1).interfaceId
@@ -833,7 +890,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @dev    May revert with
     ///         Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury.
     /// @param  projectTreasury_ The address of the project treasury.
-    function _setProjectTreasury(address projectTreasury_) internal {
+    function _setProjectTreasury(address projectTreasury_) internal virtual {
         if (projectTreasury_ == address(0)) {
             revert Module__FM_PC_ExternalPrice_Redeeming_InvalidProjectTreasury(
             );
@@ -848,6 +905,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     ///         were processed.
     function _deductFromOpenRedemptionAmount(uint processedRedemptionAmount_)
         internal
+        virtual
     {
         _openRedemptionAmount -= processedRedemptionAmount_;
         emit RedemptionAmountUpdated(_openRedemptionAmount);
@@ -858,6 +916,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
     /// @param  addedOpenRedemptionAmount_ The amount of redeemed tokens to add.
     function _addToOpenRedemptionAmount(uint addedOpenRedemptionAmount_)
         internal
+        virtual
     {
         _openRedemptionAmount += addedOpenRedemptionAmount_;
         emit RedemptionAmountUpdated(_openRedemptionAmount);
@@ -894,7 +953,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // This function is not used in this implementation.
     }
 
-    /// @inheritdoc ERC20PaymentClientBase_v1
+    /// @inheritdoc ERC20PaymentClientBase_v2
     /// @dev	We do not need to ensure the token balance because all the
     ///         collateral is taken out.
     function _ensureTokenBalance(address token_) internal virtual override {

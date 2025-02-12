@@ -100,7 +100,12 @@ contract ERC20Issuance_Blacklist_v1 is
     // View Functions
 
     /// @inheritdoc	IERC20Issuance_Blacklist_v1
-    function isBlacklisted(address account_) public view returns (bool) {
+    function isBlacklisted(address account_)
+        public
+        view
+        virtual
+        returns (bool)
+    {
         return _blacklist[account_];
     }
 
@@ -108,6 +113,7 @@ contract ERC20Issuance_Blacklist_v1 is
     function isBlacklistManager(address account_)
         external
         view
+        virtual
         returns (bool)
     {
         return _isBlacklistManager(account_);
@@ -117,7 +123,11 @@ contract ERC20Issuance_Blacklist_v1 is
     // External Functions
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklist(address account_) public onlyBlacklistManager {
+    function addToBlacklist(address account_)
+        public
+        virtual
+        onlyBlacklistManager
+    {
         if (account_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
         }
@@ -130,6 +140,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @inheritdoc IERC20Issuance_Blacklist_v1
     function removeFromBlacklist(address account_)
         public
+        virtual
         onlyBlacklistManager
     {
         if (isBlacklisted(account_)) {
@@ -139,7 +150,10 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function addToBlacklistBatched(address[] memory accounts_) external {
+    function addToBlacklistBatched(address[] memory accounts_)
+        external
+        virtual
+    {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(
@@ -152,7 +166,10 @@ contract ERC20Issuance_Blacklist_v1 is
     }
 
     /// @inheritdoc IERC20Issuance_Blacklist_v1
-    function removeFromBlacklistBatched(address[] memory accounts_) external {
+    function removeFromBlacklistBatched(address[] memory accounts_)
+        external
+        virtual
+    {
         uint totalAccounts = accounts_.length;
         if (totalAccounts > BATCH_LIMIT) {
             revert ERC20Issuance_Blacklist_BatchLimitExceeded(
@@ -167,6 +184,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @inheritdoc IERC20Issuance_Blacklist_v1
     function setBlacklistManager(address manager_, bool allowed_)
         external
+        virtual
         onlyOwner
     {
         _setBlacklistManager(manager_, allowed_);
@@ -183,6 +201,7 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @inheritdoc ERC20Capped
     function _update(address from_, address to_, uint amount_)
         internal
+        virtual
         override(ERC20Capped)
     {
         if (isBlacklisted(from_)) {
@@ -197,7 +216,10 @@ contract ERC20Issuance_Blacklist_v1 is
     /// @notice Internal function to set a blacklist manager.
     /// @param  manager_ Address to set as blacklist manager.
     /// @param  allowed_ Whether to grant or revoke the blacklist manager role.
-    function _setBlacklistManager(address manager_, bool allowed_) internal {
+    function _setBlacklistManager(address manager_, bool allowed_)
+        internal
+        virtual
+    {
         if (manager_ == address(0)) {
             revert ERC20Issuance_Blacklist_ZeroAddress();
         }
@@ -211,6 +233,7 @@ contract ERC20Issuance_Blacklist_v1 is
     function _isBlacklistManager(address manager_)
         internal
         view
+        virtual
         returns (bool)
     {
         return _blacklistManager[manager_];

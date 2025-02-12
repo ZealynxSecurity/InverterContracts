@@ -114,6 +114,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setIssuancePrice(uint price_)
         external
+        virtual
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
         _setIssuancePrice(price_);
@@ -122,6 +123,7 @@ contract LM_ManualExternalPriceSetter_v1 is
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
     function setRedemptionPrice(uint price_)
         external
+        virtual
         onlyModuleRole(PRICE_SETTER_ROLE)
     {
         _setRedemptionPrice(price_);
@@ -131,33 +133,43 @@ contract LM_ManualExternalPriceSetter_v1 is
     function setIssuanceAndRedemptionPrice(
         uint issuancePrice_,
         uint redemptionPrice_
-    ) external onlyModuleRole(PRICE_SETTER_ROLE) {
+    ) external virtual onlyModuleRole(PRICE_SETTER_ROLE) {
         _setIssuancePrice(issuancePrice_);
         _setRedemptionPrice(redemptionPrice_);
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    function getCollateralTokenDecimals() external view returns (uint8) {
+    function getCollateralTokenDecimals()
+        external
+        view
+        virtual
+        returns (uint8)
+    {
         return _collateralTokenDecimals;
     }
 
     /// @inheritdoc IOraclePrice_v1
-    function getPriceForIssuance() external view returns (uint) {
+    function getPriceForIssuance() external view virtual returns (uint) {
         return _issuancePrice;
     }
 
     /// @inheritdoc IOraclePrice_v1
-    function getPriceForRedemption() external view returns (uint) {
+    function getPriceForRedemption() external view virtual returns (uint) {
         return _redemptionPrice;
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    function getPriceSetterRole() external pure returns (bytes32) {
+    function getPriceSetterRole() external pure virtual returns (bytes32) {
         return PRICE_SETTER_ROLE;
     }
 
     /// @inheritdoc ILM_ManualExternalPriceSetter_v1
-    function getPriceSetterRoleAdmin() external pure returns (bytes32) {
+    function getPriceSetterRoleAdmin()
+        external
+        pure
+        virtual
+        returns (bytes32)
+    {
         return PRICE_SETTER_ROLE_ADMIN;
     }
 
@@ -166,7 +178,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Internal function to set the issuance price
     /// @param price_ The price to set
-    function _setIssuancePrice(uint price_) internal {
+    function _setIssuancePrice(uint price_) internal virtual {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _issuancePrice = price_;
         emit IssuancePriceSet(price_, _msgSender());
@@ -174,7 +186,7 @@ contract LM_ManualExternalPriceSetter_v1 is
 
     /// @notice Internal function to set the redemption price
     /// @param price_ The price to set
-    function _setRedemptionPrice(uint price_) internal {
+    function _setRedemptionPrice(uint price_) internal virtual {
         if (price_ == 0) revert Module__LM_ExternalPriceSetter__InvalidPrice();
         _redemptionPrice = price_;
         emit RedemptionPriceSet(price_, _msgSender());

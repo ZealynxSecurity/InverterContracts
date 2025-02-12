@@ -11,8 +11,8 @@ import {SafeERC20} from "@oz/token/ERC20/utils/SafeERC20.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {ERC165Upgradeable, Module_v1} from "src/modules/base/Module_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
@@ -158,6 +158,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function getCanceledOrdersTreasury()
         external
         view
+        virtual
         returns (address treasury_)
     {
         treasury_ = _canceledOrdersTreasury;
@@ -167,15 +168,17 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function getFailedOrdersTreasury()
         external
         view
+        virtual
         returns (address treasury_)
     {
         treasury_ = _failedOrdersTreasury;
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
+    function getOrder(uint orderId_, IERC20PaymentClientBase_v2 client_)
         external
         view
+        virtual
         returns (QueuedOrder memory order_)
     {
         if (!_orderExists(orderId_, client_)) {
@@ -188,6 +191,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function getOrderQueue(address client_)
         external
         view
+        virtual
         returns (uint[] memory queue_)
     {
         // If queue is empty, return empty array.
@@ -210,7 +214,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueHead(address client_) external view returns (uint head_) {
+    function getQueueHead(address client_)
+        external
+        view
+        virtual
+        returns (uint head_)
+    {
         // Check if queue is initialized by checking if sentinel position exists
         if (_queue[client_].list[LinkedIdList._SENTINEL] == 0) {
             revert Module__PP_Queue_QueueOperationFailed(client_);
@@ -219,7 +228,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueTail(address client_) external view returns (uint tail_) {
+    function getQueueTail(address client_)
+        external
+        view
+        virtual
+        returns (uint tail_)
+    {
         tail_ = _queue[client_].lastId();
     }
 
@@ -227,13 +241,19 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function getQueueSizeForClient(address client_)
         external
         view
+        virtual
         returns (uint size_)
     {
         size_ = _queue[client_].length();
     }
 
     /// @inheritdoc IPP_Queue_v1
-    function getQueueOperatorRole() external pure returns (bytes32 role_) {
+    function getQueueOperatorRole()
+        external
+        pure
+        virtual
+        returns (bytes32 role_)
+    {
         return QUEUE_OPERATOR_ROLE;
     }
 
@@ -241,6 +261,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function getQueueOperatorRoleAdmin()
         external
         pure
+        virtual
         returns (bytes32 role_)
     {
         return QUEUE_OPERATOR_ROLE_ADMIN;
@@ -252,6 +273,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @inheritdoc IPP_Queue_v1
     function setCanceledOrdersTreasury(address treasury_)
         external
+        virtual
         onlyOrchestratorAdmin
     {
         _setCanceledOrdersTreasury(treasury_);
@@ -266,14 +288,14 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPaymentProcessor_v1
-    function processPayments(IERC20PaymentClientBase_v1 client_)
+    function processPayments(IERC20PaymentClientBase_v2 client_)
         external
         virtual
         clientIsValid(address(client_))
         onlyModule
     {
         // Collect outstanding orders and their total token amount.
-        IERC20PaymentClientBase_v1.PaymentOrder[] memory orders;
+        IERC20PaymentClientBase_v2.PaymentOrder[] memory orders;
 
         (orders,,) = client_.collectPaymentOrders();
 
@@ -287,9 +309,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     }
 
     /// @inheritdoc IPaymentProcessor_v1
-    function cancelRunningPayments(IERC20PaymentClientBase_v1 client_)
+    function cancelRunningPayments(IERC20PaymentClientBase_v2 client_)
         external
         view
+        virtual
         clientIsValid(address(client_))
     {
         return;
@@ -300,7 +323,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address token_,
         address paymentReceiver_
-    ) public view returns (uint amount_) {
+    ) public view virtual returns (uint amount_) {
         amount_ =
             _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
     }
@@ -310,7 +333,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address token_,
         address receiver_
-    ) external {
+    ) external virtual {
         if (unclaimable(client_, token_, receiver_) == 0) {
             revert Module__PaymentProcessor__NothingToClaim(client_, receiver_);
         }
@@ -320,8 +343,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @inheritdoc IPaymentProcessor_v1
     function validPaymentOrder(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_
-    ) external view returns (bool isValid_) {
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_
+    ) external view virtual returns (bool isValid_) {
         return _validPaymentOrder(order_);
     }
 
@@ -330,7 +353,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address token_,
         address receiver_
-    ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) {
+    ) external virtual onlyModuleRole(QUEUE_OPERATOR_ROLE) {
         if (unclaimable(client_, token_, receiver_) == 0) {
             revert Module__PaymentProcessor__NothingToClaim(client_, receiver_);
         }
@@ -355,8 +378,13 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @inheritdoc IPP_Queue_v1
     function cancelPaymentOrderThroughQueueId(
         uint orderId_,
-        IERC20PaymentClientBase_v1 client_
-    ) external onlyModuleRole(QUEUE_OPERATOR_ROLE) returns (bool success_) {
+        IERC20PaymentClientBase_v2 client_
+    )
+        external
+        virtual
+        onlyModuleRole(QUEUE_OPERATOR_ROLE)
+        returns (bool success_)
+    {
         // Validate that the order exists for the given queue ID and client.
         if (!_orderExists(orderId_, client_)) {
             revert Module__PP_Queue_InvalidOrderId(address(client_), orderId_);
@@ -400,6 +428,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     ///	@return	success_ True if a payment was processed.
     function _processNextOrder(address client_)
         internal
+        virtual
         clientIsValid(client_)
         returns (bool success_)
     {
@@ -434,6 +463,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @return	success_ True if the payment was successful.
     function _executePaymentTransfer(uint orderId_, QueuedOrder storage order_)
         internal
+        virtual
         returns (bool success_)
     {
         // Try to transfer payment from client to recipient
@@ -473,7 +503,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address recipient_,
         uint amount_
-    ) internal returns (bool success_) {
+    ) internal virtual returns (bool success_) {
         // Make a low-level call to the token contract to execute transferFrom
         (bool success, bytes memory data) = token_.call(
             abi.encodeWithSelector(
@@ -511,7 +541,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address recipient_,
         uint amount_
-    ) internal returns (bool success_) {
+    ) internal virtual returns (bool success_) {
         // Try direct transfer to recipient
         (bool success) = _lowLevelTransfer(token_, client_, recipient_, amount_);
 
@@ -540,7 +570,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         }
 
         // Update client accounting
-        IERC20PaymentClientBase_v1(client_).amountPaid(token_, amount_);
+        IERC20PaymentClientBase_v2(client_).amountPaid(token_, amount_);
     }
 
     /// @notice	Executes all pending orders in the queue.
@@ -548,6 +578,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  client_ The client address.
     function _executePaymentQueue(address client_)
         internal
+        virtual
         clientIsValid(client_)
     {
         uint firstId = _queue[client_].getNextId(LinkedIdList._SENTINEL);
@@ -570,9 +601,9 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  client_ The client paying for the order.
     /// @return	queueId_ The ID of the added order.
     function _addPaymentOrderToQueue(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_,
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_,
         address client_
-    ) internal returns (uint queueId_) {
+    ) internal virtual returns (uint queueId_) {
         if (!_validPaymentOrder(order_)) {
             revert Module__PP_Queue_QueueOperationFailed(client_);
         }
@@ -613,7 +644,10 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @notice	Removes an order from the queue.
     /// @param	orderId_ ID of the order to remove.
     /// @param	client_ The client address.
-    function _removeFromQueue(uint orderId_, address client_) internal {
+    function _removeFromQueue(uint orderId_, address client_)
+        internal
+        virtual
+    {
         uint prevId = _queue[client_].getPreviousId(orderId_);
         _queue[client_].removeId(prevId, orderId_);
     }
@@ -626,6 +660,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validTokenBalance(address token_, address client_, uint amount_)
         internal
         view
+        virtual
         returns (bool valid_)
     {
         IERC20 token = IERC20(token_);
@@ -643,7 +678,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address client_,
         address token_,
         address paymentReceiver_
-    ) internal {
+    ) internal virtual {
         // Copy value over.
         uint amount =
             _unclaimableAmountsForRecipient[client_][token_][paymentReceiver_];
@@ -665,6 +700,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validQueueId(uint queueId_, address client_)
         internal
         view
+        virtual
         returns (bool isValid_)
     {
         // Queue ID must equal to the current order ID + 1 for the client
@@ -679,6 +715,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _getPaymentQueueId(bytes32 flags_, bytes32[] memory data_)
         internal
         view
+        virtual
         returns (uint queueId_)
     {
         // Check if orderID flag is set (bit 0)
@@ -697,6 +734,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validTotalAmount(uint amount_)
         internal
         pure
+        virtual
         returns (bool valid_)
     {
         return amount_ != 0;
@@ -708,6 +746,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validPaymentReceiver(address receiver_)
         internal
         view
+        virtual
         returns (bool validPaymentReceiver_)
     {
         return !(
@@ -722,7 +761,12 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @dev    The chain ID must match the current chain ID.
     /// @param  chainId_ The chain ID to validate.
     /// @return valid_ True if the chain ID matches the current chain ID.
-    function _validChainId(uint chainId_) internal view returns (bool valid_) {
+    function _validChainId(uint chainId_)
+        internal
+        view
+        virtual
+        returns (bool valid_)
+    {
         return chainId_ == block.chainid;
     }
 
@@ -732,6 +776,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validPaymentToken(address token_)
         internal
         view
+        virtual
         returns (bool valid_)
     {
         if (token_ == address(0)) {
@@ -750,8 +795,8 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  order_ The order to validate.
     /// @return valid_ True if the order is valid.
     function _validPaymentOrder(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_
-    ) internal view returns (bool valid_) {
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_
+    ) internal view virtual returns (bool valid_) {
         // Extract queue ID from order data.
         uint queueId_ = _getPaymentQueueId(order_.flags, order_.data);
 
@@ -774,7 +819,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         uint orderId_,
         RedemptionState currentState_,
         RedemptionState newState_
-    ) internal pure returns (bool valid_) {
+    ) internal pure virtual returns (bool valid_) {
         // Can't transition from completed or cancelled.
         if (
             currentState_ == RedemptionState.PROCESSED
@@ -808,7 +853,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         uint orderId_,
         address client_,
         RedemptionState state_
-    ) internal {
+    ) internal virtual {
         QueuedOrder storage order = _orders[client_][orderId_];
         _validStateTransition(orderId_, order.state_, state_);
         order.state_ = state_;
@@ -823,6 +868,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     function _validateFlagsAndData(bytes32 flags_, bytes32[] memory data_)
         internal
         pure
+        virtual
         returns (bool valid_)
     {
         uint flagsValue = uint(flags_);
@@ -841,7 +887,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
 
     /// @notice Internal function to check whether the client is valid.
     /// @param  client_ Address to validate.
-    function _ensureValidClient(address client_) internal view {
+    function _ensureValidClient(address client_) internal view virtual {
         if (client_ == address(0)) {
             revert Module__PP_Queue_InvalidClientAddress(client_);
         }
@@ -860,7 +906,7 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
         address token_,
         address receiver_,
         uint amount_
-    ) internal {
+    ) internal virtual {
         _unclaimableAmountsForRecipient[client_][token_][receiver_] += amount_;
     }
 
@@ -868,23 +914,24 @@ contract PP_Queue_v1 is IPP_Queue_v1, Module_v1 {
     /// @param  orderId_ ID of the order to check.
     /// @param  client_ Address of the client.
     /// @return exists_ True if the order exists.
-    function _orderExists(uint orderId_, IERC20PaymentClientBase_v1 client_)
+    function _orderExists(uint orderId_, IERC20PaymentClientBase_v2 client_)
         internal
         view
+        virtual
         returns (bool exists_)
     {
         QueuedOrder storage order = _orders[address(client_)][orderId_];
         return order.client_ == address(client_) && order.timestamp_ != 0;
     }
 
-    function _setCanceledOrdersTreasury(address treasury_) internal {
+    function _setCanceledOrdersTreasury(address treasury_) internal virtual {
         if (treasury_ == address(0) || treasury_ == address(this)) {
             revert Module__PP_Queue_InvalidTreasuryAddress(treasury_);
         }
         _canceledOrdersTreasury = treasury_;
     }
 
-    function _setFailedOrdersTreasury(address treasury_) internal {
+    function _setFailedOrdersTreasury(address treasury_) internal virtual {
         if (treasury_ == address(0) || treasury_ == address(this)) {
             revert Module__PP_Queue_InvalidTreasuryAddress(treasury_);
         }

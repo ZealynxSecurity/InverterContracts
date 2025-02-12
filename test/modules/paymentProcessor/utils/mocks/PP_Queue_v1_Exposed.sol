@@ -2,8 +2,8 @@
 pragma solidity 0.8.23;
 
 import {PP_Queue_v1} from "@pp/PP_Queue_v1.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 import {IPP_Queue_v1} from "@pp/interfaces/IPP_Queue_v1.sol";
 import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 
@@ -40,7 +40,7 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
     }
 
     function exposed_addPaymentOrderToQueue(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_,
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_,
         address client_
     ) external returns (uint) {
         return _addPaymentOrderToQueue(order_, client_);
@@ -84,7 +84,7 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
 
     // function exposed_executePaymentTransfer(
     //     uint orderId_,
-    //     IERC20PaymentClientBase_v1 client_
+    //     IERC20PaymentClientBase_v2 client_
     // ) public returns (bool) {
     //     QueuedOrder storage order_ = getOrder(orderId_, client_);
     //     return _executePaymentTransfer(orderId_, order_);
@@ -96,13 +96,13 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
 
     function exposed_orderExists(
         uint orderId_,
-        IERC20PaymentClientBase_v1 client_
+        IERC20PaymentClientBase_v2 client_
     ) external view returns (bool) {
         return _orderExists(orderId_, client_);
     }
 
     function exposed_addUnclaimableOrder(
-        IERC20PaymentClientBase_v1.PaymentOrder memory order_,
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_,
         address client_
     ) external {
         _addToUnclaimableAmount(

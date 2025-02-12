@@ -39,8 +39,8 @@ import {InverterBeacon_v1} from "src/proxies/InverterBeacon_v1.sol";
 
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 
 contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
     E2ETest
@@ -453,7 +453,7 @@ contract OracleFundingManagerAndManualQueueBasedPaymentProcessorE2E is
         // Get order from payment processor
         IPP_Queue_ManualExecution_v1.QueuedOrder memory order =
             paymentProcessor.getOrder(orderId, fundingManager);
-        IERC20PaymentClientBase_v1.PaymentOrder memory paymentOrder =
+        IERC20PaymentClientBase_v2.PaymentOrder memory paymentOrder =
             order.order_;
 
         // verify data from the payment order == data from the event,

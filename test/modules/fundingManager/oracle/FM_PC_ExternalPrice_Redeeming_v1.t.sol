@@ -26,8 +26,8 @@ import {IERC20} from "@oz/token/ERC20/IERC20.sol";
 
 // Tests and Mocks
 import {ModuleTest} from "test/modules/ModuleTest.sol";
-import {ERC20PaymentClientBaseV1Mock} from
-    "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
+import {ERC20PaymentClientBaseV2Mock} from
+    "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV2Mock.sol";
 import {ERC20Decimals_Mock} from "test/utils/mocks/ERC20Decimals_Mock.sol";
 import {OraclePrice_Mock} from
     "test/utils/mocks/modules/logicModules/OraclePrice_Mock.sol";
@@ -71,7 +71,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
     FM_PC_ExternalPrice_Redeeming_v1_Exposed fundingManager;
     ERC20Issuance_v1 issuanceToken;
     OraclePrice_Mock oracle;
-    ERC20PaymentClientBaseV1Mock paymentClient;
+    ERC20PaymentClientBaseV2Mock paymentClient;
     address impl;
 
     // Test addresses
@@ -759,7 +759,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1_Test is ModuleTest {
         );
 
         // Setup - Create and register payment client
-        paymentClient = new ERC20PaymentClientBaseV1Mock();
+        paymentClient = new ERC20PaymentClientBaseV2Mock();
         _addLogicModuleToOrchestrator(address(paymentClient));
 
         // Setup - Mock payment client call

@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 // Internal
 import {IPaymentProcessor_v1} from "@pp/IPaymentProcessor_v1.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 
 /**
  * @title   Queue Based Payment Processor
@@ -55,7 +55,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param	timestamp_ Creation timestamp of the payment order.
     /// @param  client_ Address of the client paying for the order.
     struct QueuedOrder {
-        IERC20PaymentClientBase_v1.PaymentOrder order_;
+        IERC20PaymentClientBase_v2.PaymentOrder order_;
         RedemptionState state_;
         uint orderId_;
         uint timestamp_;
@@ -212,7 +212,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @param  orderId_ The ID of the payment order.
     /// @param  client_ The client associated with the order.
     /// @return	order_ The payment order data.
-    function getOrder(uint orderId_, IERC20PaymentClientBase_v1 client_)
+    function getOrder(uint orderId_, IERC20PaymentClientBase_v2 client_)
         external
         view
         returns (QueuedOrder memory order_);
@@ -267,7 +267,7 @@ interface IPP_Queue_v1 is IPaymentProcessor_v1 {
     /// @return	success_ True if cancellation was successful.
     function cancelPaymentOrderThroughQueueId(
         uint orderId_,
-        IERC20PaymentClientBase_v1 client_
+        IERC20PaymentClientBase_v2 client_
     ) external returns (bool success_);
 
     /// @notice Get the treasury address for canceled orders.

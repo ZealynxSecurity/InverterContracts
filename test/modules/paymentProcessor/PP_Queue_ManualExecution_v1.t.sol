@@ -27,10 +27,10 @@ import {PP_Queue_v1_Exposed} from
 import {PP_Simple_v1AccessMock} from
     "test/utils/mocks/modules/paymentProcessor/PP_Simple_v1AccessMock.sol";
 import {
-    IERC20PaymentClientBase_v1,
-    ERC20PaymentClientBaseV1Mock,
+    IERC20PaymentClientBase_v2,
+    ERC20PaymentClientBaseV2Mock,
     ERC20Mock
-} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV1Mock.sol";
+} from "test/utils/mocks/modules/paymentClient/ERC20PaymentClientBaseV2Mock.sol";
 import {NonStandardTokenMock} from
     "test/utils/mocks/token/NonStandardTokenMock.sol";
 import {OZErrors} from "test/utils/errors/OZErrors.sol";
@@ -63,8 +63,8 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
         );
 
         // Setup payment client
-        impl = address(new ERC20PaymentClientBaseV1Mock());
-        paymentClient = ERC20PaymentClientBaseV1Mock(Clones.clone(impl));
+        impl = address(new ERC20PaymentClientBaseV2Mock());
+        paymentClient = ERC20PaymentClientBaseV2Mock(Clones.clone(impl));
 
         // Register payment client as module in the same orchestrator
         _orchestrator.initiateAddModuleWithTimelock(address(paymentClient));
@@ -97,8 +97,8 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
 
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
-        IERC20PaymentClientBase_v1.PaymentOrder memory orders =
-        IERC20PaymentClientBase_v1.PaymentOrder({
+        IERC20PaymentClientBase_v2.PaymentOrder memory orders =
+        IERC20PaymentClientBase_v2.PaymentOrder({
             recipient: recipient,
             amount: amount,
             paymentToken: paymentToken,
@@ -161,8 +161,8 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
     function testPublicProcessPayments_failsGivenUnregisteredClient() public {
         init();
         // Create another payment client that is not registered
-        ERC20PaymentClientBaseV1Mock otherPaymentClient =
-            new ERC20PaymentClientBaseV1Mock();
+        ERC20PaymentClientBaseV2Mock otherPaymentClient =
+            new ERC20PaymentClientBaseV2Mock();
 
         // Try to call processPayments with unregistered client
         vm.prank(address(paymentClient));
@@ -194,8 +194,8 @@ contract PP_Queue_ManualExecution_v1_Test is PP_Queue_v1_Test {
         (bytes32 flags_, bytes32[] memory data_) =
             helper_encodePaymentOrderData(1);
 
-        IERC20PaymentClientBase_v1.PaymentOrder memory order =
-        IERC20PaymentClientBase_v1.PaymentOrder({
+        IERC20PaymentClientBase_v2.PaymentOrder memory order =
+        IERC20PaymentClientBase_v2.PaymentOrder({
             recipient: recipient,
             amount: amount,
             paymentToken: paymentToken,

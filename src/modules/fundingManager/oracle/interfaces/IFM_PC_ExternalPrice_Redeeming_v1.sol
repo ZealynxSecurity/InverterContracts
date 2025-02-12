@@ -3,8 +3,8 @@ pragma solidity ^0.8.0;
 
 // Internal
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {IERC20PaymentClientBase_v2} from
+    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
 import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 
@@ -18,7 +18,7 @@ import {IRedeemingBondingCurveBase_v1} from
  *
  * @dev     This contract inherits from:
  *              - IFM_PC_ExternalPrice_Redeeming_v1.
- *              - ERC20PaymentClientBase_v1.
+ *              - ERC20PaymentClientBase_v2.
  *              - RedeemingBondingCurveBase_v1.
  *          Key features:
  *              - External price integration.
@@ -39,7 +39,7 @@ import {IRedeemingBondingCurveBase_v1} from
  */
 interface IFM_PC_ExternalPrice_Redeeming_v1 is
     IFundingManager_v1,
-    IERC20PaymentClientBase_v1,
+    IERC20PaymentClientBase_v2,
     IRedeemingBondingCurveBase_v1
 {
     // -------------------------------------------------------------------------

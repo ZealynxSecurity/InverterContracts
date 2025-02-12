@@ -7,8 +7,6 @@ import {IFM_PC_ExternalPrice_Redeeming_v1} from
 import {IERC20Issuance_Blacklist_v1} from
     "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
-import {ERC20PaymentClientBase_v1} from
-    "@lm/abstracts/ERC20PaymentClientBase_v1.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
@@ -22,8 +20,10 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
-import {IERC20PaymentClientBase_v1} from
-    "@lm/interfaces/IERC20PaymentClientBase_v1.sol";
+import {
+    ERC20PaymentClientBase_v2,
+    IERC20PaymentClientBase_v2
+} from "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
 // External
@@ -43,7 +43,7 @@ import {ERC165Upgradeable} from
  *
  * @dev     This contract inherits from:
  *              - IFM_PC_ExternalPrice_Redeeming_v1.
- *              - ERC20PaymentClientBase_v1.
+ *              - ERC20PaymentClientBase_v2.
  *              - RedeemingBondingCurveBase_v1.
  *          Key features:
  *              - External price integration.
@@ -64,14 +64,14 @@ import {ERC165Upgradeable} from
  */
 contract FM_PC_ExternalPrice_Redeeming_v1 is
     IFM_PC_ExternalPrice_Redeeming_v1,
-    ERC20PaymentClientBase_v1,
+    ERC20PaymentClientBase_v2,
     RedeemingBondingCurveBase_v1
 {
     /// @inheritdoc ERC165Upgradeable
     function supportsInterface(bytes4 interfaceId_)
         public
         view
-        override(ERC20PaymentClientBase_v1, RedeemingBondingCurveBase_v1)
+        override(ERC20PaymentClientBase_v2, RedeemingBondingCurveBase_v1)
         returns (bool isSupported_)
     {
         return interfaceId_
@@ -87,6 +87,9 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
     /// @dev    Value is used to convert deposit amount to 18 decimals.
     uint8 private constant EIGHTEEN_DECIMALS = 18;
+
+    /// @notice Flag used for the payment order.
+    uint private constant FLAG_ORDER_ID = 0;
 
     // -------------------------------------------------------------------------
     // Constants
@@ -223,13 +226,10 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Set direct operations only flag.
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
 
-        // Set the flags for the PaymentOrders
-        // The Module will use 1 flag
-        uint8[] memory flags = new uint8[](1);
-        // The module only uses the OrderId, which is flag_ID 0 (see IERC20PaymentClientBase_v1)
-        flags[0] = 0;
+        bytes32 flags;
+        flags |= bytes32(1 << FLAG_ORDER_ID);
 
-        __ERC20PaymentClientBase_v1_init(flags);
+        __ERC20PaymentClientBase_v2_init(flags);
     }
 
     // -------------------------------------------------------------------------
@@ -501,7 +501,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
 
         // Process payments through the payment processor.
         __Module_orchestrator.paymentProcessor().processPayments(
-            IERC20PaymentClientBase_v1(address(this))
+            IERC20PaymentClientBase_v2(address(this))
         );
 
         // Emit event with all order details.
@@ -778,7 +778,7 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // This function is not used in this implementation.
     }
 
-    /// @inheritdoc ERC20PaymentClientBase_v1
+    /// @inheritdoc ERC20PaymentClientBase_v2
     /// @dev	We do not need to ensure the token balance because all the
     ///         collateral is taken out.
     function _ensureTokenBalance(address token_) internal virtual override {

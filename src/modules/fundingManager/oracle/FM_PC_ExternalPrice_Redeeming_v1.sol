@@ -7,8 +7,6 @@ import {IFM_PC_ExternalPrice_Redeeming_v1} from
 import {IERC20Issuance_Blacklist_v1} from
     "@ex/token/interfaces/IERC20Issuance_Blacklist_v1.sol";
 import {IOraclePrice_v1} from "@lm/interfaces/IOraclePrice_v1.sol";
-import {ERC20PaymentClientBase_v2} from
-    "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 import {IOrchestrator_v1} from
     "src/orchestrator/interfaces/IOrchestrator_v1.sol";
 import {IFundingManager_v1} from "@fm/IFundingManager_v1.sol";
@@ -22,8 +20,10 @@ import {IRedeemingBondingCurveBase_v1} from
     "@fm/bondingCurve/interfaces/IRedeemingBondingCurveBase_v1.sol";
 import {Module_v1} from "src/modules/base/Module_v1.sol";
 import {FM_BC_Tools} from "@fm/bondingCurve/FM_BC_Tools.sol";
-import {IERC20PaymentClientBase_v2} from
-    "@lm/interfaces/IERC20PaymentClientBase_v2.sol";
+import {
+    ERC20PaymentClientBase_v2,
+    IERC20PaymentClientBase_v2
+} from "@lm/abstracts/ERC20PaymentClientBase_v2.sol";
 import {IERC20Issuance_v1} from "@ex/token/ERC20Issuance_v1.sol";
 
 // External
@@ -270,7 +270,6 @@ contract FM_PC_ExternalPrice_Redeeming_v1 is
         // Set direct operations only flag.
         _setIsDirectOperationsOnly(isDirectOperationsOnly_);
 
-        // Set the flags for the PaymentOrders
         bytes32 flags;
         flags |= bytes32(1 << FLAG_ORDER_ID);
 

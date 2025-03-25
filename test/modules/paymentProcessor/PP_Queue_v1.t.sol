@@ -2807,25 +2807,6 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
     }
 
-    function helper_encodePaymentOrderData(uint orderId_)
-        internal
-        pure
-        returns (bytes32 flags_, bytes32[] memory data_)
-    {
-        bytes32 _flags;
-        _flags = 0;
-
-        uint8[] memory flags = new uint8[](1); // The Module will use 1 flag
-        flags[0] = 0;
-
-        _flags |= bytes32((1 << flags[0]));
-
-        bytes32[] memory paymentParameters = new bytes32[](1);
-        paymentParameters[0] = bytes32(orderId_);
-
-        return (_flags, paymentParameters);
-    }
-
     // ================================================================================
     // Helper Functions
 
@@ -2873,5 +2854,54 @@ contract PP_Queue_v1_Test is ModuleTest {
             queuedOrder.order_.paymentToken, address(_token), "Wrong token"
         );
         assertEq(uint(queuedOrder.state_), uint(expectedState), "Wrong state");
+    }
+
+    function helper_encodePaymentOrderData(uint orderId_)
+        internal
+        pure
+        returns (bytes32 flags_, bytes32[] memory data_)
+    {
+        bytes32 _flags;
+        _flags = 0;
+
+        uint8[] memory flags = new uint8[](1); // The Module will use 1 flag
+        flags[0] = 0;
+
+        _flags |= bytes32((1 << flags[0]));
+
+        bytes32[] memory paymentParameters = new bytes32[](1);
+        paymentParameters[0] = bytes32(orderId_);
+
+        return (_flags, paymentParameters);
+    }
+
+    /* Test testValidChainId_GivenValidAndInvalidIds()
+        └── Given chain IDs
+            └── When validating chain IDs
+                ├── Then current chain ID should return true
+                ├── Then different chain ID should return false
+                └── Then zero chain ID should return false
+    */
+    function testValidChainId_GivenValidAndInvalidIds(uint chainId_) public {
+        // Bound the chainId to a reasonable range to avoid overflow
+        chainId_ = bound(chainId_, 0, type(uint128).max);
+
+        // Test current chain ID
+        assertTrue(
+            queue.exposed_validChainId(block.chainid),
+            "Current chain ID should be valid"
+        );
+
+        // Test different chain ID
+        vm.assume(chainId_ != block.chainid);
+        assertFalse(
+            queue.exposed_validChainId(chainId_),
+            "Different chain ID should be invalid"
+        );
+
+        // Test zero chain ID
+        assertFalse(
+            queue.exposed_validChainId(0), "Zero chain ID should be invalid"
+        );
     }
 }

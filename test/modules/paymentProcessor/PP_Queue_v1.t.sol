@@ -2807,6 +2807,173 @@ contract PP_Queue_v1_Test is ModuleTest {
         );
     }
 
+    /* Test testValidChainId_GivenValidAndInvalidIds()
+        └── Given chain IDs
+            └── When validating chain IDs
+                ├── Then current chain ID should return true
+                ├── Then different chain ID should return false
+                └── Then zero chain ID should return false
+    */
+    function testValidChainId_GivenValidAndInvalidIds(uint chainId_) public {
+        // Bound the chainId to a reasonable range to avoid overflow
+        chainId_ = bound(chainId_, 0, type(uint128).max);
+
+        // Test current chain ID
+        assertTrue(
+            queue.exposed_validChainId(block.chainid),
+            "Current chain ID should be valid"
+        );
+
+        // Test different chain ID
+        vm.assume(chainId_ != block.chainid);
+        assertFalse(
+            queue.exposed_validChainId(chainId_),
+            "Different chain ID should be invalid"
+        );
+
+        // Test zero chain ID
+        assertFalse(
+            queue.exposed_validChainId(0), "Zero chain ID should be invalid"
+        );
+    }
+
+    /* Test testLowLevelTransfer_GivenValidInputs()
+        └── Given valid transfer inputs
+            └── When performing low level transfer
+                ├── Then successful transfer should work
+                ├── Then insufficient balance should fail
+                ├── Then non-contract token should fail
+                └── Then zero address token should fail
+    */
+    function testLowLevelTransfer_GivenValidInputs() public {
+        // Setup
+        address client = makeAddr("client");
+        address recipient = makeAddr("recipient");
+        uint amount = 100;
+
+        // Setup token balances and allowances
+        _token.mint(client, amount);
+        vm.prank(client);
+        _token.approve(address(queue), amount);
+
+        // Test successful transfer
+        bool success = queue.exposed_lowLevelTransfer(
+            address(_token), client, recipient, amount
+        );
+        assertTrue(success, "Transfer should succeed");
+        assertEq(
+            _token.balanceOf(recipient),
+            amount,
+            "Recipient should receive amount"
+        );
+        assertEq(_token.balanceOf(client), 0, "Client balance should be zero");
+
+        // Test failed transfer (insufficient balance)
+        success = queue.exposed_lowLevelTransfer(
+            address(_token), client, recipient, amount
+        );
+        assertFalse(success, "Transfer should fail with insufficient balance");
+
+        // Test with non-contract token
+        success = queue.exposed_lowLevelTransfer(
+            address(0x789), client, recipient, amount
+        );
+        assertFalse(success, "Transfer should fail with non-contract token");
+
+        // Test with zero address
+        success = queue.exposed_lowLevelTransfer(
+            address(0), client, recipient, amount
+        );
+        assertFalse(success, "Transfer should fail with zero address token");
+    }
+
+    /* Test testLowLevelTransfer_GivenInvalidToken()
+        └── Given invalid token contracts
+            └── When performing low level transfer
+                ├── Then non-ERC20 contract should fail
+                └── Then invalid transfer contract should fail
+    */
+    function testLowLevelTransfer_GivenInvalidToken() public {
+        // Setup
+        address client = makeAddr("client");
+        address recipient = makeAddr("recipient");
+        uint amount = 100;
+
+        // Test with non-ERC20 contract
+        address nonERC20Contract = address(new NonERC20Contract());
+        bool success = queue.exposed_lowLevelTransfer(
+            nonERC20Contract, client, recipient, amount
+        );
+        assertFalse(success, "Transfer should fail with non-ERC20 contract");
+
+        // Test with contract that doesn't implement transferFrom
+        address invalidContract = address(new InvalidTransferContract());
+        success = queue.exposed_lowLevelTransfer(
+            invalidContract, client, recipient, amount
+        );
+        assertFalse(
+            success, "Transfer should fail with invalid transfer contract"
+        );
+    }
+
+    // ================================================================================
+    // Test Ensure Valid Client
+
+    /* Test testEnsureValidClient_GivenValidClient()
+        └── Given a valid client address that is:
+            ├── Not address(0)
+            ├── Not queue address
+            └── Not orchestrator address
+                └── When caller is the client
+                    └── Then it should succeed
+    */
+    function testEnsureValidClient_GivenValidClient(address client_) public {
+        vm.assume(client_ != address(0));
+        vm.assume(client_ != address(queue));
+        vm.assume(client_ != address(_orchestrator));
+        vm.assume(client_ != address(this));
+
+        vm.prank(client_);
+        queue.exposed_ensureValidClient(client_);
+    }
+
+    /* Test testEnsureValidClient_RevertGivenInvalidClient()
+        └── Given an invalid client address
+            └── When checking client validity
+                ├── Then it should revert with Module__PP_Queue_InvalidClientAddress for zero address
+                └── Then it should revert with Module__PP_Queue_InvalidClientAddress for queue address
+    */
+    function testEnsureValidClient_RevertGivenInvalidClient() public {
+        vm.expectRevert();
+        queue.exposed_ensureValidClient(address(0));
+
+        vm.expectRevert();
+
+        queue.exposed_ensureValidClient(address(queue));
+    }
+
+    /* Test testEnsureValidClient_RevertGivenNonClientCaller()
+        └── Given a valid client address
+            └── When caller is not the client
+                └── Then it should revert with Module__PP_Queue_OnlyCallableByClient
+    */
+    function testEnsureValidClient_RevertGivenNonClientCaller(
+        address client_,
+        address caller_
+    ) public {
+        vm.assume(client_ != address(0));
+        vm.assume(client_ != address(queue));
+        vm.assume(client_ != address(_orchestrator));
+        vm.assume(client_ != caller_);
+        vm.assume(caller_ != address(0));
+
+        vm.prank(caller_);
+        vm.expectRevert(
+            abi.encodeWithSignature("Module__PP_Queue_OnlyCallableByClient()")
+        );
+        queue.exposed_ensureValidClient(client_);
+    }
+
     // ================================================================================
     // Helper Functions
 
@@ -2874,34 +3041,20 @@ contract PP_Queue_v1_Test is ModuleTest {
 
         return (_flags, paymentParameters);
     }
+}
 
-    /* Test testValidChainId_GivenValidAndInvalidIds()
-        └── Given chain IDs
-            └── When validating chain IDs
-                ├── Then current chain ID should return true
-                ├── Then different chain ID should return false
-                └── Then zero chain ID should return false
-    */
-    function testValidChainId_GivenValidAndInvalidIds(uint chainId_) public {
-        // Bound the chainId to a reasonable range to avoid overflow
-        chainId_ = bound(chainId_, 0, type(uint128).max);
+// Mock contracts for testing
+contract NonERC20Contract {
+// This contract doesn't implement any ERC20 functions
+}
 
-        // Test current chain ID
-        assertTrue(
-            queue.exposed_validChainId(block.chainid),
-            "Current chain ID should be valid"
-        );
-
-        // Test different chain ID
-        vm.assume(chainId_ != block.chainid);
-        assertFalse(
-            queue.exposed_validChainId(chainId_),
-            "Different chain ID should be invalid"
-        );
-
-        // Test zero chain ID
-        assertFalse(
-            queue.exposed_validChainId(0), "Zero chain ID should be invalid"
-        );
+contract InvalidTransferContract {
+    // This contract implements transferFrom but returns false
+    function transferFrom(address, address, uint)
+        external
+        pure
+        returns (bool)
+    {
+        return false;
     }
 }

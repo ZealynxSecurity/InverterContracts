@@ -135,4 +135,40 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
     ) external pure returns (bool) {
         return _validStateTransition(orderId_, currentState_, newState_);
     }
+
+    function exposed_lowLevelTransfer(
+        address token_,
+        address client_,
+        address recipient_,
+        uint amount_
+    ) external returns (bool) {
+        return _lowLevelTransfer(token_, client_, recipient_, amount_);
+    }
+
+    // function exposed_executePaymentTransfer(
+    //     uint orderId_,
+    //     QueuedOrder storage order_
+    // ) external returns (bool) {
+    //     return _executePaymentTransfer(orderId_, order_);
+    // }
+
+    function exposed_ensureValidClient(address client_) external view {
+        _ensureValidClient(client_);
+    }
+
+    function exposed_setCanceledOrdersTreasury(address treasury_) external {
+        _setCanceledOrdersTreasury(treasury_);
+    }
+
+    function exposed_setFailedOrdersTreasury(address treasury_) external {
+        _setFailedOrdersTreasury(treasury_);
+    }
+
+    function exposed_claimPreviouslyUnclaimable(
+        address client_,
+        address token_,
+        address paymentReceiver_
+    ) external {
+        _claimPreviouslyUnclaimable(client_, token_, paymentReceiver_);
+    }
 }

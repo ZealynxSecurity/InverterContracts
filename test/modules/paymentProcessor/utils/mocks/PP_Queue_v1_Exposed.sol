@@ -10,7 +10,6 @@ import {LinkedIdList} from "src/modules/lib/LinkedIdList.sol";
 contract PP_Queue_v1_Exposed is PP_Queue_v1 {
     using LinkedIdList for LinkedIdList.List;
 
-    // Override _msgSender para simplificar testing
     function _msgSender() internal view virtual override returns (address) {
         return msg.sender;
     }
@@ -58,7 +57,6 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
         return _getPaymentQueueId(flags_, data_);
     }
 
-    // Función para exponer _validQueueId
     function exposed_validQueueId(uint queueId, address client_)
         external
         view
@@ -125,5 +123,65 @@ contract PP_Queue_v1_Exposed is PP_Queue_v1 {
         _addToUnclaimableAmount(
             client_, order_.paymentToken, order_.recipient, order_.amount
         );
+    }
+
+    function exposed_validChainId(uint chainId_) external view returns (bool) {
+        return _validChainId(chainId_);
+    }
+
+    function exposed_validPaymentToken(address token_)
+        external
+        view
+        returns (bool)
+    {
+        return _validPaymentToken(token_);
+    }
+
+    function exposed_validateFlagsAndData(
+        bytes32 flags_,
+        bytes32[] memory data_
+    ) external pure returns (bool) {
+        return _validateFlagsAndData(flags_, data_);
+    }
+
+    function exposed_validStateTransition(
+        uint orderId_,
+        RedemptionState currentState_,
+        RedemptionState newState_
+    ) external pure returns (bool) {
+        return _validStateTransition(orderId_, currentState_, newState_);
+    }
+
+    function exposed_ensureValidClient(address client_) external view {
+        _ensureValidClient(client_);
+    }
+
+    function exposed_setCanceledOrdersTreasury(address treasury_) external {
+        _setCanceledOrdersTreasury(treasury_);
+    }
+
+    function exposed_setFailedOrdersTreasury(address treasury_) external {
+        _setFailedOrdersTreasury(treasury_);
+    }
+
+    function exposed_claimPreviouslyUnclaimable(
+        address client_,
+        address token_,
+        address paymentReceiver_
+    ) external {
+        _claimPreviouslyUnclaimable(client_, token_, paymentReceiver_);
+    }
+
+    function exposed_validPaymentOrder(
+        IERC20PaymentClientBase_v2.PaymentOrder memory order_
+    ) external view returns (bool) {
+        return _validPaymentOrder(order_);
+    }
+
+    function exposed_executePaymentTransfer(
+        uint orderId_,
+        QueuedOrder memory order_
+    ) external {
+        _executePaymentTransfer(orderId_, order_);
     }
 }
